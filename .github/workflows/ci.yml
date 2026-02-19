@@ -62,9 +62,10 @@ jobs:
           cache: gradle
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
+          build-mode: manual
 
       - name: Grant execute permission for Gradle wrapper
         run: chmod +x gradlew
@@ -73,4 +74,4 @@ jobs:
         run: ./gradlew --no-daemon clean classes -x test
 
       - name: Run CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
