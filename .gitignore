@@ -35,3 +35,9 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Runtime data ###
+data/
+*.mv.db
+*.trace.db
+*.lock.db
