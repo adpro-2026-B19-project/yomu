@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yomu Auth Integration Demo</title>
+    <style>
+        body { font-family: "Segoe UI", sans-serif; margin: 2rem; background: #f7f8fa; color: #1a1c1f; }
+        .card { background: #fff; border: 1px solid #dce1e7; border-radius: 10px; padding: 1.25rem; max-width: 720px; }
+        h1 { margin-top: 0; }
+        form { display: flex; gap: 0.75rem; margin: 1rem 0; }
+        input { flex: 1; padding: 0.6rem; border: 1px solid #bac4cf; border-radius: 8px; }
+        button { padding: 0.6rem 1rem; border: 0; border-radius: 8px; background: #1167d8; color: #fff; cursor: pointer; }
+        .ok { color: #087443; margin: 0.5rem 0; }
+        .error { color: #b91c1c; margin: 0.25rem 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border-bottom: 1px solid #e2e8f0; padding: 0.55rem; text-align: left; }
+    </style>
+</head>
+<body>
+<section class="card">
+    <h1>Auth Module Integration Demo</h1>
+    <p><strong>Total users in DB:</strong> <span th:text="${userCount}">0</span></p>
+
+    <p class="ok" th:if="${message}" th:text="${message}">User persisted successfully</p>
+
+    <form th:action="@{/auth/register}" th:object="${form}" method="post">
+        <input type="text" th:field="*{username}" placeholder="Enter a username"/>
+        <button type="submit">Persist User</button>
+        <p class="error" th:if="${#fields.hasErrors('username')}" th:errors="*{username}">Validation error</p>
+    </form>
+
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Username</th>
+            <th>Created At</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:if="${#lists.isEmpty(users)}">
+            <td colspan="3">No users yet</td>
+        </tr>
+        <tr th:each="user : ${users}">
+            <td th:text="${user.id}">1</td>
+            <td th:text="${user.username}">sample-user</td>
+            <td th:text="${user.createdAt}">2026-01-01T10:00</td>
+        </tr>
+        </tbody>
+    </table>
+</section>
+</body>
+</html>
