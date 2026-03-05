@@ -1,16 +1,10 @@
 package id.ac.ui.cs.advprog.yomu.auth.service;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
-import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
 public class StandardPasswordStrengthChecker implements PasswordStrengthChecker {
-
-    private static final Pattern HAS_LOWERCASE = Pattern.compile(".*[a-z].*");
-    private static final Pattern HAS_UPPERCASE = Pattern.compile(".*[A-Z].*");
-    private static final Pattern HAS_DIGIT = Pattern.compile(".*\\d.*");
-    private static final Pattern HAS_SPECIAL = Pattern.compile(".*[^A-Za-z0-9].*");
 
     @Override
     public PasswordStrength assess(String password) {
@@ -18,20 +12,38 @@ public class StandardPasswordStrengthChecker implements PasswordStrengthChecker 
             return PasswordStrength.WEAK;
         }
 
+        boolean hasLowercase = false;
+        boolean hasUppercase = false;
+        boolean hasDigit = false;
+        boolean hasSpecial = false;
+
+        for (int i = 0; i < password.length(); i++) {
+            char current = password.charAt(i);
+            if (current >= 'a' && current <= 'z') {
+                hasLowercase = true;
+            } else if (current >= 'A' && current <= 'Z') {
+                hasUppercase = true;
+            } else if (current >= '0' && current <= '9') {
+                hasDigit = true;
+            } else {
+                hasSpecial = true;
+            }
+        }
+
         int score = 0;
         if (password.length() >= 8) {
             score++;
         }
-        if (HAS_LOWERCASE.matcher(password).matches()) {
+        if (hasLowercase) {
             score++;
         }
-        if (HAS_UPPERCASE.matcher(password).matches()) {
+        if (hasUppercase) {
             score++;
         }
-        if (HAS_DIGIT.matcher(password).matches()) {
+        if (hasDigit) {
             score++;
         }
-        if (HAS_SPECIAL.matcher(password).matches()) {
+        if (hasSpecial) {
             score++;
         }
         if (password.length() >= 12) {
