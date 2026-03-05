@@ -3,7 +3,6 @@ package id.ac.ui.cs.advprog.yomu.auth.service;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
-import java.util.List;
 import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -26,16 +25,6 @@ public class AuthServiceImpl implements AuthService {
         this.emailExistenceChecker = emailExistenceChecker;
         this.passwordStrengthChecker = passwordStrengthChecker;
         this.passwordEncoder = passwordEncoder;
-    }
-
-    @Override
-    public List<AuthUser> findAllUsers() {
-        return authRepository.findAllByOrderByIdDesc();
-    }
-
-    @Override
-    public long countUsers() {
-        return authRepository.count();
     }
 
     @Override

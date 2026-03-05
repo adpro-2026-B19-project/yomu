@@ -11,7 +11,6 @@ import static org.mockito.Mockito.when;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,27 +46,6 @@ class AuthServiceImplTest {
     void setUp() {
         lenient().when(emailExistenceChecker.exists(anyString())).thenReturn(true);
         lenient().when(passwordStrengthChecker.assess(anyString())).thenReturn(PasswordStrength.STRONG);
-    }
-
-    @Test
-    void findAllUsersShouldDelegateToRepository() {
-        List<AuthUser> expectedUsers = List.of(new AuthUser("alice"), new AuthUser("bob"));
-        when(authRepository.findAllByOrderByIdDesc()).thenReturn(expectedUsers);
-
-        List<AuthUser> result = authService.findAllUsers();
-
-        assertThat(result).isEqualTo(expectedUsers);
-        verify(authRepository).findAllByOrderByIdDesc();
-    }
-
-    @Test
-    void countUsersShouldDelegateToRepository() {
-        when(authRepository.count()).thenReturn(5L);
-
-        long count = authService.countUsers();
-
-        assertThat(count).isEqualTo(5L);
-        verify(authRepository).count();
     }
 
     @Test
