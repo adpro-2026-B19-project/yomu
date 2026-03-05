@@ -72,8 +72,17 @@ public class AuthController {
         if ("duplicate_email".equals(errorCode)) {
             return "email";
         }
+        if ("required_email".equals(errorCode)) {
+            return "email";
+        }
         if ("duplicate_username".equals(errorCode)) {
             return "username";
+        }
+        if ("required_username".equals(errorCode)) {
+            return "username";
+        }
+        if ("required_password".equals(errorCode)) {
+            return "password";
         }
         return "email";
     }
