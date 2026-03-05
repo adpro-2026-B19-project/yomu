@@ -89,6 +89,11 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
+    @Override
+    public LoginResult loginUser(LoginRequest request) {
+        return LoginResult.failureResult("not_implemented", "Login flow is not implemented yet");
+    }
+
     private String deriveUsernameFromEmail(String email) {
         int atIndex = email.indexOf('@');
         if (atIndex <= 0) {

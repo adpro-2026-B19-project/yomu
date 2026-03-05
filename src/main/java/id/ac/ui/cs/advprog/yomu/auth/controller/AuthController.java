@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.yomu.auth.controller;
 
+import id.ac.ui.cs.advprog.yomu.auth.dto.LoginForm;
 import id.ac.ui.cs.advprog.yomu.auth.dto.RegisterForm;
 import id.ac.ui.cs.advprog.yomu.auth.service.AuthService;
 import jakarta.validation.Valid;
@@ -18,10 +19,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final RegistrationErrorFieldMapper registrationErrorFieldMapper;
+    private final LoginErrorFieldMapper loginErrorFieldMapper;
 
-    public AuthController(AuthService authService, RegistrationErrorFieldMapper registrationErrorFieldMapper) {
+    public AuthController(
+            AuthService authService,
+            RegistrationErrorFieldMapper registrationErrorFieldMapper,
+            LoginErrorFieldMapper loginErrorFieldMapper
+    ) {
         this.authService = authService;
         this.registrationErrorFieldMapper = registrationErrorFieldMapper;
+        this.loginErrorFieldMapper = loginErrorFieldMapper;
     }
 
     @GetMapping
@@ -44,6 +51,9 @@ public class AuthController {
 
     @GetMapping("/login")
     public String loginPage(Model model) {
+        if (!model.containsAttribute("loginForm")) {
+            model.addAttribute("loginForm", new LoginForm("", ""));
+        }
         if (!model.containsAttribute("registeredName")) {
             model.addAttribute("registeredName", "");
         }
@@ -54,6 +64,42 @@ public class AuthController {
             model.addAttribute("registeredHashedPassword", "");
         }
         return "auth/login";
+    }
+
+    @PostMapping("/login")
+    public String login(
+            @Valid @ModelAttribute("loginForm") LoginForm loginForm,
+            BindingResult bindingResult,
+            RedirectAttributes redirectAttributes
+    ) {
+        AuthService.LoginResult loginResult = null;
+        if (!bindingResult.hasErrors()) {
+            loginResult = authService.loginUser(new AuthService.LoginRequest(loginForm.getEmail(), loginForm.getPassword()));
+            if (!loginResult.success()) {
+                bindingResult.rejectValue(
+                        loginErrorFieldMapper.resolve(loginResult.errorCode()),
+                        loginResult.errorCode(),
+                        loginResult.errorMessage()
+                );
+            }
+        }
+
+        if (bindingResult.hasErrors()) {
+            if (loginResult != null && !loginResult.success()) {
+                redirectAttributes.addFlashAttribute("loginWarning", loginResult.errorMessage());
+            }
+            redirectAttributes.addFlashAttribute(
+                    "org.springframework.validation.BindingResult.loginForm",
+                    bindingResult
+            );
+            redirectAttributes.addFlashAttribute("loginForm", loginForm);
+            return "redirect:/auth/login";
+        }
+
+        AuthService.LoggedInUserSummary loggedInUser = loginResult.loggedInUser();
+        redirectAttributes.addFlashAttribute("loggedInName", loggedInUser.username());
+        redirectAttributes.addFlashAttribute("loggedInEmail", loggedInUser.email());
+        return "redirect:/auth/login";
     }
 
     @PostMapping("/register")

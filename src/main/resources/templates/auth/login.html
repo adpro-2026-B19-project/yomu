@@ -7,5 +7,12 @@
 </head>
 <body>
 <p>you registered as: <span th:text="${registeredName}"></span> <span th:text="${registeredEmail}"></span> <span th:text="${registeredHashedPassword}"></span></p>
+<p th:if="${loginWarning}" th:text="${loginWarning}">Warning</p>
+<p th:if="${loggedInName}">logged in as: <span th:text="${loggedInName}"></span> <span th:text="${loggedInEmail}"></span></p>
+<form th:action="@{/auth/login}" th:object="${loginForm}" method="post">
+    <label>Email <input type="email" th:field="*{email}"></label><br>
+    <label>Password <input type="password" th:field="*{password}"></label><br>
+    <button type="submit">Login</button>
+</form>
 </body>
 </html>
