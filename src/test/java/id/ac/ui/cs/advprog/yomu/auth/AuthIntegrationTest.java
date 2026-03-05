@@ -46,10 +46,10 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void rootShouldRedirectToRegisterPage() throws Exception {
+    void rootShouldRenderLandingPage() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/register"));
+                .andExpect(status().isOk())
+                .andExpect(view().name("landingPage"));
     }
 
     @Test
