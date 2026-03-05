@@ -99,7 +99,7 @@ public class AuthController {
         AuthService.LoggedInUserSummary loggedInUser = loginResult.loggedInUser();
         redirectAttributes.addFlashAttribute("loggedInName", loggedInUser.username());
         redirectAttributes.addFlashAttribute("loggedInEmail", loggedInUser.email());
-        return "redirect:/auth/login";
+        return "redirect:/profile";
     }
 
     @PostMapping("/register")

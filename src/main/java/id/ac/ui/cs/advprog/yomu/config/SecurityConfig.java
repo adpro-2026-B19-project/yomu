@@ -15,6 +15,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/",
+                        "/profile/**",
                         "/auth/**",
                         "/h2-console/**",
                         "/error",
