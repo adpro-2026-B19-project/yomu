@@ -24,6 +24,9 @@ public class AuthUser {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(nullable = false, unique = true)
+    private String username;
+
     @Column(unique = true)
     private String email;
 
@@ -39,19 +42,17 @@ public class AuthUser {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public AuthUser(String displayName) {
-        this.displayName = displayName;
+    public AuthUser(String username) {
+        this.username = username;
+        this.displayName = username;
     }
 
-    public AuthUser(String email, Long phoneNumber, String displayName, String password) {
+    public AuthUser(String username, String email, Long phoneNumber, String displayName, String password) {
+        this.username = username;
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.displayName = displayName;
         this.password = password;
-    }
-
-    public String getUsername() {
-        return displayName;
     }
 
     @PrePersist
