@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Achievements - Yomu</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f4f6f9; }
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+        h1 { color: #2c3e50; margin-bottom: 8px; }
+        .subtitle { color: #7f8c8d; margin-bottom: 30px; }
+
+        .achievement-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+        .achievement-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-left: 4px solid #3498db;
+        }
+        .achievement-card h3 { margin: 0 0 8px; color: #2c3e50; font-size: 1rem; }
+        .achievement-card p { margin: 0; color: #7f8c8d; font-size: 0.9rem; }
+        .badge { display: inline-block; background: #eaf4fb; color: #2980b9;
+            font-size: 0.75rem; padding: 2px 8px; border-radius: 20px; margin-bottom: 8px; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: #95a5a6; }
+        .empty-state h2 { font-size: 1.2rem; }
+
+        .admin-bar { background: white; border-radius: 12px; padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 24px; }
+        .admin-bar h2 { margin: 0 0 16px; font-size: 1rem; color: #2c3e50; }
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+        .form-row input { flex: 1; min-width: 180px; padding: 8px 12px;
+            border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; }
+        .btn { padding: 8px 18px; background: #3498db; color: white; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
+        .btn:hover { background: #2980b9; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🏆 Achievements</h1>
+    <p class="subtitle">Track your milestones and accomplishments on Yomu.</p>
+
+    <!-- Admin: Create Achievement Form -->
+    <div class="admin-bar" sec:authorize="hasRole('ADMIN')">
+        <h2>Create New Achievement (Admin)</h2>
+        <form th:action="@{/achievements/api}" method="post" class="form-row">
+            <input type="text" name="name" placeholder="Achievement name" required/>
+            <input type="text" name="milestone" placeholder="Milestone (e.g. Complete 10 readings)" required/>
+            <button type="submit" class="btn">Create</button>
+        </form>
+    </div>
+
+    <!-- Achievement List -->
+    <div th:if="${#lists.isEmpty(achievements)}" class="empty-state">
+        <h2>No achievements yet</h2>
+        <p>Achievements will appear here once they are created by an admin.</p>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(achievements)}" class="achievement-grid">
+        <div class="achievement-card" th:each="achievement : ${achievements}">
+            <span class="badge">Achievement</span>
+            <h3 th:text="${achievement.name}">Achievement Name</h3>
+            <p th:text="${achievement.milestone}">Milestone description</p>
+        </div>
+    </div>
+</div>
+</body>
+</html>
