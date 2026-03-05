@@ -15,6 +15,7 @@ class AuthUserTest {
         user.prePersist();
 
         assertThat(user.getCreatedAt()).isNotNull();
+        assertThat(user.getRole()).isEqualTo(AuthRole.USER);
     }
 
     @Test
@@ -26,5 +27,15 @@ class AuthUserTest {
         user.prePersist();
 
         assertThat(user.getCreatedAt()).isEqualTo(fixedTime);
+    }
+
+    @Test
+    void prePersistShouldSetDefaultRoleWhenNull() {
+        AuthUser user = new AuthUser("alice");
+        ReflectionTestUtils.setField(user, "role", null);
+
+        user.prePersist();
+
+        assertThat(user.getRole()).isEqualTo(AuthRole.USER);
     }
 }

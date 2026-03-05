@@ -2,6 +2,8 @@ package id.ac.ui.cs.advprog.yomu.auth.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -39,26 +41,39 @@ public class AuthUser {
     @Column
     private String password;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AuthRole role;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public AuthUser(String username) {
         this.username = username;
         this.displayName = username;
+        this.role = AuthRole.USER;
     }
 
     public AuthUser(String username, String email, Long phoneNumber, String displayName, String password) {
+        this(username, email, phoneNumber, displayName, password, AuthRole.USER);
+    }
+
+    public AuthUser(String username, String email, Long phoneNumber, String displayName, String password, AuthRole role) {
         this.username = username;
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.displayName = displayName;
         this.password = password;
+        this.role = role;
     }
 
     @PrePersist
     void prePersist() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (role == null) {
+            role = AuthRole.USER;
         }
     }
 }
