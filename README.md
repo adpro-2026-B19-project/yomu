@@ -26,3 +26,5 @@
 - Docker runtime uses Spring profile `docker`.
 - Docker profile config is in `src/main/resources/application-docker.properties`.
 - H2 data persists in docker volume `yomu_data`.
+- H2 TCP server is exposed on port `9092` for IDE access.
+- IntelliJ DB URL (Docker): `jdbc:h2:tcp://localhost:9092//app/data/yomu-db`
