@@ -3,11 +3,62 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Profile</title>
+    <title>Yomu - Profile</title>
+    <style>
+        :root {
+            --primary:#3B82F6;
+            --bg:#0F172A;
+            --card:#1E293B;
+            --border:#334155;
+            --text:#E2E8F0;
+            --muted:#94A3B8;
+            --success:#34D399;
+            --warn:#F59E0B;
+        }
+        *{box-sizing:border-box;}
+        body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
+        a{color:inherit;text-decoration:none;}
+        .container{width:min(900px,92vw);margin:0 auto;padding:24px 0;}
+        .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
+        .title{margin:0 0 10px;font-size:24px;}
+        .muted{color:var(--muted);}
+        .alert{border-radius:12px;padding:12px 14px;margin:0 0 14px;border:1px solid var(--border);}
+        .alert.success{border-color:rgba(52,211,153,.35);}
+        .alert.warn{border-color:rgba(245,158,11,.35);}
+        .label{font-size:13px;color:var(--muted);margin-bottom:2px;}
+        .value{font-size:16px;font-weight:700;margin-bottom:12px;}
+        .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+        .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);font-weight:700;}
+        .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+    </style>
 </head>
 <body>
-<h1>Profile</h1>
-<p>Name: <span th:text="${loggedInName}"></span></p>
-<p>Email: <span th:text="${loggedInEmail}"></span></p>
+<main class="container">
+    <section class="card">
+        <h1 class="title">Profile</h1>
+
+        <div class="alert success" th:if="${loggedInEmail}">
+            <strong style="color:var(--success);">Login success.</strong>
+            <div class="muted">You are logged in and redirected from the login flow.</div>
+        </div>
+
+        <div class="alert warn" th:unless="${loggedInEmail}">
+            <strong style="color:var(--warn);">No login context.</strong>
+            <div class="muted">Open this page after a successful login to see your account details.</div>
+        </div>
+
+        <p class="label">Name</p>
+        <p class="value" th:text="${loggedInName != null and !#strings.isEmpty(loggedInName) ? loggedInName : '-'}">-</p>
+
+        <p class="label">Email</p>
+        <p class="value" th:text="${loggedInEmail != null and !#strings.isEmpty(loggedInEmail) ? loggedInEmail : '-'}">-</p>
+
+        <div class="actions">
+            <a class="btn" th:href="@{/}">Home</a>
+            <a class="btn" th:href="@{/auth/register}">Register</a>
+            <a class="btn primary" th:href="@{/auth/login}">Login Again</a>
+        </div>
+    </section>
+</main>
 </body>
 </html>
