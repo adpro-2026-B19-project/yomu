@@ -4,6 +4,7 @@ import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -91,7 +92,33 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResult loginUser(LoginRequest request) {
-        return LoginResult.failureResult("not_implemented", "Login flow is not implemented yet");
+        String normalizedEmail = normalize(request.email());
+        String normalizedPassword = normalize(request.password());
+
+        if (normalizedEmail.isBlank()) {
+            return LoginResult.failureResult("required_email", "Email is required");
+        }
+
+        if (normalizedPassword.isBlank()) {
+            return LoginResult.failureResult("required_password", "Password is required");
+        }
+
+        Optional<AuthUser> userOptional = authRepository.findByEmail(normalizedEmail);
+        if (userOptional.isEmpty()) {
+            return LoginResult.failureResult("invalid_credentials", "Invalid email or password");
+        }
+
+        AuthUser user = userOptional.get();
+        String storedPassword = user.getPassword();
+        if (storedPassword == null || storedPassword.isBlank()) {
+            return LoginResult.failureResult("invalid_credentials", "Invalid email or password");
+        }
+
+        if (!passwordEncoder.matches(normalizedPassword, storedPassword)) {
+            return LoginResult.failureResult("invalid_credentials", "Invalid email or password");
+        }
+
+        return LoginResult.successResult(new LoggedInUserSummary(user.getUsername(), user.getEmail()));
     }
 
     private String deriveUsernameFromEmail(String email) {
