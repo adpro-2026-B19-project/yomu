@@ -19,16 +19,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final RegistrationErrorFieldMapper registrationErrorFieldMapper;
-    private final LoginErrorFieldMapper loginErrorFieldMapper;
 
     public AuthController(
             AuthService authService,
-            RegistrationErrorFieldMapper registrationErrorFieldMapper,
-            LoginErrorFieldMapper loginErrorFieldMapper
+            RegistrationErrorFieldMapper registrationErrorFieldMapper
     ) {
         this.authService = authService;
         this.registrationErrorFieldMapper = registrationErrorFieldMapper;
-        this.loginErrorFieldMapper = loginErrorFieldMapper;
     }
 
     @GetMapping
@@ -64,42 +61,6 @@ public class AuthController {
             model.addAttribute("registeredHashedPassword", "");
         }
         return "auth/login";
-    }
-
-    @PostMapping("/login")
-    public String login(
-            @Valid @ModelAttribute("loginForm") LoginForm loginForm,
-            BindingResult bindingResult,
-            RedirectAttributes redirectAttributes
-    ) {
-        AuthService.LoginResult loginResult = null;
-        if (!bindingResult.hasErrors()) {
-            loginResult = authService.loginUser(new AuthService.LoginRequest(loginForm.getEmail(), loginForm.getPassword()));
-            if (!loginResult.success()) {
-                bindingResult.rejectValue(
-                        loginErrorFieldMapper.resolve(loginResult.errorCode()),
-                        loginResult.errorCode(),
-                        loginResult.errorMessage()
-                );
-            }
-        }
-
-        if (bindingResult.hasErrors()) {
-            if (loginResult != null && !loginResult.success()) {
-                redirectAttributes.addFlashAttribute("loginWarning", loginResult.errorMessage());
-            }
-            redirectAttributes.addFlashAttribute(
-                    "org.springframework.validation.BindingResult.loginForm",
-                    bindingResult
-            );
-            redirectAttributes.addFlashAttribute("loginForm", loginForm);
-            return "redirect:/auth/login";
-        }
-
-        AuthService.LoggedInUserSummary loggedInUser = loginResult.loggedInUser();
-        redirectAttributes.addFlashAttribute("loggedInName", loggedInUser.username());
-        redirectAttributes.addFlashAttribute("loggedInEmail", loggedInUser.email());
-        return "redirect:/profile";
     }
 
     @PostMapping("/register")

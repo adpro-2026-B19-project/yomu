@@ -7,11 +7,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -172,8 +175,7 @@ class AuthIntegrationTest {
                         .param("email", "ghost@example.com")
                         .param("password", "GhostPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/login"))
-                .andExpect(flash().attribute("loginWarning", "Invalid email or password"));
+                .andExpect(redirectedUrl("/auth/login?error"));
     }
 
     @Test
@@ -186,8 +188,7 @@ class AuthIntegrationTest {
                         .param("email", "alice@example.com")
                         .param("password", "WrongPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/login"))
-                .andExpect(flash().attribute("loginWarning", "Invalid email or password"));
+                .andExpect(redirectedUrl("/auth/login?error"));
     }
 
     @Test
@@ -195,13 +196,20 @@ class AuthIntegrationTest {
         String hashedPassword = passwordEncoder.encode("CorrectPass1!");
         authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword));
 
-        mockMvc.perform(post("/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .with(csrf())
                         .param("email", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/profile"))
-                .andExpect(flash().attribute("loggedInName", "alice"))
-                .andExpect(flash().attribute("loggedInEmail", "alice@example.com"));
+                .andExpect(request().sessionAttribute("SPRING_SECURITY_CONTEXT", org.hamcrest.Matchers.notNullValue()))
+                .andReturn();
+
+        HttpSession session = loginResult.getRequest().getSession(false);
+        mockMvc.perform(get("/profile").session((org.springframework.mock.web.MockHttpSession) session))
+                .andExpect(status().isOk())
+                .andExpect(view().name("profile/index"))
+                .andExpect(model().attribute("loggedInName", "alice"))
+                .andExpect(model().attribute("loggedInEmail", "alice@example.com"));
     }
 }

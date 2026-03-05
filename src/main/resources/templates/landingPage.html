@@ -72,6 +72,14 @@ background:var(--primary);
 border-color:var(--primary);
 color:white;
 }
+.user-pill{
+display:inline-flex;
+padding:10px 14px;
+border-radius:10px;
+border:1px solid var(--border);
+background:var(--card);
+font-weight:700;
+}
 .hero{
 padding:60px 0 30px;
 }
@@ -159,8 +167,10 @@ font-size:36px;
 <span>Yomu</span>
 </a>
 <nav class="navlinks">
-<a th:href="@{/auth/login}" class="btn">Login</a>
-<a th:href="@{/auth/register}" class="btn primary">Register</a>
+<span class="user-pill" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}"
+      th:text="${loggedInName}">username</span>
+<a th:href="@{/auth/login}" class="btn" th:unless="${loggedInName != null and !#strings.isEmpty(loggedInName)}">Login</a>
+<a th:href="@{/auth/register}" class="btn primary" th:unless="${loggedInName != null and !#strings.isEmpty(loggedInName)}">Register</a>
 </nav>
 </div>
 </header>

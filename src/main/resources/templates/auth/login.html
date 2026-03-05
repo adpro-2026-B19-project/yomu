@@ -83,12 +83,8 @@
             <h1>Login</h1>
             <p class="muted" style="margin:0 0 10px;">Sign in with your registered email and password.</p>
 
-            <div class="alert danger" data-auto-dismiss="true" th:if="${loginWarning}">
-                <strong style="color:var(--danger);">Login failed.</strong>
-                <div class="muted" th:text="${loginWarning}">Invalid email or password.</div>
-            </div>
-
-            <div class="alert success" data-auto-dismiss="true" th:if="${registeredEmail}">
+            <div class="alert success" data-auto-dismiss="true"
+                 th:if="${registeredEmail != null and !#strings.isEmpty(registeredEmail)}">
                 <strong style="color:var(--success);">Registration success.</strong>
                 <div class="muted">
                     Account <span th:text="${registeredEmail}">demo@example.com</span> is ready. You can sign in now.

@@ -13,7 +13,7 @@
             --text:#E2E8F0;
             --muted:#94A3B8;
             --success:#34D399;
-            --warn:#F59E0B;
+            --danger:#F87171;
         }
         *{box-sizing:border-box;}
         body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
@@ -24,12 +24,13 @@
         .muted{color:var(--muted);}
         .alert{border-radius:12px;padding:12px 14px;margin:0 0 14px;border:1px solid var(--border);}
         .alert.success{border-color:rgba(52,211,153,.35);}
-        .alert.warn{border-color:rgba(245,158,11,.35);}
+        .alert.warn{border-color:rgba(248,113,113,.35);}
         .label{font-size:13px;color:var(--muted);margin-bottom:2px;}
         .value{font-size:16px;font-weight:700;margin-bottom:12px;}
         .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
         .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);font-weight:700;}
         .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
+        .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff;}
     </style>
 </head>
 <body>
@@ -39,11 +40,11 @@
 
         <div class="alert success" th:if="${loggedInEmail}">
             <strong style="color:var(--success);">Login success.</strong>
-            <div class="muted">You are logged in and redirected from the login flow.</div>
+            <div class="muted">You are logged in with persistent session authentication.</div>
         </div>
 
         <div class="alert warn" th:unless="${loggedInEmail}">
-            <strong style="color:var(--warn);">No login context.</strong>
+            <strong style="color:var(--danger);">No login context.</strong>
             <div class="muted">Open this page after a successful login to see your account details.</div>
         </div>
 
@@ -55,8 +56,10 @@
 
         <div class="actions">
             <a class="btn" th:href="@{/}">Home</a>
-            <a class="btn" th:href="@{/auth/register}">Register</a>
-            <a class="btn primary" th:href="@{/auth/login}">Login Again</a>
+            <form th:action="@{/logout}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <button class="btn danger" type="submit">Logout</button>
+            </form>
         </div>
     </section>
 </main>
