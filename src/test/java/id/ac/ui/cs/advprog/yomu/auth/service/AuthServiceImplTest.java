@@ -19,8 +19,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
@@ -34,6 +36,9 @@ class AuthServiceImplTest {
 
     @Mock
     private PasswordStrengthChecker passwordStrengthChecker;
+
+    @Spy
+    private PasswordEncoder mockedPasswordEncoder = new BCryptPasswordEncoder();
 
     @InjectMocks
     private AuthServiceImpl authService;

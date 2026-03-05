@@ -5,7 +5,7 @@ import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,16 +14,18 @@ public class AuthServiceImpl implements AuthService {
     private final AuthRepository authRepository;
     private final EmailExistenceChecker emailExistenceChecker;
     private final PasswordStrengthChecker passwordStrengthChecker;
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private final PasswordEncoder passwordEncoder;
 
     public AuthServiceImpl(
             AuthRepository authRepository,
             EmailExistenceChecker emailExistenceChecker,
-            PasswordStrengthChecker passwordStrengthChecker
+            PasswordStrengthChecker passwordStrengthChecker,
+            PasswordEncoder passwordEncoder
     ) {
         this.authRepository = authRepository;
         this.emailExistenceChecker = emailExistenceChecker;
         this.passwordStrengthChecker = passwordStrengthChecker;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
