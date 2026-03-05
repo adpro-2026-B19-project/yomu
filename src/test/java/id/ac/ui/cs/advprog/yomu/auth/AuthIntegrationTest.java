@@ -200,7 +200,7 @@ class AuthIntegrationTest {
                         .param("email", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/login"))
+                .andExpect(redirectedUrl("/profile"))
                 .andExpect(flash().attribute("loggedInName", "alice"))
                 .andExpect(flash().attribute("loggedInEmail", "alice@example.com"));
     }
