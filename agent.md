@@ -29,3 +29,7 @@ This file records what was added on `staging` so team members can quickly sync e
 
 ## Branch Sync Expectation
 - After staging updates, merge `staging` into all `auth/*` branches and push each branch.
+
+## Commit Discipline
+- For auth and template work, make one focused fix per commit.
+- Avoid bundling unrelated refactors or bugfixes into a single commit.

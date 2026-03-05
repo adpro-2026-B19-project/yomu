@@ -7,18 +7,17 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
-public class TemplateController {
+public class ProfileController {
 
     private final CurrentUserResolver currentUserResolver;
 
-    public TemplateController(CurrentUserResolver currentUserResolver) {
+    public ProfileController(CurrentUserResolver currentUserResolver) {
         this.currentUserResolver = currentUserResolver;
     }
 
-    @GetMapping("/")
-    public String index(Model model, Authentication authentication) {
-        currentUserResolver.resolveUsername(authentication)
-                .ifPresent(username -> model.addAttribute("loggedInName", username));
-        return "landingPage";
+    @GetMapping("/profile")
+    public String profile(Model model, Authentication authentication) {
+        model.addAttribute("user", currentUserResolver.resolveUser(authentication).orElse(null));
+        return "profile/index";
     }
 }

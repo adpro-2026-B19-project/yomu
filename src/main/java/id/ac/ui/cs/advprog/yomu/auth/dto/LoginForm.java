@@ -12,15 +12,12 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegisterForm {
+public class LoginForm {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email is invalid")
     @Size(max = 255, message = "Email must be 255 characters or fewer")
     private String email;
-
-    @Size(max = 40, message = "Username must be 40 characters or fewer")
-    private String username;
 
     @NotBlank(message = "Password is required")
     @Size(max = 72, message = "Password must be 72 characters or fewer")
