@@ -8,7 +8,9 @@ public interface AuthService {
 
     long countUsers();
 
-    RegistrationResult registerUser(String username);
+    RegistrationResult registerUser(RegisterRequest request);
+
+    record RegisterRequest(String email, String username, String password) {}
 
     record RegistrationResult(boolean success, String errorCode, String errorMessage) {
         public static RegistrationResult successResult() {

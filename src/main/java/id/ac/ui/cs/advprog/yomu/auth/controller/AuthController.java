@@ -27,9 +27,17 @@ public class AuthController {
         model.addAttribute("users", authService.findAllUsers());
         model.addAttribute("userCount", authService.countUsers());
         if (!model.containsAttribute("form")) {
-            model.addAttribute("form", new RegisterForm(""));
+            model.addAttribute("form", new RegisterForm("", "", ""));
         }
         return "auth/index";
+    }
+
+    @GetMapping("/register")
+    public String registerPage(Model model) {
+        if (!model.containsAttribute("form")) {
+            model.addAttribute("form", new RegisterForm("", "", ""));
+        }
+        return "auth/register";
     }
 
     @PostMapping("/register")
@@ -39,9 +47,11 @@ public class AuthController {
             RedirectAttributes redirectAttributes
     ) {
         if (!bindingResult.hasErrors()) {
-            AuthService.RegistrationResult registrationResult = authService.registerUser(form.getUsername());
+            AuthService.RegistrationResult registrationResult = authService.registerUser(
+                    new AuthService.RegisterRequest(form.getEmail(), form.getUsername(), form.getPassword())
+            );
             if (!registrationResult.success()) {
-                bindingResult.rejectValue("username", registrationResult.errorCode(), registrationResult.errorMessage());
+                bindingResult.rejectValue(resolveFieldName(registrationResult.errorCode()), registrationResult.errorCode(), registrationResult.errorMessage());
             }
         }
 
@@ -51,10 +61,20 @@ public class AuthController {
                     bindingResult
             );
             redirectAttributes.addFlashAttribute("form", form);
-            return "redirect:/auth";
+            return "redirect:/auth/register";
         }
 
-        redirectAttributes.addFlashAttribute("message", "User persisted successfully");
-        return "redirect:/auth";
+        redirectAttributes.addFlashAttribute("message", "User registered successfully");
+        return "redirect:/auth/register";
+    }
+
+    private String resolveFieldName(String errorCode) {
+        if ("duplicate_email".equals(errorCode)) {
+            return "email";
+        }
+        if ("duplicate_username".equals(errorCode)) {
+            return "username";
+        }
+        return "email";
     }
 }

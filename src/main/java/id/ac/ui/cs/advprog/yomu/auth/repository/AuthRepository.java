@@ -9,5 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AuthRepository extends JpaRepository<AuthUser, UUID> {
     List<AuthUser> findAllByOrderByIdDesc();
 
+    Optional<AuthUser> findByEmail(String email);
+
     Optional<AuthUser> findByUsername(String username);
 }

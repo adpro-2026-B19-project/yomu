@@ -25,18 +25,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public RegistrationResult registerUser(String username) {
-        String normalizedUsername = username == null ? "" : username.trim();
-
-        if (normalizedUsername.isBlank()) {
-            return RegistrationResult.failureResult("required", "Username is required");
-        }
-
-        if (authRepository.findByUsername(normalizedUsername).isPresent()) {
-            return RegistrationResult.failureResult("duplicate", "Username already exists");
-        }
-
-        authRepository.save(new AuthUser(normalizedUsername));
-        return RegistrationResult.successResult();
+    public RegistrationResult registerUser(RegisterRequest request) {
+        return RegistrationResult.failureResult("not_implemented", "Registration flow is not implemented yet");
     }
 }
