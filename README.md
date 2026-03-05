@@ -29,3 +29,4 @@
 - Docker profile config is in `src/main/resources/application-docker.properties`.
 - H2 data persists in docker volume `yomu_data`.
 - H2 TCP server is disabled by default in Docker (`app.h2.tcp.enabled=false`).
+- Session inactivity timeout defaults to `15m` and can be overridden with `SESSION_TIMEOUT`.
