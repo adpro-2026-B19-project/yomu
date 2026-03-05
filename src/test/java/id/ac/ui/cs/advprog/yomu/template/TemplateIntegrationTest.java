@@ -1,8 +1,8 @@
 package id.ac.ui.cs.advprog.yomu.template;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +18,9 @@ class TemplateIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    void rootShouldRenderLandingTemplate() throws Exception {
+    void rootShouldRedirectToRegister() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("index"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/register"));
     }
 }

@@ -65,7 +65,9 @@ public class AuthServiceImpl implements AuthService {
                 hashedPassword
         );
         authRepository.save(user);
-        return RegistrationResult.successResult();
+        return RegistrationResult.successResult(
+                new RegisteredUserSummary(user.getUsername(), user.getEmail(), user.getPassword())
+        );
     }
 
     private String deriveUsernameFromEmail(String email) {

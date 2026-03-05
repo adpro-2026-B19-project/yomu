@@ -42,14 +42,29 @@ public class AuthController {
         return "auth/register";
     }
 
+    @GetMapping("/login")
+    public String loginPage(Model model) {
+        if (!model.containsAttribute("registeredName")) {
+            model.addAttribute("registeredName", "");
+        }
+        if (!model.containsAttribute("registeredEmail")) {
+            model.addAttribute("registeredEmail", "");
+        }
+        if (!model.containsAttribute("registeredHashedPassword")) {
+            model.addAttribute("registeredHashedPassword", "");
+        }
+        return "auth/login";
+    }
+
     @PostMapping("/register")
     public String register(
             @Valid @ModelAttribute("form") RegisterForm form,
             BindingResult bindingResult,
             RedirectAttributes redirectAttributes
     ) {
+        AuthService.RegistrationResult registrationResult = null;
         if (!bindingResult.hasErrors()) {
-            AuthService.RegistrationResult registrationResult = authService.registerUser(
+            registrationResult = authService.registerUser(
                     new AuthService.RegisterRequest(form.getEmail(), form.getUsername(), form.getPassword())
             );
             if (!registrationResult.success()) {
@@ -70,7 +85,10 @@ public class AuthController {
             return "redirect:/auth/register";
         }
 
-        redirectAttributes.addFlashAttribute("message", "User registered successfully");
-        return "redirect:/auth/register";
+        AuthService.RegisteredUserSummary registeredUser = registrationResult.registeredUser();
+        redirectAttributes.addFlashAttribute("registeredName", registeredUser.username());
+        redirectAttributes.addFlashAttribute("registeredEmail", registeredUser.email());
+        redirectAttributes.addFlashAttribute("registeredHashedPassword", registeredUser.hashedPassword());
+        return "redirect:/auth/login";
     }
 }

@@ -12,13 +12,15 @@ public interface AuthService {
 
     record RegisterRequest(String email, String username, String password) {}
 
-    record RegistrationResult(boolean success, String errorCode, String errorMessage) {
-        public static RegistrationResult successResult() {
-            return new RegistrationResult(true, null, null);
+    record RegisteredUserSummary(String username, String email, String hashedPassword) {}
+
+    record RegistrationResult(boolean success, String errorCode, String errorMessage, RegisteredUserSummary registeredUser) {
+        public static RegistrationResult successResult(RegisteredUserSummary registeredUser) {
+            return new RegistrationResult(true, null, null, registeredUser);
         }
 
         public static RegistrationResult failureResult(String errorCode, String errorMessage) {
-            return new RegistrationResult(false, errorCode, errorMessage);
+            return new RegistrationResult(false, errorCode, errorMessage, null);
         }
     }
 }

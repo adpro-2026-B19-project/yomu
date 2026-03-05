@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,6 +46,23 @@ class AuthIntegrationTest {
     }
 
     @Test
+    void rootShouldRedirectToRegisterPage() throws Exception {
+        mockMvc.perform(get("/"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/register"));
+    }
+
+    @Test
+    void loginPageShouldRender() throws Exception {
+        mockMvc.perform(get("/auth/login"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("auth/login"))
+                .andExpect(model().attributeExists("registeredName"))
+                .andExpect(model().attributeExists("registeredEmail"))
+                .andExpect(model().attributeExists("registeredHashedPassword"));
+    }
+
+    @Test
     void registerShouldPersistUserIntoDatabase() throws Exception {
         long before = authRepository.count();
 
@@ -54,7 +72,10 @@ class AuthIntegrationTest {
                         .param("username", "demo-user")
                         .param("password", "safe-password"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/register"));
+                .andExpect(redirectedUrl("/auth/login"))
+                .andExpect(flash().attributeExists("registeredName"))
+                .andExpect(flash().attributeExists("registeredEmail"))
+                .andExpect(flash().attributeExists("registeredHashedPassword"));
 
         assertThat(authRepository.count()).isEqualTo(before + 1);
         AuthUser user = authRepository.findByUsername("demo-user").orElseThrow();
@@ -72,7 +93,8 @@ class AuthIntegrationTest {
                         .param("username", "   ")
                         .param("password", "safe-password"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/register"));
+                .andExpect(redirectedUrl("/auth/login"))
+                .andExpect(flash().attribute("registeredName", "nora"));
 
         assertThat(authRepository.count()).isEqualTo(before + 1);
         assertThat(authRepository.findByUsername("nora")).isPresent();
