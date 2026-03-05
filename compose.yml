@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: DOCKERFILE
+    container_name: yomu-app
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    volumes:
+      - yomu_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  yomu_data:
