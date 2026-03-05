@@ -2,14 +2,18 @@ package id.ac.ui.cs.advprog.yomu.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
+import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -23,8 +27,20 @@ class AuthServiceImplTest {
     @Mock
     private AuthRepository authRepository;
 
+    @Mock
+    private EmailExistenceChecker emailExistenceChecker;
+
+    @Mock
+    private PasswordStrengthChecker passwordStrengthChecker;
+
     @InjectMocks
     private AuthServiceImpl authService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(emailExistenceChecker.exists(anyString())).thenReturn(true);
+        lenient().when(passwordStrengthChecker.assess(anyString())).thenReturn(PasswordStrength.STRONG);
+    }
 
     @Test
     void findAllUsersShouldDelegateToRepository() {
@@ -53,7 +69,7 @@ class AuthServiceImplTest {
                 .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", "hashed")));
 
         AuthService.RegistrationResult result = authService.registerUser(
-                new AuthService.RegisterRequest("alice@example.com", "alice", "raw-password")
+                new AuthService.RegisterRequest("alice@example.com", "alice", "RawPassword1!")
         );
 
         assertThat(result.success()).isFalse();
@@ -70,7 +86,7 @@ class AuthServiceImplTest {
                 .thenReturn(Optional.of(new AuthUser("alice", "other@example.com", null, "alice", "hashed")));
 
         AuthService.RegistrationResult result = authService.registerUser(
-                new AuthService.RegisterRequest("alice@example.com", "alice", "raw-password")
+                new AuthService.RegisterRequest("alice@example.com", "alice", "RawPassword1!")
         );
 
         assertThat(result.success()).isFalse();
@@ -87,7 +103,7 @@ class AuthServiceImplTest {
         when(authRepository.findByUsername("charlie")).thenReturn(Optional.empty());
 
         AuthService.RegistrationResult result = authService.registerUser(
-                new AuthService.RegisterRequest("charlie@example.com", "   ", "raw-password")
+                new AuthService.RegisterRequest("charlie@example.com", "   ", "RawPassword1!")
         );
 
         assertThat(result.success()).isTrue();
@@ -107,14 +123,43 @@ class AuthServiceImplTest {
         when(authRepository.findByUsername("dora")).thenReturn(Optional.empty());
 
         AuthService.RegistrationResult result = authService.registerUser(
-                new AuthService.RegisterRequest("dora@example.com", "dora", "secret-password")
+                new AuthService.RegisterRequest("dora@example.com", "dora", "SecretPassword1!")
         );
 
         assertThat(result.success()).isTrue();
 
         ArgumentCaptor<AuthUser> userCaptor = ArgumentCaptor.forClass(AuthUser.class);
         verify(authRepository).save(userCaptor.capture());
-        assertThat(userCaptor.getValue().getPassword()).isNotEqualTo("secret-password");
+        assertThat(userCaptor.getValue().getPassword()).isNotEqualTo("SecretPassword1!");
         assertThat(userCaptor.getValue().getPassword()).startsWith("$2");
+    }
+
+    @Test
+    void registerUserShouldFailWhenEmailDoesNotExist() {
+        when(emailExistenceChecker.exists("ghost@missing.invalid")).thenReturn(false);
+
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("ghost@missing.invalid", "ghost", "GhostPass1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("nonexistent_email");
+        assertThat(result.errorMessage()).isEqualTo("Email does not exist");
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void registerUserShouldFailWhenPasswordStrengthIsWeak() {
+        when(passwordStrengthChecker.assess("weakpass")).thenReturn(PasswordStrength.WEAK);
+
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("weak@example.com", "weak", "weakpass")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("weak_password");
+        assertThat(result.errorMessage()).isEqualTo("Password is too weak");
+        assertThat(result.passwordStrength()).isEqualTo(PasswordStrength.WEAK);
+        verify(authRepository, never()).save(any());
     }
 }

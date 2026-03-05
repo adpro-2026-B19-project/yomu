@@ -70,7 +70,7 @@ class AuthIntegrationTest {
                         .with(csrf())
                         .param("email", "demo@example.com")
                         .param("username", "demo-user")
-                        .param("password", "safe-password"))
+                        .param("password", "SafePassword1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login"))
                 .andExpect(flash().attributeExists("registeredName"))
@@ -80,7 +80,7 @@ class AuthIntegrationTest {
         assertThat(authRepository.count()).isEqualTo(before + 1);
         AuthUser user = authRepository.findByUsername("demo-user").orElseThrow();
         assertThat(user.getEmail()).isEqualTo("demo@example.com");
-        assertThat(passwordEncoder.matches("safe-password", user.getPassword())).isTrue();
+        assertThat(passwordEncoder.matches("SafePassword1!", user.getPassword())).isTrue();
     }
 
     @Test
@@ -91,7 +91,7 @@ class AuthIntegrationTest {
                         .with(csrf())
                         .param("email", "nora@example.com")
                         .param("username", "   ")
-                        .param("password", "safe-password"))
+                        .param("password", "NoraPassword1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login"))
                 .andExpect(flash().attribute("registeredName", "nora"));
@@ -109,7 +109,7 @@ class AuthIntegrationTest {
                         .with(csrf())
                         .param("email", "existing@example.com")
                         .param("username", "new-user")
-                        .param("password", "safe-password"))
+                        .param("password", "ExistingPassword1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/register"));
 
@@ -125,9 +125,41 @@ class AuthIntegrationTest {
                         .with(csrf())
                         .param("email", "new@example.com")
                         .param("username", "existing-user")
-                        .param("password", "safe-password"))
+                        .param("password", "NewPassword1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/register"));
+
+        assertThat(authRepository.count()).isEqualTo(before);
+    }
+
+    @Test
+    void registerShouldRejectWeakPasswordAndShowWarning() throws Exception {
+        long before = authRepository.count();
+
+        mockMvc.perform(post("/auth/register")
+                        .with(csrf())
+                        .param("email", "weak@example.com")
+                        .param("username", "weak-user")
+                        .param("password", "weakpass"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/register"))
+                .andExpect(flash().attribute("warning", "Password is too weak"));
+
+        assertThat(authRepository.count()).isEqualTo(before);
+    }
+
+    @Test
+    void registerShouldRejectNonexistentEmailAndShowWarning() throws Exception {
+        long before = authRepository.count();
+
+        mockMvc.perform(post("/auth/register")
+                        .with(csrf())
+                        .param("email", "ghost@missing.invalid")
+                        .param("username", "ghost-user")
+                        .param("password", "GhostPassword1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/register"))
+                .andExpect(flash().attribute("warning", "Email does not exist"));
 
         assertThat(authRepository.count()).isEqualTo(before);
     }

@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.auth.service;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
+import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 import java.util.List;
 
 public interface AuthService {
@@ -14,13 +15,23 @@ public interface AuthService {
 
     record RegisteredUserSummary(String username, String email, String hashedPassword) {}
 
-    record RegistrationResult(boolean success, String errorCode, String errorMessage, RegisteredUserSummary registeredUser) {
-        public static RegistrationResult successResult(RegisteredUserSummary registeredUser) {
-            return new RegistrationResult(true, null, null, registeredUser);
+    record RegistrationResult(
+            boolean success,
+            String errorCode,
+            String errorMessage,
+            RegisteredUserSummary registeredUser,
+            PasswordStrength passwordStrength
+    ) {
+        public static RegistrationResult successResult(RegisteredUserSummary registeredUser, PasswordStrength passwordStrength) {
+            return new RegistrationResult(true, null, null, registeredUser, passwordStrength);
+        }
+
+        public static RegistrationResult failureResult(String errorCode, String errorMessage, PasswordStrength passwordStrength) {
+            return new RegistrationResult(false, errorCode, errorMessage, null, passwordStrength);
         }
 
         public static RegistrationResult failureResult(String errorCode, String errorMessage) {
-            return new RegistrationResult(false, errorCode, errorMessage, null);
+            return failureResult(errorCode, errorMessage, null);
         }
     }
 }

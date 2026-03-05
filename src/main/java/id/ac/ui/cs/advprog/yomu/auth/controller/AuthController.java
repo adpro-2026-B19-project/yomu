@@ -77,6 +77,9 @@ public class AuthController {
         }
 
         if (bindingResult.hasErrors()) {
+            if (registrationResult != null && !registrationResult.success()) {
+                redirectAttributes.addFlashAttribute("warning", registrationResult.errorMessage());
+            }
             redirectAttributes.addFlashAttribute(
                     "org.springframework.validation.BindingResult.form",
                     bindingResult

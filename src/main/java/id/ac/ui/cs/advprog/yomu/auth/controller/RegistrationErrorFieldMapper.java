@@ -9,9 +9,11 @@ public class RegistrationErrorFieldMapper {
     private static final Map<String, String> FIELD_BY_ERROR_CODE = Map.of(
             "duplicate_email", "email",
             "required_email", "email",
+            "nonexistent_email", "email",
             "duplicate_username", "username",
             "required_username", "username",
-            "required_password", "password"
+            "required_password", "password",
+            "weak_password", "password"
     );
 
     public String resolve(String errorCode) {

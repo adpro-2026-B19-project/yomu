@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.auth.service;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
+import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import java.util.List;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -10,10 +11,18 @@ import org.springframework.stereotype.Service;
 public class AuthServiceImpl implements AuthService {
 
     private final AuthRepository authRepository;
+    private final EmailExistenceChecker emailExistenceChecker;
+    private final PasswordStrengthChecker passwordStrengthChecker;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public AuthServiceImpl(AuthRepository authRepository) {
+    public AuthServiceImpl(
+            AuthRepository authRepository,
+            EmailExistenceChecker emailExistenceChecker,
+            PasswordStrengthChecker passwordStrengthChecker
+    ) {
         this.authRepository = authRepository;
+        this.emailExistenceChecker = emailExistenceChecker;
+        this.passwordStrengthChecker = passwordStrengthChecker;
     }
 
     @Override
@@ -37,6 +46,15 @@ public class AuthServiceImpl implements AuthService {
 
         if (normalizedPassword.isBlank()) {
             return RegistrationResult.failureResult("required_password", "Password is required");
+        }
+
+        if (!emailExistenceChecker.exists(normalizedEmail)) {
+            return RegistrationResult.failureResult("nonexistent_email", "Email does not exist");
+        }
+
+        PasswordStrength passwordStrength = passwordStrengthChecker.assess(normalizedPassword);
+        if (passwordStrength == PasswordStrength.WEAK) {
+            return RegistrationResult.failureResult("weak_password", "Password is too weak", passwordStrength);
         }
 
         String normalizedUsername = normalize(request.username());
@@ -66,7 +84,8 @@ public class AuthServiceImpl implements AuthService {
         );
         authRepository.save(user);
         return RegistrationResult.successResult(
-                new RegisteredUserSummary(user.getUsername(), user.getEmail(), user.getPassword())
+                new RegisteredUserSummary(user.getUsername(), user.getEmail(), user.getPassword()),
+                passwordStrength
         );
     }
 
