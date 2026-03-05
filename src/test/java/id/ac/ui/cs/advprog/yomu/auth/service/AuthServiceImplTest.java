@@ -48,34 +48,47 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void registerUserShouldFailWhenUsernameIsBlankAfterTrim() {
-        AuthService.RegistrationResult result = authService.registerUser("   ");
+    void registerUserShouldFailWhenEmailAlreadyExists() {
+        when(authRepository.findByEmail("alice@example.com"))
+                .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", "hashed")));
+
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("alice@example.com", "alice", "raw-password")
+        );
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("required");
-        assertThat(result.errorMessage()).isEqualTo("Username is required");
-        verify(authRepository, never()).findByUsername(any());
+        assertThat(result.errorCode()).isEqualTo("duplicate_email");
+        assertThat(result.errorMessage()).isEqualTo("Email already exists");
+        verify(authRepository).findByEmail("alice@example.com");
         verify(authRepository, never()).save(any());
     }
 
     @Test
     void registerUserShouldFailWhenUsernameAlreadyExists() {
-        when(authRepository.findByUsername("alice")).thenReturn(Optional.of(new AuthUser("alice")));
+        when(authRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
+        when(authRepository.findByUsername("alice"))
+                .thenReturn(Optional.of(new AuthUser("alice", "other@example.com", null, "alice", "hashed")));
 
-        AuthService.RegistrationResult result = authService.registerUser(" alice ");
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("alice@example.com", "alice", "raw-password")
+        );
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("duplicate");
+        assertThat(result.errorCode()).isEqualTo("duplicate_username");
         assertThat(result.errorMessage()).isEqualTo("Username already exists");
+        verify(authRepository).findByEmail("alice@example.com");
         verify(authRepository).findByUsername("alice");
         verify(authRepository, never()).save(any());
     }
 
     @Test
-    void registerUserShouldPersistNormalizedUsernameWhenValid() {
+    void registerUserShouldDefaultUsernameFromEmailLocalPart() {
+        when(authRepository.findByEmail("charlie@example.com")).thenReturn(Optional.empty());
         when(authRepository.findByUsername("charlie")).thenReturn(Optional.empty());
 
-        AuthService.RegistrationResult result = authService.registerUser(" charlie ");
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("charlie@example.com", "   ", "raw-password")
+        );
 
         assertThat(result.success()).isTrue();
         assertThat(result.errorCode()).isNull();
@@ -83,6 +96,25 @@ class AuthServiceImplTest {
 
         ArgumentCaptor<AuthUser> userCaptor = ArgumentCaptor.forClass(AuthUser.class);
         verify(authRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getEmail()).isEqualTo("charlie@example.com");
         assertThat(userCaptor.getValue().getUsername()).isEqualTo("charlie");
+        assertThat(userCaptor.getValue().getDisplayName()).isEqualTo("charlie");
+    }
+
+    @Test
+    void registerUserShouldPersistHashedPasswordWhenValid() {
+        when(authRepository.findByEmail("dora@example.com")).thenReturn(Optional.empty());
+        when(authRepository.findByUsername("dora")).thenReturn(Optional.empty());
+
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("dora@example.com", "dora", "secret-password")
+        );
+
+        assertThat(result.success()).isTrue();
+
+        ArgumentCaptor<AuthUser> userCaptor = ArgumentCaptor.forClass(AuthUser.class);
+        verify(authRepository).save(userCaptor.capture());
+        assertThat(userCaptor.getValue().getPassword()).isNotEqualTo("secret-password");
+        assertThat(userCaptor.getValue().getPassword()).startsWith("$2");
     }
 }
