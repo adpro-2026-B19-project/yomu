@@ -57,6 +57,7 @@ class AuthIntegrationTest {
         mockMvc.perform(get("/auth/login"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("auth/login"))
+                .andExpect(model().attributeExists("loginForm"))
                 .andExpect(model().attributeExists("registeredName"))
                 .andExpect(model().attributeExists("registeredEmail"))
                 .andExpect(model().attributeExists("registeredHashedPassword"));
@@ -162,5 +163,45 @@ class AuthIntegrationTest {
                 .andExpect(flash().attribute("warning", "Email does not exist"));
 
         assertThat(authRepository.count()).isEqualTo(before);
+    }
+
+    @Test
+    void loginShouldFailWhenEmailNotRegistered() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("email", "ghost@example.com")
+                        .param("password", "GhostPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login"))
+                .andExpect(flash().attribute("loginWarning", "Invalid email or password"));
+    }
+
+    @Test
+    void loginShouldFailWhenPasswordInvalid() throws Exception {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword));
+
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("email", "alice@example.com")
+                        .param("password", "WrongPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login"))
+                .andExpect(flash().attribute("loginWarning", "Invalid email or password"));
+    }
+
+    @Test
+    void loginShouldSucceedWhenCredentialsAreValid() throws Exception {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword));
+
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("email", "alice@example.com")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login"))
+                .andExpect(flash().attribute("loggedInName", "alice"))
+                .andExpect(flash().attribute("loggedInEmail", "alice@example.com"));
     }
 }

@@ -20,9 +20,11 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceImplTest {
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Mock
     private AuthRepository authRepository;
@@ -161,5 +163,63 @@ class AuthServiceImplTest {
         assertThat(result.errorMessage()).isEqualTo("Password is too weak");
         assertThat(result.passwordStrength()).isEqualTo(PasswordStrength.WEAK);
         verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void loginUserShouldFailWhenEmailIsBlank() {
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("   ", "SecretPass1!"));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("required_email");
+        assertThat(result.errorMessage()).isEqualTo("Email is required");
+    }
+
+    @Test
+    void loginUserShouldFailWhenPasswordIsBlank() {
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice@example.com", "   "));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("required_password");
+        assertThat(result.errorMessage()).isEqualTo("Password is required");
+    }
+
+    @Test
+    void loginUserShouldFailWhenEmailIsNotRegistered() {
+        when(authRepository.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
+
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("ghost@example.com", "SecretPass1!"));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_credentials");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email or password");
+    }
+
+    @Test
+    void loginUserShouldFailWhenPasswordDoesNotMatch() {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        when(authRepository.findByEmail("alice@example.com"))
+                .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword)));
+
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice@example.com", "WrongPass1!"));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_credentials");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email or password");
+    }
+
+    @Test
+    void loginUserShouldSucceedWhenCredentialsAreValid() {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        when(authRepository.findByEmail("alice@example.com"))
+                .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword)));
+
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice@example.com", "CorrectPass1!"));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.errorCode()).isNull();
+        assertThat(result.errorMessage()).isNull();
+        assertThat(result.loggedInUser()).isNotNull();
+        assertThat(result.loggedInUser().username()).isEqualTo("alice");
+        assertThat(result.loggedInUser().email()).isEqualTo("alice@example.com");
     }
 }
