@@ -16,8 +16,9 @@ public class ErrorPageController {
         Object path = request.getAttribute(RequestDispatcher.ERROR_REQUEST_URI);
 
         model.addAttribute("statusCode", statusCode == null ? "Unknown" : statusCode.toString());
+        model.addAttribute("status", statusCode == null ? "Unknown" : statusCode.toString());
         model.addAttribute("errorMessage", message == null ? "Unexpected error" : message.toString());
         model.addAttribute("errorPath", path == null ? "" : path.toString());
-        return "index/error";
+        return "error/index";
     }
 }

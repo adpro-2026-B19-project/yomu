@@ -29,13 +29,8 @@ public class AuthController {
     }
 
     @GetMapping
-    public String authPage(Model model) {
-        model.addAttribute("users", authService.findAllUsers());
-        model.addAttribute("userCount", authService.countUsers());
-        if (!model.containsAttribute("form")) {
-            model.addAttribute("form", new RegisterForm("", "", ""));
-        }
-        return "auth/index";
+    public String authPage() {
+        return "redirect:/auth/login";
     }
 
     @GetMapping("/register")

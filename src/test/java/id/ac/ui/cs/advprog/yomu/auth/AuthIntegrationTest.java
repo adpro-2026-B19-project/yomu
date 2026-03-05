@@ -209,7 +209,10 @@ class AuthIntegrationTest {
         mockMvc.perform(get("/profile").session((org.springframework.mock.web.MockHttpSession) session))
                 .andExpect(status().isOk())
                 .andExpect(view().name("profile/index"))
-                .andExpect(model().attribute("loggedInName", "alice"))
-                .andExpect(model().attribute("loggedInEmail", "alice@example.com"));
+                .andExpect(model().attributeExists("user"))
+                .andExpect(model().attribute("user",
+                        org.hamcrest.Matchers.hasProperty("username", org.hamcrest.Matchers.is("alice"))))
+                .andExpect(model().attribute("user",
+                        org.hamcrest.Matchers.hasProperty("email", org.hamcrest.Matchers.is("alice@example.com"))));
     }
 }

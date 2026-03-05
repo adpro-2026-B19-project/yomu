@@ -72,13 +72,63 @@ background:var(--primary);
 border-color:var(--primary);
 color:white;
 }
-.user-pill{
+.user-menu{
+position:relative;
+}
+.menu-trigger{
 display:inline-flex;
-padding:10px 14px;
-border-radius:10px;
+align-items:center;
+gap:10px;
+padding:8px 12px;
+border-radius:12px;
 border:1px solid var(--border);
 background:var(--card);
 font-weight:700;
+cursor:pointer;
+}
+.menu-trigger::-webkit-details-marker{
+display:none;
+}
+.avatar-holder{
+width:32px;
+height:32px;
+border-radius:50%;
+border:1px dashed var(--border);
+background:#020617;
+flex-shrink:0;
+}
+.menu-panel{
+position:absolute;
+right:0;
+top:calc(100% + 8px);
+min-width:220px;
+background:var(--card);
+border:1px solid var(--border);
+border-radius:12px;
+padding:8px;
+display:grid;
+gap:6px;
+z-index:20;
+}
+.menu-item{
+display:block;
+padding:9px 10px;
+border-radius:10px;
+font-weight:600;
+}
+.menu-item:hover{
+background:#0b1224;
+}
+.menu-form{
+margin:0;
+}
+.menu-logout{
+width:100%;
+text-align:left;
+background:rgba(248,113,113,.15);
+border:1px solid rgba(248,113,113,.4);
+color:#F87171;
+cursor:pointer;
 }
 .hero{
 padding:60px 0 30px;
@@ -167,8 +217,23 @@ font-size:36px;
 <span>Yomu</span>
 </a>
 <nav class="navlinks">
-<span class="user-pill" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}"
-      th:text="${loggedInName}">username</span>
+<details class="user-menu" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}">
+<summary class="menu-trigger">
+<span class="avatar-holder" aria-label="Profile image placeholder"></span>
+<span th:text="${loggedInName}">username</span>
+</summary>
+<div class="menu-panel">
+<a class="menu-item" th:href="@{/profile}">Profiles</a>
+<a class="menu-item" th:href="@{/achievements}">Achievements</a>
+<a class="menu-item" th:href="@{/read}">Read</a>
+<a class="menu-item" th:href="@{/quiz}">Quiz</a>
+<a class="menu-item" th:href="@{/interaction}">Clan</a>
+<form class="menu-form" th:action="@{/auth/logout}" method="post">
+<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+<button type="submit" class="menu-item menu-logout">Logout</button>
+</form>
+</div>
+</details>
 <a th:href="@{/auth/login}" class="btn" th:unless="${loggedInName != null and !#strings.isEmpty(loggedInName)}">Login</a>
 <a th:href="@{/auth/register}" class="btn primary" th:unless="${loggedInName != null and !#strings.isEmpty(loggedInName)}">Register</a>
 </nav>

@@ -1,66 +1,171 @@
+<!-- templates/profile/index.html (Yomu dark theme, read-only, no appbar) -->
 <!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Yomu - Profile</title>
+    <title>Yomu · Profile</title>
+
     <style>
-        :root {
+        :root{
             --primary:#3B82F6;
             --bg:#0F172A;
             --card:#1E293B;
             --border:#334155;
             --text:#E2E8F0;
             --muted:#94A3B8;
-            --success:#34D399;
-            --danger:#F87171;
+            --panel:#020617;
         }
-        *{box-sizing:border-box;}
-        body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
-        a{color:inherit;text-decoration:none;}
-        .container{width:min(900px,92vw);margin:0 auto;padding:24px 0;}
-        .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
-        .title{margin:0 0 10px;font-size:24px;}
-        .muted{color:var(--muted);}
-        .alert{border-radius:12px;padding:12px 14px;margin:0 0 14px;border:1px solid var(--border);}
-        .alert.success{border-color:rgba(52,211,153,.35);}
-        .alert.warn{border-color:rgba(248,113,113,.35);}
-        .label{font-size:13px;color:var(--muted);margin-bottom:2px;}
-        .value{font-size:16px;font-weight:700;margin-bottom:12px;}
-        .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
-        .btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);font-weight:700;}
-        .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
-        .btn.danger{background:var(--danger);border-color:var(--danger);color:#fff;}
+
+        *{ box-sizing:border-box; }
+
+        body{
+            margin:0;
+            font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+            background:var(--bg);
+            color:var(--text);
+        }
+
+        .container{
+            width:min(900px,92vw);
+            margin:0 auto;
+            padding:40px 0;
+        }
+
+        .card{
+            background:var(--card);
+            border:1px solid var(--border);
+            border-radius:16px;
+            padding:20px;
+        }
+
+        .header{
+            display:flex;
+            align-items:center;
+            gap:16px;
+            margin-bottom:20px;
+            flex-wrap:wrap;
+        }
+
+        .avatar{
+            width:80px;
+            height:80px;
+            border-radius:18px;
+            border:1px dashed var(--border);
+            background:var(--panel);
+        }
+
+        h1{
+            margin:0;
+            font-size:26px;
+            line-height:1.1;
+        }
+
+        .muted{ color:var(--muted); }
+
+        table{
+            width:100%;
+            border-collapse:collapse;
+            margin-top:10px;
+        }
+
+        td{
+            padding:12px 0;
+            border-top:1px solid rgba(148,163,184,.15);
+            vertical-align:top;
+        }
+
+        td:first-child{
+            color:var(--muted);
+            width:180px;
+            padding-right:14px;
+        }
+
+        .footer{
+            margin-top:20px;
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+            align-items:center;
+        }
+
+        .btn{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            padding:10px 14px;
+            border-radius:12px;
+            border:1px solid var(--border);
+            background:var(--panel);
+            color:var(--text);
+            font-weight:800;
+            cursor:pointer;
+            text-decoration:none;
+        }
+
+        .btn.primary{
+            background:var(--primary);
+            border-color:var(--primary);
+            color:#fff;
+        }
+
+        .btn:hover{ filter:brightness(1.05); }
     </style>
 </head>
+
 <body>
 <main class="container">
     <section class="card">
-        <h1 class="title">Profile</h1>
 
-        <div class="alert success" th:if="${loggedInEmail}">
-            <strong style="color:var(--success);">Login success.</strong>
-            <div class="muted">You are logged in with persistent session authentication.</div>
+        <div class="header">
+            <div class="avatar" aria-label="Avatar placeholder"></div>
+
+            <div style="min-width:240px;">
+                <h1 th:text="${user?.displayName} ?: 'User'">User</h1>
+                <div class="muted">
+                    @<span th:text="${user?.username} ?: 'username'">username</span>
+                </div>
+            </div>
+
+            <div style="margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;">
+                <span class="muted" style="align-self:center;">
+                    <strong th:text="${user?.role} ?: 'USER'">USER</strong>
+                </span>
+            </div>
         </div>
 
-        <div class="alert warn" th:unless="${loggedInEmail}">
-            <strong style="color:var(--danger);">No login context.</strong>
-            <div class="muted">Open this page after a successful login to see your account details.</div>
-        </div>
+        <table>
+            <tr>
+                <td>Username</td>
+                <td th:text="${user?.username} ?: '-'">-</td>
+            </tr>
+            <tr>
+                <td>Display Name</td>
+                <td th:text="${user?.displayName} ?: '-'">-</td>
+            </tr>
+            <tr>
+                <td>Email</td>
+                <td th:text="${user?.email} ?: '-'">-</td>
+            </tr>
+            <tr>
+                <td>Phone Number</td>
+                <td th:text="${user?.phoneNumber} ?: '-'">-</td>
+            </tr>
+            <tr>
+                <td>Created At</td>
+                <td th:text="${user != null and user.createdAt != null ? #temporals.format(user.createdAt, 'dd-MM-yyyy') : '-'}">-</td>
+            </tr>
+        </table>
 
-        <p class="label">Name</p>
-        <p class="value" th:text="${loggedInName != null and !#strings.isEmpty(loggedInName) ? loggedInName : '-'}">-</p>
-
-        <p class="label">Email</p>
-        <p class="value" th:text="${loggedInEmail != null and !#strings.isEmpty(loggedInEmail) ? loggedInEmail : '-'}">-</p>
-
-        <div class="actions">
-            <a class="btn" th:href="@{/}">Home</a>
-            <form th:action="@{/logout}" method="post">
+        <div class="footer">
+            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                <button class="btn danger" type="submit">Logout</button>
+                <button class="btn" type="submit">Logout</button>
             </form>
+
+            <a class="btn primary" th:href="@{/}">Home</a>
         </div>
+
     </section>
 </main>
 </body>
