@@ -8,6 +8,6 @@ public class TemplateController {
 
     @GetMapping("/")
     public String index() {
-        return "redirect:/auth/register";
+        return "landingPage";
     }
 }
