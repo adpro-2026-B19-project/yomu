@@ -1,0 +1,40 @@
+name: Dummy CD
+
+on:
+  workflow_run:
+    workflows:
+      - CI Quality Gate
+    types:
+      - completed
+    branches:
+      - staging
+
+permissions:
+  contents: read
+
+jobs:
+  blocked-by-quality-gate:
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion != 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Explain why deployment is blocked
+        run: |
+          echo "CI did not pass quality checks. Dummy CD is blocked."
+          echo "Trigger event: ${{ github.event.workflow_run.event }}"
+          echo "Trigger branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "CI conclusion: ${{ github.event.workflow_run.conclusion }}"
+
+  dummy-deploy:
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository at tested commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Run dummy deployment
+        run: |
+          echo "All quality gates passed. Running dummy deployment..."
+          echo "Deploying commit ${{ github.event.workflow_run.head_sha }}"
+          echo "This is a placeholder deployment step."
