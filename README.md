@@ -13,6 +13,8 @@
 ## Docker Workflow
 
 1. Build and start:
+   - Set a database password:
+     - PowerShell: `$env:DB_PASSWORD="replace-with-strong-password"`
    - `docker compose -f compose.yml up --build -d`
 2. See logs:
    - `docker compose -f compose.yml logs -f app`
@@ -26,5 +28,4 @@
 - Docker runtime uses Spring profile `docker`.
 - Docker profile config is in `src/main/resources/application-docker.properties`.
 - H2 data persists in docker volume `yomu_data`.
-- H2 TCP server is exposed on port `9092` for IDE access.
-- IntelliJ DB URL (Docker): `jdbc:h2:tcp://localhost:9092//app/data/yomu-db`
+- H2 TCP server is disabled by default in Docker (`app.h2.tcp.enabled=false`).

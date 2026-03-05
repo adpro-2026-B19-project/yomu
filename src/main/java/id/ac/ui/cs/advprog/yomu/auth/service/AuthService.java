@@ -11,7 +11,7 @@ public interface AuthService {
 
     record LoginRequest(String email, String password) {}
 
-    record RegisteredUserSummary(String username, String email, String hashedPassword) {}
+    record RegisteredUserSummary(String username, String email) {}
 
     record LoggedInUserSummary(String username, String email) {}
 
