@@ -17,9 +17,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AuthController {
 
     private final AuthService authService;
+    private final RegistrationErrorFieldMapper registrationErrorFieldMapper;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, RegistrationErrorFieldMapper registrationErrorFieldMapper) {
         this.authService = authService;
+        this.registrationErrorFieldMapper = registrationErrorFieldMapper;
     }
 
     @GetMapping
@@ -51,7 +53,11 @@ public class AuthController {
                     new AuthService.RegisterRequest(form.getEmail(), form.getUsername(), form.getPassword())
             );
             if (!registrationResult.success()) {
-                bindingResult.rejectValue(resolveFieldName(registrationResult.errorCode()), registrationResult.errorCode(), registrationResult.errorMessage());
+                bindingResult.rejectValue(
+                        registrationErrorFieldMapper.resolve(registrationResult.errorCode()),
+                        registrationResult.errorCode(),
+                        registrationResult.errorMessage()
+                );
             }
         }
 
@@ -66,24 +72,5 @@ public class AuthController {
 
         redirectAttributes.addFlashAttribute("message", "User registered successfully");
         return "redirect:/auth/register";
-    }
-
-    private String resolveFieldName(String errorCode) {
-        if ("duplicate_email".equals(errorCode)) {
-            return "email";
-        }
-        if ("required_email".equals(errorCode)) {
-            return "email";
-        }
-        if ("duplicate_username".equals(errorCode)) {
-            return "username";
-        }
-        if ("required_username".equals(errorCode)) {
-            return "username";
-        }
-        if ("required_password".equals(errorCode)) {
-            return "password";
-        }
-        return "email";
     }
 }
