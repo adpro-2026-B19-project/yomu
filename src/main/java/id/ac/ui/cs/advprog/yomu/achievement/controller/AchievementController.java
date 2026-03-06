@@ -3,6 +3,10 @@ package id.ac.ui.cs.advprog.yomu.achievement.controller;
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
 import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
+import id.ac.ui.cs.advprog.yomu.achievement.dto.AchievementCreateForm;
+import jakarta.validation.Valid;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,6 +31,12 @@ public class AchievementController {
     public String achievementListPage(Model model) {
         List<Achievement> achievements = achievementService.getAllAchievements();
         model.addAttribute("achievements", achievements);
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+            model.addAttribute("loggedInName", auth.getName());
+        }
+
         return "achievement/ListAchievement";
     }
 
@@ -47,9 +57,14 @@ public class AchievementController {
     @PostMapping("/api")
     @ResponseBody
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Achievement> createAchievement(@RequestParam String name,
-                                                         @RequestParam String milestone) {
-        Achievement created = achievementService.createAchievement(name, milestone);
+    public ResponseEntity<Achievement> createAchievement(@RequestBody @Valid AchievementCreateForm form) {
+        Achievement created = achievementService.createAchievement(form.getName(), form.getMilestone());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseBody
+    public ResponseEntity<String> handleDuplicate(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
     }
 }
