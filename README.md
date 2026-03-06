@@ -40,3 +40,22 @@
 - API:
   - `GET /api/clans` -> list all clans.
   - `POST /api/clans` -> create clan (JSON body: `{"name":"..."}`).
+
+## Nisrina Alya Milestone 25% (Bacaan & Kuis)
+
+- Endpoint GET Daftar Bacaan - TextController.java
+- Endpoint GET Detail Teks	- TextController.java
+- Endpoint POST Buat Teks (Admin) - AdminTextController.java
+- Entitas Database (Text, Kategori, Soal)	- Text.java, Question.java
+- Halaman Thymeleaf (List & Detail)	- texts.html, text-detail.html
+- Minimal 1 Unit Test - QuestionTest.java, ReadingIntegrationTest.java
+
+Web (Frontend MVC):
+- GET /texts $\rightarrow$ Halaman daftar semua bacaan (Reading List).
+- GET /texts/{id} $\rightarrow$ Halaman detail untuk membaca satu teks spesifik.
+- GET /admin/texts/create $\rightarrow$ Halaman Form Admin untuk membuat teks & soal kuis baru.
+- POST /admin/texts $\rightarrow$ Proses menyimpan data Teks, Kategori, Soal, dan Opsi Jawaban dari form.
+
+Service Logic (Backend):
+- createText(...) $\rightarrow$ Logika transaksional menyimpan Teks + Kategori + UserID.
+- getAllTexts() $\rightarrow$ Mengambil semua teks yang statusnya published.
