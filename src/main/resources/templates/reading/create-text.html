@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Admin - Buat Bacaan</title>
+    <style>
+        :root{ --primary:#3B82F6; --bg:#0F172A; --card:#1E293B; --border:#334155; --text:#E2E8F0; --muted:#94A3B8; --danger:#F87171; --success:#34D399; --panel:#020617; }
+        *{box-sizing:border-box;}
+        body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
+        a{color:inherit;text-decoration:none;}
+
+        .container{width:min(900px,92vw);margin:0 auto;}
+        header{background:var(--panel);border-bottom:1px solid var(--border); padding: 14px 0; margin-bottom: 30px;}
+
+        .card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px; margin-bottom: 24px;}
+        h1{margin:0 0 20px;font-size:24px;}
+        h3{margin:0 0 16px;font-size:18px; color: var(--primary);}
+
+        label{display:block;font-weight:700;font-size:13px;margin:12px 0 6px;}
+        input, textarea, select {
+            width:100%; padding:12px; border-radius:12px; border:1px solid var(--border);
+            background:rgba(2,6,23,.55); color:var(--text); outline:none; font-family: inherit;
+        }
+        input:focus, textarea:focus, select:focus { border-color:var(--primary); }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .btn{cursor:pointer; display:inline-flex;align-items:center;justify-content:center;padding:12px 20px;border-radius:12px;border:none; font-weight:800;font-size:14px;}
+        .btn-primary{background:var(--primary);color:#fff;}
+        .btn-ghost{background:transparent; color: var(--muted); border: 1px solid var(--border);}
+
+        .alert{border:1px solid var(--success);background:rgba(52,211,153,.1); color: var(--success); border-radius:12px;padding:14px;margin-bottom:20px;}
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="container" style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight: 800; font-size: 18px;">Yomu Admin</span>
+        <a th:href="@{/texts}" class="btn btn-ghost">Batal & Kembali</a>
+    </div>
+</header>
+
+<main class="container">
+    <h1>Buat Materi Bacaan Baru</h1>
+
+    <div th:if="${param.success}" class="alert">
+        <strong>Berhasil!</strong> Bacaan dan kuis telah tersimpan.
+    </div>
+
+    <form th:action="@{/admin/texts}" method="post">
+        <div class="card">
+            <h3>📖 Konten Bacaan</h3>
+
+            <label>Judul Artikel</label>
+            <input type="text" name="title" required placeholder="Contoh: Pentingnya Verifikasi Sumber Berita">
+
+            <label>Kategori</label>
+            <select name="categoryId" required>
+                <option value="">-- Pilih Kategori --</option>
+                <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.name}"></option>
+            </select>
+
+            <label>Isi Bacaan</label>
+            <textarea name="content" rows="10" required placeholder="Tuliskan materi bacaan di sini..."></textarea>
+        </div>
+
+        <div class="card">
+            <h3>❓ Pertanyaan Kuis (Wajib 1)</h3>
+
+            <label>Pertanyaan</label>
+            <input type="text" name="question" required placeholder="Apa inti dari tulisan di atas?">
+
+            <div class="grid-2">
+                <div>
+                    <label>Opsi A</label>
+                    <input type="text" name="optionA" required>
+                </div>
+                <div>
+                    <label>Opsi B</label>
+                    <input type="text" name="optionB" required>
+                </div>
+                <div>
+                    <label>Opsi C</label>
+                    <input type="text" name="optionC" required>
+                </div>
+                <div>
+                    <label>Opsi D</label>
+                    <input type="text" name="optionD" required>
+                </div>
+            </div>
+
+            <label>Jawaban Benar</label>
+            <select name="correct" required style="width: 100px;">
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom: 50px;">
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Simpan Materi</button>
+        </div>
+    </form>
+</main>
+
+</body>
+</html>
