@@ -5,6 +5,8 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Achievements – Yomu</title>
+    <meta name="csrf-token" th:content="${_csrf.token}"/>
+    <meta name="csrf-header" th:content="${_csrf.headerName}"/>
     <style>
         :root {
             --primary: #3B82F6;
@@ -345,9 +347,15 @@
             return;
         }
 
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const csrfHeader = document.querySelector('meta[name="csrf-header"]').content;
+
         fetch('/achievements/api', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                [csrfHeader]: csrfToken
+            },
             body: JSON.stringify({ name: name, milestone: milestone })
         })
             .then(res => {
