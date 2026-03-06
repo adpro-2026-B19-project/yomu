@@ -58,12 +58,9 @@ public class AuthServiceImpl implements AuthService {
             return RegistrationResult.failureResult("required_username", "Username is required");
         }
 
-        if (authRepository.findByEmail(normalizedEmail).isPresent()) {
-            return RegistrationResult.failureResult("duplicate_email", "Email already exists");
-        }
-
-        if (authRepository.findByUsername(normalizedUsername).isPresent()) {
-            return RegistrationResult.failureResult("duplicate_username", "Username already exists");
+        if (authRepository.findByEmail(normalizedEmail).isPresent()
+                || authRepository.findByUsername(normalizedUsername).isPresent()) {
+            return RegistrationResult.failureResult("registration_failed", "Unable to complete registration");
         }
 
         String hashedPassword = passwordEncoder.encode(normalizedPassword);
@@ -76,7 +73,7 @@ public class AuthServiceImpl implements AuthService {
         );
         authRepository.save(user);
         return RegistrationResult.successResult(
-                new RegisteredUserSummary(user.getUsername(), user.getEmail(), user.getPassword()),
+                new RegisteredUserSummary(user.getUsername(), user.getEmail()),
                 passwordStrength
         );
     }

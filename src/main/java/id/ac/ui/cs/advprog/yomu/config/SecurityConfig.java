@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.yomu.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -11,17 +12,20 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            @Value("${spring.h2.console.enabled:false}") boolean h2ConsoleEnabled
+    ) {
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/",
                         "/auth/**",
-                        "/h2-console/**",
                         "/error",
                         "/css/**",
                         "/js/**",
                         "/images/**"
                 ).permitAll()
+                .requestMatchers("/h2-console/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()
                 .anyRequest().authenticated()
         );
@@ -42,8 +46,11 @@ public class SecurityConfig {
                 .deleteCookies("JSESSIONID")
                 .permitAll()
         );
-        http.csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"));
-        http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
+
+        if (h2ConsoleEnabled) {
+            http.csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"));
+            http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
+        }
 
         return http.build();
     }
