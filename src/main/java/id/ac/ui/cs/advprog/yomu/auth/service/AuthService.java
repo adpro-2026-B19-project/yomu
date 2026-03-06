@@ -1,22 +1,47 @@
 package id.ac.ui.cs.advprog.yomu.auth.service;
 
-import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
-import java.util.List;
+import id.ac.ui.cs.advprog.yomu.auth.model.PasswordStrength;
 
 public interface AuthService {
-    List<AuthUser> findAllUsers();
+    RegistrationResult registerUser(RegisterRequest request);
 
-    long countUsers();
+    LoginResult loginUser(LoginRequest request);
 
-    RegistrationResult registerUser(String username);
+    record RegisterRequest(String email, String username, String password) {}
 
-    record RegistrationResult(boolean success, String errorCode, String errorMessage) {
-        public static RegistrationResult successResult() {
-            return new RegistrationResult(true, null, null);
+    record LoginRequest(String email, String password) {}
+
+    record RegisteredUserSummary(String username, String email) {}
+
+    record LoggedInUserSummary(String username, String email) {}
+
+    record RegistrationResult(
+            boolean success,
+            String errorCode,
+            String errorMessage,
+            RegisteredUserSummary registeredUser,
+            PasswordStrength passwordStrength
+    ) {
+        public static RegistrationResult successResult(RegisteredUserSummary registeredUser, PasswordStrength passwordStrength) {
+            return new RegistrationResult(true, null, null, registeredUser, passwordStrength);
+        }
+
+        public static RegistrationResult failureResult(String errorCode, String errorMessage, PasswordStrength passwordStrength) {
+            return new RegistrationResult(false, errorCode, errorMessage, null, passwordStrength);
         }
 
         public static RegistrationResult failureResult(String errorCode, String errorMessage) {
-            return new RegistrationResult(false, errorCode, errorMessage);
+            return failureResult(errorCode, errorMessage, null);
+        }
+    }
+
+    record LoginResult(boolean success, String errorCode, String errorMessage, LoggedInUserSummary loggedInUser) {
+        public static LoginResult successResult(LoggedInUserSummary loggedInUser) {
+            return new LoginResult(true, null, null, loggedInUser);
+        }
+
+        public static LoginResult failureResult(String errorCode, String errorMessage) {
+            return new LoginResult(false, errorCode, errorMessage, null);
         }
     }
 }

@@ -21,6 +21,6 @@ class TemplateIntegrationTest {
     void rootShouldRenderLandingTemplate() throws Exception {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(view().name("index"));
+                .andExpect(view().name("landingPage"));
     }
 }

@@ -1,3 +1,4 @@
+
 plugins {
     java
     jacoco
@@ -68,4 +69,10 @@ tasks.jacocoTestCoverageVerification {
             }
         }
     }
+}
+
+tasks.register("run") {
+    group = "application"
+    description = "Alias for bootRun"
+    dependsOn("bootRun")
 }
