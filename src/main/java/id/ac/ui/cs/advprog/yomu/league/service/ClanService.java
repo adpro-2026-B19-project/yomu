@@ -15,6 +15,10 @@ public interface ClanService {
 
     void reviewJoinRequest(UUID clanId, UUID joinRequestId, UUID reviewerUserId, JoinRequestDecision decision);
 
+    void recordQuizCompletion(QuizCompletionPayload payload);
+
+    List<LeaderboardEntry> getBronzeLeaderboard();
+
     record CreateClanRequest(String name) {
     }
 
@@ -44,5 +48,24 @@ public interface ClanService {
     enum JoinRequestDecision {
         APPROVE,
         REJECT
+    }
+
+    record QuizCompletionPayload(
+            UUID eventId,
+            UUID userId,
+            UUID textId,
+            double score,
+            double accuracy,
+            LocalDateTime completedAt
+    ) {
+    }
+
+    record LeaderboardEntry(
+            UUID clanId,
+            String clanName,
+            String tier,
+            long memberCount,
+            double score
+    ) {
     }
 }

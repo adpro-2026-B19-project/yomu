@@ -62,6 +62,7 @@
             <span class="muted" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}"
                   th:text="'Hello, ' + ${loggedInName}">Hello, user</span>
             <a class="btn" th:href="@{/clans}">Back to Clans</a>
+            <a class="btn" th:href="@{/leaderboard}">Leaderboard</a>
             <a class="btn" th:href="@{/profile}">Profile</a>
             <form th:action="@{/auth/logout}" method="post" style="margin:0;">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>

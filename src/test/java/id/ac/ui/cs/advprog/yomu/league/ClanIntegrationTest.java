@@ -15,8 +15,11 @@ import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
 import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanJoinRequestRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanMemberRepository;
+import id.ac.ui.cs.advprog.yomu.league.repository.ClanQuizScoreEventRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.TierRepository;
+import java.time.LocalDateTime;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,12 +51,16 @@ class ClanIntegrationTest {
     private ClanJoinRequestRepository clanJoinRequestRepository;
 
     @Autowired
+    private ClanQuizScoreEventRepository clanQuizScoreEventRepository;
+
+    @Autowired
     private TierRepository tierRepository;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @BeforeEach
     void cleanDatabase() {
+        clanQuizScoreEventRepository.deleteAll();
         clanMemberRepository.deleteAll();
         clanJoinRequestRepository.deleteAll();
         clanRepository.deleteAll();
@@ -144,6 +151,61 @@ class ClanIntegrationTest {
 
         assertThat(clanMemberRepository.count()).isEqualTo(2);
         assertThat(clanJoinRequestRepository.findAll().getFirst().getStatus()).isEqualTo(ClanJoinRequestStatus.APPROVED);
+    }
+
+    @Test
+    void quizCompletionEventShouldUpdateBronzeLeaderboard() throws Exception {
+        MockHttpSession leaderSession = loginAs("leader-2@example.com", "LeaderPass1!");
+        MockHttpSession learnerSession = loginAs("learner-2@example.com", "LearnerPass1!");
+
+        mockMvc.perform(post("/clans")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("name", "Logic Guild"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clans"));
+
+        var clan = clanRepository.findAll().stream().findFirst().orElseThrow();
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/join")
+                        .session(learnerSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        var joinRequest = clanJoinRequestRepository.findAll().getFirst();
+        mockMvc.perform(post("/clans/" + clan.getId() + "/requests/" + joinRequest.getId() + "/decision")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("action", "approve"))
+                .andExpect(status().is3xxRedirection());
+
+        var learnerUser = authRepository.findByEmail("learner-2@example.com").orElseThrow();
+
+        mockMvc.perform(post("/api/league/events/quiz-completions")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventId":"%s",
+                                  "userId":"%s",
+                                  "textId":"%s",
+                                  "score":9.5,
+                                  "accuracy":0.95,
+                                  "completedAt":"%s"
+                                }
+                                """.formatted(
+                                UUID.randomUUID(),
+                                learnerUser.getId(),
+                                UUID.randomUUID(),
+                                LocalDateTime.now().minusMinutes(1)
+                        )))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/api/league/leaderboard/bronze").session(leaderSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].clanName").value("Logic Guild"))
+                .andExpect(jsonPath("$[0].score").value(9.5));
     }
 
     private MockHttpSession loginAs(String email, String rawPassword) throws Exception {

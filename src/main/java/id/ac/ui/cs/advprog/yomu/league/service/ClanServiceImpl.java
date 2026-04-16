@@ -5,15 +5,19 @@ import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequest;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMember;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMemberRole;
+import id.ac.ui.cs.advprog.yomu.league.model.ClanQuizScoreEvent;
 import id.ac.ui.cs.advprog.yomu.league.model.Tier;
 import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanJoinRequestRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanMemberRepository;
+import id.ac.ui.cs.advprog.yomu.league.repository.ClanQuizScoreEventRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.TierRepository;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,17 +29,20 @@ public class ClanServiceImpl implements ClanService {
     private final ClanRepository clanRepository;
     private final ClanMemberRepository clanMemberRepository;
     private final ClanJoinRequestRepository clanJoinRequestRepository;
+    private final ClanQuizScoreEventRepository clanQuizScoreEventRepository;
     private final TierRepository tierRepository;
 
     public ClanServiceImpl(
             ClanRepository clanRepository,
             ClanMemberRepository clanMemberRepository,
             ClanJoinRequestRepository clanJoinRequestRepository,
+            ClanQuizScoreEventRepository clanQuizScoreEventRepository,
             TierRepository tierRepository
     ) {
         this.clanRepository = clanRepository;
         this.clanMemberRepository = clanMemberRepository;
         this.clanJoinRequestRepository = clanJoinRequestRepository;
+        this.clanQuizScoreEventRepository = clanQuizScoreEventRepository;
         this.tierRepository = tierRepository;
     }
 
@@ -187,6 +194,54 @@ public class ClanServiceImpl implements ClanService {
         clanJoinRequestRepository.save(joinRequest);
     }
 
+    @Override
+    @Transactional
+    public void recordQuizCompletion(QuizCompletionPayload payload) {
+        validateQuizPayload(payload);
+
+        if (clanQuizScoreEventRepository.existsByEventId(payload.eventId())) {
+            return;
+        }
+
+        ClanMember member = clanMemberRepository.findByUserId(payload.userId()).orElse(null);
+        if (member == null) {
+            return;
+        }
+
+        ClanQuizScoreEvent event = new ClanQuizScoreEvent(
+                payload.eventId(),
+                member.getClan().getId(),
+                payload.userId(),
+                payload.textId(),
+                payload.score(),
+                payload.accuracy(),
+                payload.completedAt()
+        );
+
+        try {
+            clanQuizScoreEventRepository.save(event);
+        } catch (DataIntegrityViolationException ignoredDuplicate) {
+            return;
+        }
+
+        clanRepository.incrementBronzeScore(member.getClan().getId(), payload.score());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LeaderboardEntry> getBronzeLeaderboard() {
+        return clanRepository.findLeaderboardByTierCode(TierCode.BRONZE)
+                .stream()
+                .map(clan -> new LeaderboardEntry(
+                        clan.getId(),
+                        clan.getName(),
+                        clan.getTier().getCode().name(),
+                        clan.getMembers().size(),
+                        clan.getBronzeScore()
+                ))
+                .toList();
+    }
+
     private ClanSummary toSummary(Clan clan) {
         return new ClanSummary(
                 clan.getId(),
@@ -199,6 +254,33 @@ public class ClanServiceImpl implements ClanService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private void validateQuizPayload(QuizCompletionPayload payload) {
+        if (payload == null) {
+            throw new IllegalArgumentException("Quiz completion payload is required");
+        }
+        if (payload.eventId() == null) {
+            throw new IllegalArgumentException("Event id is required");
+        }
+        if (payload.userId() == null) {
+            throw new IllegalArgumentException("User id is required");
+        }
+        if (payload.textId() == null) {
+            throw new IllegalArgumentException("Text id is required");
+        }
+        if (Double.isNaN(payload.score()) || Double.isInfinite(payload.score()) || payload.score() < 0.0d) {
+            throw new IllegalArgumentException("Score must be a non-negative finite number");
+        }
+        if (Double.isNaN(payload.accuracy()) || Double.isInfinite(payload.accuracy())) {
+            throw new IllegalArgumentException("Accuracy must be a finite number");
+        }
+        if (payload.completedAt() == null) {
+            throw new IllegalArgumentException("Completed timestamp is required");
+        }
+        if (payload.completedAt().isAfter(LocalDateTime.now().plusMinutes(1))) {
+            throw new IllegalArgumentException("Completed timestamp cannot be in the far future");
+        }
     }
 
     private Clan getExistingClan(UUID clanId) {

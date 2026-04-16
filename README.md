@@ -41,6 +41,22 @@
   - `GET /api/clans` -> list all clans.
   - `POST /api/clans` -> create clan (JSON body: `{"name":"..."}`).
 
+## Kalfin Milestone 50% (Interaksi & Liga)
+
+- Join Clan flow:
+  - Learner can submit a join request to a clan.
+  - Clan leader can approve/reject pending requests.
+- Clan detail page:
+  - `GET /clans/{clanId}` -> member list and pending requests (for leader).
+- Bronze leaderboard:
+  - Web: `GET /leaderboard`
+  - API: `GET /api/league/leaderboard/bronze`
+- Quiz completion event ingestion (for cross-module integration):
+  - API: `POST /api/league/events/quiz-completions`
+  - Payload:
+    - `eventId`, `userId`, `textId`, `score`, `accuracy`, `completedAt`
+  - Event is idempotent by `eventId`.
+
 ## Nisrina Alya Milestone 25% (Bacaan & Kuis)
 
 - Endpoint GET Daftar Bacaan - TextController.java

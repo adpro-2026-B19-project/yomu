@@ -11,4 +11,6 @@ public interface ClanMemberRepository extends JpaRepository<ClanMember, UUID> {
     boolean existsByClanIdAndUserId(UUID clanId, UUID userId);
 
     Optional<ClanMember> findByClanIdAndUserId(UUID clanId, UUID userId);
+
+    Optional<ClanMember> findByUserId(UUID userId);
 }

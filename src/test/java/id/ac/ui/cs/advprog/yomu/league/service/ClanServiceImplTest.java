@@ -3,6 +3,8 @@ package id.ac.ui.cs.advprog.yomu.league.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -12,12 +14,15 @@ import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequest;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMember;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMemberRole;
+import id.ac.ui.cs.advprog.yomu.league.model.ClanQuizScoreEvent;
 import id.ac.ui.cs.advprog.yomu.league.model.Tier;
 import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanJoinRequestRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanMemberRepository;
+import id.ac.ui.cs.advprog.yomu.league.repository.ClanQuizScoreEventRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.TierRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,6 +32,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ClanServiceImplTest {
@@ -39,6 +45,9 @@ class ClanServiceImplTest {
 
     @Mock
     private ClanJoinRequestRepository clanJoinRequestRepository;
+
+    @Mock
+    private ClanQuizScoreEventRepository clanQuizScoreEventRepository;
 
     @Mock
     private TierRepository tierRepository;
@@ -166,5 +175,75 @@ class ClanServiceImplTest {
 
         assertThat(joinRequest.getStatus()).isEqualTo(ClanJoinRequestStatus.APPROVED);
         assertThat(joinRequest.getReviewedByUserId()).isEqualTo(leaderUserId);
+    }
+
+    @Test
+    void recordQuizCompletionShouldIncreaseClanScore() {
+        UUID eventId = UUID.randomUUID();
+        UUID clanId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID textId = UUID.randomUUID();
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Bronze Squad", bronze, UUID.randomUUID());
+        ReflectionTestUtils.setField(clan, "id", clanId);
+        ClanMember member = new ClanMember(clan, userId, ClanMemberRole.MEMBER);
+
+        when(clanQuizScoreEventRepository.existsByEventId(eventId)).thenReturn(false);
+        when(clanMemberRepository.findByUserId(userId)).thenReturn(Optional.of(member));
+
+        clanService.recordQuizCompletion(new ClanService.QuizCompletionPayload(
+                eventId,
+                userId,
+                textId,
+                8.5d,
+                0.85d,
+                LocalDateTime.now().minusMinutes(1)
+        ));
+
+        ArgumentCaptor<ClanQuizScoreEvent> eventCaptor = ArgumentCaptor.forClass(ClanQuizScoreEvent.class);
+        verify(clanQuizScoreEventRepository).save(eventCaptor.capture());
+        assertThat(eventCaptor.getValue().getEventId()).isEqualTo(eventId);
+        assertThat(eventCaptor.getValue().getUserId()).isEqualTo(userId);
+        assertThat(eventCaptor.getValue().getScore()).isEqualTo(8.5d);
+        verify(clanRepository).incrementBronzeScore(eq(clanId), eq(8.5d));
+    }
+
+    @Test
+    void recordQuizCompletionShouldBeIdempotentWhenEventAlreadyProcessed() {
+        UUID eventId = UUID.randomUUID();
+
+        when(clanQuizScoreEventRepository.existsByEventId(eventId)).thenReturn(true);
+
+        clanService.recordQuizCompletion(new ClanService.QuizCompletionPayload(
+                eventId,
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                6.0d,
+                0.6d,
+                LocalDateTime.now().minusMinutes(1)
+        ));
+
+        verify(clanQuizScoreEventRepository, never()).save(any(ClanQuizScoreEvent.class));
+        verify(clanRepository, never()).incrementBronzeScore(any(UUID.class), anyDouble());
+    }
+
+    @Test
+    void getBronzeLeaderboardShouldMapScoreAndOrderFromRepository() {
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan first = new Clan("High Score", bronze, UUID.randomUUID());
+        Clan second = new Clan("Lower Score", bronze, UUID.randomUUID());
+        first.addMember(new ClanMember(first, UUID.randomUUID(), ClanMemberRole.LEADER));
+        second.addMember(new ClanMember(second, UUID.randomUUID(), ClanMemberRole.LEADER));
+        ReflectionTestUtils.setField(first, "bronzeScore", 11.0d);
+        ReflectionTestUtils.setField(second, "bronzeScore", 4.5d);
+
+        when(clanRepository.findLeaderboardByTierCode(TierCode.BRONZE)).thenReturn(List.of(first, second));
+
+        List<ClanService.LeaderboardEntry> entries = clanService.getBronzeLeaderboard();
+
+        assertThat(entries).hasSize(2);
+        assertThat(entries.getFirst().clanName()).isEqualTo("High Score");
+        assertThat(entries.getFirst().tier()).isEqualTo("BRONZE");
+        assertThat(entries.getFirst().score()).isEqualTo(11.0d);
     }
 }

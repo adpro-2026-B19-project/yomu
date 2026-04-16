@@ -65,6 +65,32 @@ public class ClanController {
         return "league/clans";
     }
 
+    @GetMapping("/leaderboard")
+    public String bronzeLeaderboardPage(Model model, Authentication authentication) {
+        List<ClanService.LeaderboardEntry> entries = clanService.getBronzeLeaderboard();
+        List<ClanService.ClanSummary> clans = clanService.listClans();
+        Map<UUID, UUID> clanCreatorById = clans.stream().collect(Collectors.toMap(
+                ClanService.ClanSummary::id,
+                ClanService.ClanSummary::createdByUserId,
+                (left, right) -> left
+        ));
+
+        Map<UUID, String> userNamesById = resolveDisplayNames(clanCreatorById.values().stream().toList());
+        model.addAttribute("entries", entries.stream()
+                .map(entry -> new ClanLeaderboardItem(
+                        entry.clanId(),
+                        entry.clanName(),
+                        entry.tier(),
+                        entry.memberCount(),
+                        entry.score(),
+                        userNamesById.getOrDefault(clanCreatorById.get(entry.clanId()), "Unknown user")
+                ))
+                .toList());
+        currentUserResolver.resolveUsername(authentication)
+                .ifPresent(username -> model.addAttribute("loggedInName", username));
+        return "league/leaderboard";
+    }
+
     @GetMapping("/clans/{clanId}")
     public String clanDetailPage(
             @PathVariable UUID clanId,
@@ -262,6 +288,16 @@ public class ClanController {
             UUID requesterUserId,
             String requesterDisplayName,
             LocalDateTime requestedAt
+    ) {
+    }
+
+    private record ClanLeaderboardItem(
+            UUID clanId,
+            String clanName,
+            String tier,
+            long memberCount,
+            double score,
+            String createdByName
     ) {
     }
 }
