@@ -51,6 +51,9 @@
 - Bronze leaderboard:
   - Web: `GET /leaderboard`
   - API: `GET /api/league/leaderboard/bronze`
+- Public player profile:
+  - Web: `GET /players/{userId}`
+  - Exposes public identity and league-facing quiz stats (no email or phone).
 - Quiz completion event ingestion (for cross-module integration):
   - API: `POST /api/league/events/quiz-completions`
   - Payload:

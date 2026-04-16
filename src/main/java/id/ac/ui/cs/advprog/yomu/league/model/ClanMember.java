@@ -24,7 +24,8 @@ import lombok.NoArgsConstructor;
 @Table(
         name = "league_clan_members",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_clan_member_user", columnNames = {"clan_id", "user_id"})
+                @UniqueConstraint(name = "uk_clan_member_user", columnNames = {"clan_id", "user_id"}),
+                @UniqueConstraint(name = "uk_clan_member_single_clan", columnNames = {"user_id"})
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

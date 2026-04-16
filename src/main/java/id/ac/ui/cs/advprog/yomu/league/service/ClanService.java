@@ -19,6 +19,8 @@ public interface ClanService {
 
     List<LeaderboardEntry> getBronzeLeaderboard();
 
+    PublicProfile getPublicProfile(UUID userId);
+
     record CreateClanRequest(String name) {
     }
 
@@ -66,6 +68,21 @@ public interface ClanService {
             String tier,
             long memberCount,
             double score
+    ) {
+    }
+
+    record PublicProfile(
+            UUID userId,
+            String username,
+            String displayName,
+            String role,
+            String clanName,
+            String clanTier,
+            String clanRole,
+            double clanScore,
+            long completedQuizCount,
+            double totalQuizScore,
+            double averageAccuracy
     ) {
     }
 }

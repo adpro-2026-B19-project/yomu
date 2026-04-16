@@ -208,6 +208,64 @@ class ClanIntegrationTest {
                 .andExpect(jsonPath("$[0].score").value(9.5));
     }
 
+    @Test
+    void publicProfilePageShouldShowPublicDataWithoutEmail() throws Exception {
+        MockHttpSession leaderSession = loginAs("leader-3@example.com", "LeaderPass1!");
+        MockHttpSession learnerSession = loginAs("learner-3@example.com", "LearnerPass1!");
+
+        mockMvc.perform(post("/clans")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("name", "Geometry Guild"))
+                .andExpect(status().is3xxRedirection());
+
+        var clan = clanRepository.findAll().stream().findFirst().orElseThrow();
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/join")
+                        .session(learnerSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        var joinRequest = clanJoinRequestRepository.findAll().getFirst();
+        mockMvc.perform(post("/clans/" + clan.getId() + "/requests/" + joinRequest.getId() + "/decision")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("action", "approve"))
+                .andExpect(status().is3xxRedirection());
+
+        var learnerUser = authRepository.findByEmail("learner-3@example.com").orElseThrow();
+
+        mockMvc.perform(post("/api/league/events/quiz-completions")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventId":"%s",
+                                  "userId":"%s",
+                                  "textId":"%s",
+                                  "score":8.0,
+                                  "accuracy":0.8,
+                                  "completedAt":"%s"
+                                }
+                                """.formatted(
+                                UUID.randomUUID(),
+                                learnerUser.getId(),
+                                UUID.randomUUID(),
+                                LocalDateTime.now().minusMinutes(1)
+                        )))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/players/" + learnerUser.getId()).session(leaderSession))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Public Quiz Stats")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(learnerUser.getUsername())))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Geometry Guild")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("learner-3@example.com")
+                )));
+    }
+
     private MockHttpSession loginAs(String email, String rawPassword) throws Exception {
         authRepository.save(new AuthUser("user-" + email.hashCode(), email, null, "user", passwordEncoder.encode(rawPassword)));
 

@@ -9,6 +9,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
+import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import id.ac.ui.cs.advprog.yomu.league.model.Clan;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequest;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
@@ -32,10 +34,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ClanServiceImplTest {
+
+    @Mock
+    private AuthRepository authRepository;
 
     @Mock
     private ClanRepository clanRepository;
@@ -178,6 +184,33 @@ class ClanServiceImplTest {
     }
 
     @Test
+    void reviewJoinRequestShouldFailWhenDatabaseDetectsUserAlreadyInAnotherClan() {
+        UUID clanId = UUID.randomUUID();
+        UUID leaderUserId = UUID.randomUUID();
+        UUID requesterUserId = UUID.randomUUID();
+        UUID joinRequestId = UUID.randomUUID();
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Bronze Squad", bronze, leaderUserId);
+        ClanMember leaderMember = new ClanMember(clan, leaderUserId, ClanMemberRole.LEADER);
+        ClanJoinRequest joinRequest = new ClanJoinRequest(clan, requesterUserId);
+
+        when(clanRepository.findByIdForDetail(clanId)).thenReturn(Optional.of(clan));
+        when(clanMemberRepository.findByClanIdAndUserId(clanId, leaderUserId)).thenReturn(Optional.of(leaderMember));
+        when(clanJoinRequestRepository.findByIdAndClanId(joinRequestId, clanId)).thenReturn(Optional.of(joinRequest));
+        when(clanMemberRepository.existsByUserId(requesterUserId)).thenReturn(false);
+        when(clanMemberRepository.save(any(ClanMember.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate user"));
+
+        assertThatThrownBy(() -> clanService.reviewJoinRequest(
+                clanId,
+                joinRequestId,
+                leaderUserId,
+                ClanService.JoinRequestDecision.APPROVE
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Requester already belongs to another clan");
+    }
+
+    @Test
     void recordQuizCompletionShouldIncreaseClanScore() {
         UUID eventId = UUID.randomUUID();
         UUID clanId = UUID.randomUUID();
@@ -245,5 +278,51 @@ class ClanServiceImplTest {
         assertThat(entries.getFirst().clanName()).isEqualTo("High Score");
         assertThat(entries.getFirst().tier()).isEqualTo("BRONZE");
         assertThat(entries.getFirst().score()).isEqualTo(11.0d);
+    }
+
+    @Test
+    void getPublicProfileShouldReturnPublicIdentityClanAndStats() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = new AuthUser("alice", "alice@example.com", 81234567890L, "Alice", "secret");
+        ReflectionTestUtils.setField(user, "id", userId);
+
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Gamma Clan", bronze, UUID.randomUUID());
+        ReflectionTestUtils.setField(clan, "bronzeScore", 17.75d);
+        ClanMember member = new ClanMember(clan, userId, ClanMemberRole.MEMBER);
+
+        ClanQuizScoreEventRepository.UserQuizStats stats = new ClanQuizScoreEventRepository.UserQuizStats() {
+            @Override
+            public long getCompletedQuizCount() {
+                return 3L;
+            }
+
+            @Override
+            public double getTotalScore() {
+                return 17.75d;
+            }
+
+            @Override
+            public double getAverageAccuracy() {
+                return 0.8d;
+            }
+        };
+
+        when(authRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(clanMemberRepository.findByUserIdWithClan(userId)).thenReturn(Optional.of(member));
+        when(clanQuizScoreEventRepository.summarizeByUserId(userId)).thenReturn(Optional.of(stats));
+
+        ClanService.PublicProfile profile = clanService.getPublicProfile(userId);
+
+        assertThat(profile.userId()).isEqualTo(userId);
+        assertThat(profile.username()).isEqualTo("alice");
+        assertThat(profile.displayName()).isEqualTo("Alice");
+        assertThat(profile.clanName()).isEqualTo("Gamma Clan");
+        assertThat(profile.clanTier()).isEqualTo("BRONZE");
+        assertThat(profile.clanRole()).isEqualTo("MEMBER");
+        assertThat(profile.clanScore()).isEqualTo(17.75d);
+        assertThat(profile.completedQuizCount()).isEqualTo(3L);
+        assertThat(profile.totalQuizScore()).isEqualTo(17.75d);
+        assertThat(profile.averageAccuracy()).isEqualTo(0.8d);
     }
 }

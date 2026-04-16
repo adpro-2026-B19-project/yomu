@@ -57,6 +57,7 @@ public class ClanController {
                         clan.name(),
                         clan.tier(),
                         clan.memberCount(),
+                        clan.createdByUserId(),
                         userNamesById.getOrDefault(clan.createdByUserId(), "Unknown user")
                 ))
                 .toList());
@@ -83,12 +84,44 @@ public class ClanController {
                         entry.tier(),
                         entry.memberCount(),
                         entry.score(),
+                        clanCreatorById.get(entry.clanId()),
                         userNamesById.getOrDefault(clanCreatorById.get(entry.clanId()), "Unknown user")
                 ))
                 .toList());
         currentUserResolver.resolveUsername(authentication)
                 .ifPresent(username -> model.addAttribute("loggedInName", username));
         return "league/leaderboard";
+    }
+
+    @GetMapping("/players/{userId}")
+    public String publicProfilePage(
+            @PathVariable UUID userId,
+            Model model,
+            RedirectAttributes redirectAttributes,
+            Authentication authentication
+    ) {
+        try {
+            ClanService.PublicProfile profile = clanService.getPublicProfile(userId);
+            model.addAttribute("publicProfile", new PublicProfileView(
+                    profile.userId(),
+                    profile.username(),
+                    profile.displayName(),
+                    profile.role(),
+                    profile.clanName(),
+                    profile.clanTier(),
+                    profile.clanRole(),
+                    profile.clanScore(),
+                    profile.completedQuizCount(),
+                    profile.totalQuizScore(),
+                    profile.averageAccuracy()
+            ));
+            currentUserResolver.resolveUsername(authentication)
+                    .ifPresent(username -> model.addAttribute("loggedInName", username));
+            return "league/public-profile";
+        } catch (IllegalArgumentException exception) {
+            redirectAttributes.addFlashAttribute("error", exception.getMessage());
+            return "redirect:/clans";
+        }
     }
 
     @GetMapping("/clans/{clanId}")
@@ -117,6 +150,7 @@ public class ClanController {
                     detail.name(),
                     detail.tier(),
                     detail.memberCount(),
+                    detail.createdByUserId(),
                     userNamesById.getOrDefault(detail.createdByUserId(), "Unknown user"),
                     detail.viewerIsMember(),
                     detail.viewerIsLeader(),
@@ -258,6 +292,7 @@ public class ClanController {
             String name,
             String tier,
             long memberCount,
+            UUID createdByUserId,
             String createdByName
     ) {
     }
@@ -267,6 +302,7 @@ public class ClanController {
             String name,
             String tier,
             long memberCount,
+            UUID createdByUserId,
             String createdByName,
             boolean viewerIsMember,
             boolean viewerIsLeader,
@@ -297,7 +333,23 @@ public class ClanController {
             String tier,
             long memberCount,
             double score,
+            UUID createdByUserId,
             String createdByName
+    ) {
+    }
+
+    private record PublicProfileView(
+            UUID userId,
+            String username,
+            String displayName,
+            String role,
+            String clanName,
+            String clanTier,
+            String clanRole,
+            double clanScore,
+            long completedQuizCount,
+            double totalQuizScore,
+            double averageAccuracy
     ) {
     }
 }

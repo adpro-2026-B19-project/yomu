@@ -107,7 +107,10 @@
                     <td th:text="${clan.name}">Code Masters</td>
                     <td th:text="${clan.tier}">BRONZE</td>
                     <td th:text="${clan.memberCount}">1</td>
-                    <td th:text="${clan.createdByName}">creator</td>
+                    <td>
+                        <a th:href="@{/players/{userId}(userId=${clan.createdByUserId})}"
+                           th:text="${clan.createdByName}">creator</a>
+                    </td>
                     <td class="table-actions">
                         <a class="btn" th:href="@{/clans/{id}(id=${clan.id})}">Detail</a>
                     </td>

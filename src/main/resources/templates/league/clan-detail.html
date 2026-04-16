@@ -78,7 +78,11 @@
         <div class="row">
             <span class="chip" th:text="'Tier ' + ${clan.tier}">Tier BRONZE</span>
             <span class="chip" th:text="${clan.memberCount} + ' members'">2 members</span>
-            <span class="muted" th:text="'Created by ' + ${clan.createdByName}">Created by user</span>
+            <span class="muted">
+                Created by
+                <a th:href="@{/players/{userId}(userId=${clan.createdByUserId})}"
+                   th:text="${clan.createdByName}">user</a>
+            </span>
         </div>
 
         <div class="alert success" th:if="${success != null}" th:text="${success}">Success message</div>
@@ -109,7 +113,10 @@
             </thead>
             <tbody>
             <tr th:each="member : ${clan.members}">
-                <td th:text="${member.displayName}">User</td>
+                <td>
+                    <a th:href="@{/players/{userId}(userId=${member.userId})}"
+                       th:text="${member.displayName}">User</a>
+                </td>
                 <td th:text="${member.role}">LEADER</td>
             </tr>
             </tbody>
@@ -129,7 +136,10 @@
             </thead>
             <tbody>
             <tr th:each="joinRequest : ${clan.pendingJoinRequests}">
-                <td th:text="${joinRequest.requesterDisplayName}">Requester</td>
+                <td>
+                    <a th:href="@{/players/{userId}(userId=${joinRequest.requesterUserId})}"
+                       th:text="${joinRequest.requesterDisplayName}">Requester</a>
+                </td>
                 <td th:text="${joinRequest.requestedAt != null ? #temporals.format(joinRequest.requestedAt, 'dd-MM-yyyy HH:mm') : '-'}">-</td>
                 <td>
                     <div class="row">

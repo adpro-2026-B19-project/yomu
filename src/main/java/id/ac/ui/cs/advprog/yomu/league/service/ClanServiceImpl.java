@@ -1,5 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.league.service;
 
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
+import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import id.ac.ui.cs.advprog.yomu.league.model.Clan;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequest;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
@@ -31,19 +33,22 @@ public class ClanServiceImpl implements ClanService {
     private final ClanJoinRequestRepository clanJoinRequestRepository;
     private final ClanQuizScoreEventRepository clanQuizScoreEventRepository;
     private final TierRepository tierRepository;
+    private final AuthRepository authRepository;
 
     public ClanServiceImpl(
             ClanRepository clanRepository,
             ClanMemberRepository clanMemberRepository,
             ClanJoinRequestRepository clanJoinRequestRepository,
             ClanQuizScoreEventRepository clanQuizScoreEventRepository,
-            TierRepository tierRepository
+            TierRepository tierRepository,
+            AuthRepository authRepository
     ) {
         this.clanRepository = clanRepository;
         this.clanMemberRepository = clanMemberRepository;
         this.clanJoinRequestRepository = clanJoinRequestRepository;
         this.clanQuizScoreEventRepository = clanQuizScoreEventRepository;
         this.tierRepository = tierRepository;
+        this.authRepository = authRepository;
     }
 
     @Override
@@ -182,9 +187,14 @@ public class ClanServiceImpl implements ClanService {
             if (clanMemberRepository.existsByUserId(joinRequest.getRequesterUserId())) {
                 throw new IllegalArgumentException("Requester already belongs to another clan");
             }
-            ClanMember member = clanMemberRepository.save(
-                    new ClanMember(clan, joinRequest.getRequesterUserId(), ClanMemberRole.MEMBER)
-            );
+            ClanMember member;
+            try {
+                member = clanMemberRepository.save(
+                        new ClanMember(clan, joinRequest.getRequesterUserId(), ClanMemberRole.MEMBER)
+                );
+            } catch (DataIntegrityViolationException exception) {
+                throw new IllegalArgumentException("Requester already belongs to another clan", exception);
+            }
             clan.addMember(member);
             joinRequest.approve(reviewerUserId);
         } else {
@@ -240,6 +250,36 @@ public class ClanServiceImpl implements ClanService {
                         clan.getBronzeScore()
                 ))
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PublicProfile getPublicProfile(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User id is required");
+        }
+
+        AuthUser user = authRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User was not found"));
+
+        ClanMember member = clanMemberRepository.findByUserIdWithClan(userId).orElse(null);
+        ClanQuizScoreEventRepository.UserQuizStats stats = clanQuizScoreEventRepository
+                .summarizeByUserId(userId)
+                .orElse(null);
+
+        return new PublicProfile(
+                user.getId(),
+                user.getUsername(),
+                user.getDisplayName(),
+                user.getRole().name(),
+                member != null ? member.getClan().getName() : null,
+                member != null ? member.getClan().getTier().getCode().name() : null,
+                member != null ? member.getRole().name() : null,
+                member != null ? member.getClan().getBronzeScore() : 0.0d,
+                stats != null ? stats.getCompletedQuizCount() : 0L,
+                stats != null ? stats.getTotalScore() : 0.0d,
+                stats != null ? stats.getAverageAccuracy() : 0.0d
+        );
     }
 
     private ClanSummary toSummary(Clan clan) {
