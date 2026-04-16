@@ -8,10 +8,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import id.ac.ui.cs.advprog.yomu.league.model.Clan;
+import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequest;
+import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMember;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMemberRole;
 import id.ac.ui.cs.advprog.yomu.league.model.Tier;
 import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
+import id.ac.ui.cs.advprog.yomu.league.repository.ClanJoinRequestRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanMemberRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.TierRepository;
@@ -33,6 +36,9 @@ class ClanServiceImplTest {
 
     @Mock
     private ClanMemberRepository clanMemberRepository;
+
+    @Mock
+    private ClanJoinRequestRepository clanJoinRequestRepository;
 
     @Mock
     private TierRepository tierRepository;
@@ -103,5 +109,62 @@ class ClanServiceImplTest {
         assertThat(summaries.getFirst().tier()).isEqualTo("BRONZE");
         assertThat(summaries.getFirst().memberCount()).isEqualTo(2);
         assertThat(summaries.getFirst().createdByUserId()).isEqualTo(creatorUserId);
+    }
+
+    @Test
+    void submitJoinRequestShouldPersistPendingRequest() {
+        UUID clanId = UUID.randomUUID();
+        UUID requesterUserId = UUID.randomUUID();
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Bronze Squad", bronze, UUID.randomUUID());
+
+        when(clanRepository.findByIdForDetail(clanId)).thenReturn(Optional.of(clan));
+        when(clanMemberRepository.existsByUserId(requesterUserId)).thenReturn(false);
+        when(clanJoinRequestRepository.existsByClanIdAndRequesterUserIdAndStatus(
+                clanId,
+                requesterUserId,
+                ClanJoinRequestStatus.PENDING
+        )).thenReturn(false);
+
+        clanService.submitJoinRequest(clanId, requesterUserId);
+
+        ArgumentCaptor<ClanJoinRequest> requestCaptor = ArgumentCaptor.forClass(ClanJoinRequest.class);
+        verify(clanJoinRequestRepository).save(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().getClan()).isEqualTo(clan);
+        assertThat(requestCaptor.getValue().getRequesterUserId()).isEqualTo(requesterUserId);
+        assertThat(requestCaptor.getValue().getStatus()).isEqualTo(ClanJoinRequestStatus.PENDING);
+    }
+
+    @Test
+    void reviewJoinRequestShouldApproveAndAddMember() {
+        UUID clanId = UUID.randomUUID();
+        UUID leaderUserId = UUID.randomUUID();
+        UUID requesterUserId = UUID.randomUUID();
+        UUID joinRequestId = UUID.randomUUID();
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Bronze Squad", bronze, leaderUserId);
+        ClanMember leaderMember = new ClanMember(clan, leaderUserId, ClanMemberRole.LEADER);
+        ClanJoinRequest joinRequest = new ClanJoinRequest(clan, requesterUserId);
+
+        when(clanRepository.findByIdForDetail(clanId)).thenReturn(Optional.of(clan));
+        when(clanMemberRepository.findByClanIdAndUserId(clanId, leaderUserId)).thenReturn(Optional.of(leaderMember));
+        when(clanJoinRequestRepository.findByIdAndClanId(joinRequestId, clanId)).thenReturn(Optional.of(joinRequest));
+        when(clanMemberRepository.existsByUserId(requesterUserId)).thenReturn(false);
+        when(clanMemberRepository.save(any(ClanMember.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        clanService.reviewJoinRequest(
+                clanId,
+                joinRequestId,
+                leaderUserId,
+                ClanService.JoinRequestDecision.APPROVE
+        );
+
+        ArgumentCaptor<ClanMember> memberCaptor = ArgumentCaptor.forClass(ClanMember.class);
+        verify(clanMemberRepository).save(memberCaptor.capture());
+        assertThat(memberCaptor.getValue().getUserId()).isEqualTo(requesterUserId);
+        assertThat(memberCaptor.getValue().getRole()).isEqualTo(ClanMemberRole.MEMBER);
+
+        assertThat(joinRequest.getStatus()).isEqualTo(ClanJoinRequestStatus.APPROVED);
+        assertThat(joinRequest.getReviewedByUserId()).isEqualTo(leaderUserId);
     }
 }

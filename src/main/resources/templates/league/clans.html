@@ -45,6 +45,8 @@
         .error{color:var(--danger);font-size:13px;}
         .alert{padding:10px 12px;border-radius:10px;border:1px solid var(--border);margin-bottom:12px;}
         .alert.success{border-color:rgba(52,211,153,.45);color:var(--success);}
+        .alert.error{border-color:rgba(248,113,113,.45);color:var(--danger);}
+        .table-actions{display:flex;justify-content:flex-end;}
         table{width:100%;border-collapse:collapse;}
         th,td{padding:10px 8px;border-bottom:1px solid rgba(148,163,184,.18);text-align:left;}
         th{font-size:13px;color:var(--muted);}
@@ -74,6 +76,7 @@
         <h1 class="title">Create Clan</h1>
 
         <div class="alert success" th:if="${success != null}" th:text="${success}">Clan created successfully</div>
+        <div class="alert error" th:if="${error != null}" th:text="${error}">Clan error</div>
 
         <form th:action="@{/clans}" method="post" th:object="${createForm}">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -95,6 +98,7 @@
                     <th>Tier</th>
                     <th>Members</th>
                     <th>Created By</th>
+                    <th></th>
                 </tr>
                 </thead>
                 <tbody>
@@ -103,6 +107,9 @@
                     <td th:text="${clan.tier}">BRONZE</td>
                     <td th:text="${clan.memberCount}">1</td>
                     <td th:text="${clan.createdByName}">creator</td>
+                    <td class="table-actions">
+                        <a class="btn" th:href="@{/clans/{id}(id=${clan.id})}">Detail</a>
+                    </td>
                 </tr>
                 </tbody>
             </table>

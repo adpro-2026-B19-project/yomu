@@ -11,7 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
+import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
 import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
+import id.ac.ui.cs.advprog.yomu.league.repository.ClanJoinRequestRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanMemberRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.TierRepository;
@@ -43,6 +45,9 @@ class ClanIntegrationTest {
     private ClanMemberRepository clanMemberRepository;
 
     @Autowired
+    private ClanJoinRequestRepository clanJoinRequestRepository;
+
+    @Autowired
     private TierRepository tierRepository;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -50,6 +55,7 @@ class ClanIntegrationTest {
     @BeforeEach
     void cleanDatabase() {
         clanMemberRepository.deleteAll();
+        clanJoinRequestRepository.deleteAll();
         clanRepository.deleteAll();
         tierRepository.deleteAll();
         authRepository.deleteAll();
@@ -102,6 +108,42 @@ class ClanIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("Bronze Riders"))
                 .andExpect(jsonPath("$[0].tier").value("BRONZE"));
+    }
+
+    @Test
+    void userCanRequestToJoinAndLeaderCanApprove() throws Exception {
+        MockHttpSession leaderSession = loginAs("leader@example.com", "LeaderPass1!");
+        MockHttpSession learnerSession = loginAs("learner@example.com", "LearnerPass1!");
+
+        mockMvc.perform(post("/clans")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("name", "Algebra Guild"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clans"));
+
+        var clan = clanRepository.findAll().stream().findFirst().orElseThrow();
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/join")
+                        .session(learnerSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clans/" + clan.getId()));
+
+        assertThat(clanJoinRequestRepository.count()).isEqualTo(1);
+        assertThat(clanJoinRequestRepository.findAll().getFirst().getStatus()).isEqualTo(ClanJoinRequestStatus.PENDING);
+
+        var joinRequest = clanJoinRequestRepository.findAll().getFirst();
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/requests/" + joinRequest.getId() + "/decision")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("action", "approve"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clans/" + clan.getId()));
+
+        assertThat(clanMemberRepository.count()).isEqualTo(2);
+        assertThat(clanJoinRequestRepository.findAll().getFirst().getStatus()).isEqualTo(ClanJoinRequestStatus.APPROVED);
     }
 
     private MockHttpSession loginAs(String email, String rawPassword) throws Exception {
