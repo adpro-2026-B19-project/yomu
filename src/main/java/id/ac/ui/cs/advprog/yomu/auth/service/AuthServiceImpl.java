@@ -31,36 +31,32 @@ public class AuthServiceImpl implements AuthService {
     public RegistrationResult registerUser(RegisterRequest request) {
         String normalizedEmail = normalize(request.email());
         String normalizedPassword = normalize(request.password());
+        String normalizedUsername = resolveRegistrationUsername(request.username(), normalizedEmail);
 
-        if (normalizedEmail.isBlank()) {
-            return RegistrationResult.failureResult("required_email", "Email is required");
+        RegistrationResult requiredFieldsResult = validateRequiredRegistrationFields(normalizedEmail, normalizedPassword);
+        if (requiredFieldsResult != null) {
+            return requiredFieldsResult;
         }
 
-        if (normalizedPassword.isBlank()) {
-            return RegistrationResult.failureResult("required_password", "Password is required");
-        }
-
-        if (!emailExistenceChecker.exists(normalizedEmail)) {
-            return RegistrationResult.failureResult("nonexistent_email", "Email does not exist");
+        RegistrationResult emailExistenceResult = validateEmailExistence(normalizedEmail);
+        if (emailExistenceResult != null) {
+            return emailExistenceResult;
         }
 
         PasswordStrength passwordStrength = passwordStrengthChecker.assess(normalizedPassword);
-        if (passwordStrength == PasswordStrength.WEAK) {
-            return RegistrationResult.failureResult("weak_password", "Password is too weak", passwordStrength);
+        RegistrationResult passwordStrengthResult = validatePasswordStrength(passwordStrength);
+        if (passwordStrengthResult != null) {
+            return passwordStrengthResult;
         }
 
-        String normalizedUsername = normalize(request.username());
-        if (normalizedUsername.isBlank()) {
-            normalizedUsername = deriveUsernameFromEmail(normalizedEmail);
+        RegistrationResult usernamePresenceResult = validateUsernamePresence(normalizedUsername);
+        if (usernamePresenceResult != null) {
+            return usernamePresenceResult;
         }
 
-        if (normalizedUsername.isBlank()) {
-            return RegistrationResult.failureResult("required_username", "Username is required");
-        }
-
-        if (authRepository.findByEmail(normalizedEmail).isPresent()
-                || authRepository.findByUsername(normalizedUsername).isPresent()) {
-            return RegistrationResult.failureResult("registration_failed", "Unable to complete registration");
+        RegistrationResult uniquenessResult = validateUniqueCredentials(normalizedEmail, normalizedUsername);
+        if (uniquenessResult != null) {
+            return uniquenessResult;
         }
 
         String hashedPassword = passwordEncoder.encode(normalizedPassword);
@@ -76,6 +72,54 @@ public class AuthServiceImpl implements AuthService {
                 new RegisteredUserSummary(user.getUsername(), user.getEmail()),
                 passwordStrength
         );
+    }
+
+    private RegistrationResult validateRequiredRegistrationFields(String email, String password) {
+        if (email.isBlank()) {
+            return RegistrationResult.failureResult("required_email", "Email is required");
+        }
+
+        if (password.isBlank()) {
+            return RegistrationResult.failureResult("required_password", "Password is required");
+        }
+
+        return null;
+    }
+
+    private RegistrationResult validateEmailExistence(String email) {
+        if (!emailExistenceChecker.exists(email)) {
+            return RegistrationResult.failureResult("nonexistent_email", "Email does not exist");
+        }
+
+        return null;
+    }
+
+    private RegistrationResult validatePasswordStrength(PasswordStrength passwordStrength) {
+        if (passwordStrength == PasswordStrength.WEAK) {
+            return RegistrationResult.failureResult("weak_password", "Password is too weak", passwordStrength);
+        }
+
+        return null;
+    }
+
+    private RegistrationResult validateUsernamePresence(String username) {
+        if (username.isBlank()) {
+            return RegistrationResult.failureResult("required_username", "Username is required");
+        }
+
+        return null;
+    }
+
+    private RegistrationResult validateUniqueCredentials(String email, String username) {
+        if (authRepository.existsByEmail(email)) {
+            return RegistrationResult.failureResult("duplicate_email", "Email is already registered");
+        }
+
+        if (authRepository.existsByUsername(username)) {
+            return RegistrationResult.failureResult("duplicate_username", "Username is already taken");
+        }
+
+        return null;
     }
 
     @Override
@@ -107,6 +151,14 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return LoginResult.successResult(new LoggedInUserSummary(user.getUsername(), user.getEmail()));
+    }
+
+    private String resolveRegistrationUsername(String username, String email) {
+        String normalizedUsername = normalize(username);
+        if (!normalizedUsername.isBlank()) {
+            return normalizedUsername;
+        }
+        return deriveUsernameFromEmail(email);
     }
 
     private String deriveUsernameFromEmail(String email) {

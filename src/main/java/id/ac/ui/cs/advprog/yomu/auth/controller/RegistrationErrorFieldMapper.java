@@ -8,6 +8,8 @@ public class RegistrationErrorFieldMapper {
 
     private static final Map<String, String> FIELD_BY_ERROR_CODE = Map.of(
             "registration_failed", "email",
+            "duplicate_email", "email",
+            "duplicate_username", "username",
             "required_email", "email",
             "nonexistent_email", "email",
             "required_username", "username",

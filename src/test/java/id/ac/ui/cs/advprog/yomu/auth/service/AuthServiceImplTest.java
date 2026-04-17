@@ -46,46 +46,46 @@ class AuthServiceImplTest {
     void setUp() {
         lenient().when(emailExistenceChecker.exists(anyString())).thenReturn(true);
         lenient().when(passwordStrengthChecker.assess(anyString())).thenReturn(PasswordStrength.STRONG);
+        lenient().when(authRepository.existsByEmail(anyString())).thenReturn(false);
+        lenient().when(authRepository.existsByUsername(anyString())).thenReturn(false);
     }
 
     @Test
     void registerUserShouldFailWhenEmailAlreadyExists() {
-        when(authRepository.findByEmail("alice@example.com"))
-                .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", "hashed")));
+        when(authRepository.existsByEmail("alice@example.com")).thenReturn(true);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("alice@example.com", "alice", "RawPassword1!")
         );
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("registration_failed");
-        assertThat(result.errorMessage()).isEqualTo("Unable to complete registration");
-        verify(authRepository).findByEmail("alice@example.com");
+        assertThat(result.errorCode()).isEqualTo("duplicate_email");
+        assertThat(result.errorMessage()).isEqualTo("Email is already registered");
+        verify(authRepository).existsByEmail("alice@example.com");
         verify(authRepository, never()).save(any());
     }
 
     @Test
     void registerUserShouldFailWhenUsernameAlreadyExists() {
-        when(authRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
-        when(authRepository.findByUsername("alice"))
-                .thenReturn(Optional.of(new AuthUser("alice", "other@example.com", null, "alice", "hashed")));
+        when(authRepository.existsByEmail("alice@example.com")).thenReturn(false);
+        when(authRepository.existsByUsername("alice")).thenReturn(true);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("alice@example.com", "alice", "RawPassword1!")
         );
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("registration_failed");
-        assertThat(result.errorMessage()).isEqualTo("Unable to complete registration");
-        verify(authRepository).findByEmail("alice@example.com");
-        verify(authRepository).findByUsername("alice");
+        assertThat(result.errorCode()).isEqualTo("duplicate_username");
+        assertThat(result.errorMessage()).isEqualTo("Username is already taken");
+        verify(authRepository).existsByEmail("alice@example.com");
+        verify(authRepository).existsByUsername("alice");
         verify(authRepository, never()).save(any());
     }
 
     @Test
     void registerUserShouldDefaultUsernameFromEmailLocalPart() {
-        when(authRepository.findByEmail("charlie@example.com")).thenReturn(Optional.empty());
-        when(authRepository.findByUsername("charlie")).thenReturn(Optional.empty());
+        when(authRepository.existsByEmail("charlie@example.com")).thenReturn(false);
+        when(authRepository.existsByUsername("charlie")).thenReturn(false);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("charlie@example.com", "   ", "RawPassword1!")
@@ -104,8 +104,8 @@ class AuthServiceImplTest {
 
     @Test
     void registerUserShouldPersistHashedPasswordWhenValid() {
-        when(authRepository.findByEmail("dora@example.com")).thenReturn(Optional.empty());
-        when(authRepository.findByUsername("dora")).thenReturn(Optional.empty());
+        when(authRepository.existsByEmail("dora@example.com")).thenReturn(false);
+        when(authRepository.existsByUsername("dora")).thenReturn(false);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("dora@example.com", "dora", "SecretPassword1!")
