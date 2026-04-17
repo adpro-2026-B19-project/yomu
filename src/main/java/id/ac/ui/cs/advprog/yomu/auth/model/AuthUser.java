@@ -67,6 +67,12 @@ public class AuthUser {
         this.role = role;
     }
 
+    public void updateProfile(String username, String displayName, Long phoneNumber) {
+        this.username = username;
+        this.displayName = displayName;
+        this.phoneNumber = phoneNumber;
+    }
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {
