@@ -6,9 +6,10 @@ services:
     container_name: yomu-app
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      DB_USERNAME: yomu
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD before running docker compose}
     ports:
       - "8080:8080"
-      - "9092:9092"
     volumes:
       - yomu_data:/app/data
     restart: unless-stopped

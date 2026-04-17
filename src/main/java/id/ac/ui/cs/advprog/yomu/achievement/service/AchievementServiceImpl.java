@@ -10,8 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -28,20 +29,21 @@ public class AchievementServiceImpl implements AchievementService {
     }
 
     @Override
+    public List<UserAchievement> getAchievementsByUserId(UUID userId) {
+        return userAchievementRepository.findByUserId(userId);
+    }
+
+    @Override
+    @Transactional
     public Achievement createAchievement(String name, String milestone) {
-        if (achievementRepository.existsByName(name)) {
-            throw new IllegalArgumentException("Achievement with name '" + name + "' already exists");
+        if (achievementRepository.findByName(name).isPresent()) {
+            throw new IllegalArgumentException("Achievement dengan nama tersebut sudah ada");
         }
         Achievement achievement = Achievement.builder()
                 .name(name)
                 .milestone(milestone)
                 .build();
         return achievementRepository.save(achievement);
-    }
-
-    @Override
-    public List<UserAchievement> getAchievementsByUserId(UUID userId) {
-        return userAchievementRepository.findByUserId(userId);
     }
 
     @Override
@@ -54,7 +56,7 @@ public class AchievementServiceImpl implements AchievementService {
 
         if (optionalUa.isPresent()) {
             UserAchievement ua = optionalUa.get();
-            ua.setDisplayed(!ua.isDisplayed()); // Toggle true/false
+            ua.setDisplayed(!ua.isDisplayed());
             userAchievementRepository.save(ua);
         } else {
             throw new IllegalArgumentException("User belum membuka achievement ini");
@@ -63,25 +65,32 @@ public class AchievementServiceImpl implements AchievementService {
 
     @Override
     @Transactional
-    public void checkAndUnlockAchievements(UUID userId) {
-
+    public void processQuizCompletion(UUID userId, LocalDateTime completedAt) {
+        // 1. Ambil atau buat statistik user baru (Logika Modul Achievement Anda)
         UserStatistic stat = userStatisticRepository.findByUserId(userId)
                 .orElse(UserStatistic.builder().userId(userId).totalReadings(0).build());
 
+        // 2. Tambahkan hitungan total bacaan
         stat.setTotalReadings(stat.getTotalReadings() + 1);
         userStatisticRepository.save(stat);
 
         int totalUserReading = stat.getTotalReadings();
+
+        // 3. Ambil data achievement
         List<Achievement> allAchievements = achievementRepository.findAll();
         List<UserAchievement> userAchievements = userAchievementRepository.findByUserId(userId);
+
+        // 4. Filter achievement yang BELUM dimiliki user
         List<Achievement> unobtainedAchievements = allAchievements.stream()
                 .filter(ach -> userAchievements.stream()
                         .noneMatch(ua -> ua.getAchievement().getId().equals(ach.getId())))
                 .toList();
 
+        // 5. Cek kondisi unlock
         for (Achievement ach : unobtainedAchievements) {
             try {
                 int targetMilestone = Integer.parseInt(ach.getMilestone());
+                // Jika total bacaan saat ini mencapai atau melebihi target milestone
                 if (totalUserReading >= targetMilestone) {
                     UserAchievement newUa = UserAchievement.builder()
                             .userId(userId)
@@ -90,7 +99,9 @@ public class AchievementServiceImpl implements AchievementService {
                             .build();
                     userAchievementRepository.save(newUa);
                 }
-            } catch (NumberFormatException e) {}
+            } catch (NumberFormatException e) {
+                // Abaikan jika milestone bukan angka
+            }
         }
     }
 }

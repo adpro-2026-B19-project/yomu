@@ -52,9 +52,6 @@ public class AuthController {
         if (!model.containsAttribute("registeredEmail")) {
             model.addAttribute("registeredEmail", "");
         }
-        if (!model.containsAttribute("registeredHashedPassword")) {
-            model.addAttribute("registeredHashedPassword", "");
-        }
         return "auth/login";
     }
 
@@ -93,7 +90,6 @@ public class AuthController {
         AuthService.RegisteredUserSummary registeredUser = registrationResult.registeredUser();
         redirectAttributes.addFlashAttribute("registeredName", registeredUser.username());
         redirectAttributes.addFlashAttribute("registeredEmail", registeredUser.email());
-        redirectAttributes.addFlashAttribute("registeredHashedPassword", registeredUser.hashedPassword());
         return "redirect:/auth/login";
     }
 }

@@ -62,8 +62,7 @@ class AuthIntegrationTest {
                 .andExpect(view().name("auth/login"))
                 .andExpect(model().attributeExists("loginForm"))
                 .andExpect(model().attributeExists("registeredName"))
-                .andExpect(model().attributeExists("registeredEmail"))
-                .andExpect(model().attributeExists("registeredHashedPassword"));
+                .andExpect(model().attributeExists("registeredEmail"));
     }
 
     @Test
@@ -78,8 +77,7 @@ class AuthIntegrationTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login"))
                 .andExpect(flash().attributeExists("registeredName"))
-                .andExpect(flash().attributeExists("registeredEmail"))
-                .andExpect(flash().attributeExists("registeredHashedPassword"));
+                .andExpect(flash().attributeExists("registeredEmail"));
 
         assertThat(authRepository.count()).isEqualTo(before + 1);
         AuthUser user = authRepository.findByUsername("demo-user").orElseThrow();

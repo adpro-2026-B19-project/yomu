@@ -7,10 +7,9 @@ import org.springframework.stereotype.Component;
 public class RegistrationErrorFieldMapper {
 
     private static final Map<String, String> FIELD_BY_ERROR_CODE = Map.of(
-            "duplicate_email", "email",
+            "registration_failed", "email",
             "required_email", "email",
             "nonexistent_email", "email",
-            "duplicate_username", "username",
             "required_username", "username",
             "required_password", "password",
             "weak_password", "password"
