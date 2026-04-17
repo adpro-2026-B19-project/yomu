@@ -175,6 +175,11 @@
         }
         .alert.danger{ border-color:rgba(248,113,113,.35); }
         .alert.success{ border-color:rgba(52,211,153,.35); }
+        .alert.fade-out{
+            opacity:0;
+            transform:translateY(-4px);
+            transition:opacity .25s ease, transform .25s ease;
+        }
         table{
             width:100%;
             border-collapse:collapse;
@@ -203,6 +208,13 @@
             opacity:.8;
             cursor:not-allowed;
         }
+        .view-value{
+            min-height:20px;
+            display:flex;
+            align-items:center;
+            color:var(--text);
+        }
+        .edit-field{ display:none; }
         .error-text{
             margin-top:6px;
             color:var(--danger);
@@ -223,6 +235,9 @@
         .edit-only{ display:none; }
         .profile-form.is-editing .edit-only{ display:inline-flex; }
         .profile-form.is-editing .view-only{ display:none; }
+        .profile-form.is-editing .edit-field{ display:block; }
+        .profile-form.is-editing .view-value{ display:none; }
+        .profile-form.is-editing .inline-phone.edit-field{ display:grid; }
         @media (max-width:760px){
             .inline-phone{
                 grid-template-columns:1fr;
@@ -278,11 +293,11 @@
             </div>
         </div>
 
-        <div class="alert success" th:if="${success}">
+        <div class="alert success" data-auto-dismiss="true" th:if="${success}">
             <strong style="color:var(--success);">Success.</strong>
             <div class="muted" th:text="${success}">Profile updated successfully</div>
         </div>
-        <div class="alert danger" th:if="${warning}">
+        <div class="alert danger" data-auto-dismiss="true" th:if="${warning}">
             <strong style="color:var(--danger);">Update failed.</strong>
             <div class="muted" th:text="${warning}">Error message</div>
         </div>
@@ -295,7 +310,8 @@
                 <tr>
                     <td>Username</td>
                     <td>
-                        <input id="username" type="text" autocomplete="username" th:field="*{username}" data-editable="true" />
+                        <div class="view-value" th:text="*{username} ?: '-'">-</div>
+                        <input class="edit-field" id="username" type="text" autocomplete="username" th:field="*{username}" data-editable="true" />
                         <div class="error-text" th:if="${#fields.hasErrors('username')}" th:errors="*{username}">
                             Username error
                         </div>
@@ -304,7 +320,8 @@
                 <tr>
                     <td>Display Name</td>
                     <td>
-                        <input id="displayName" type="text" autocomplete="name" th:field="*{displayName}" data-editable="true" />
+                        <div class="view-value" th:text="*{displayName} ?: '-'">-</div>
+                        <input class="edit-field" id="displayName" type="text" autocomplete="name" th:field="*{displayName}" data-editable="true" />
                         <div class="error-text" th:if="${#fields.hasErrors('displayName')}" th:errors="*{displayName}">
                             Display name error
                         </div>
@@ -313,13 +330,14 @@
                 <tr>
                     <td>Email</td>
                     <td>
-                        <input id="email" type="email" th:value="${user?.email}" readonly />
+                        <div class="view-value" id="email" th:text="${user?.email} ?: '-'">-</div>
                     </td>
                 </tr>
                 <tr>
                     <td>Phone Number</td>
                     <td>
-                        <div class="inline-phone">
+                        <div id="phone-view-value" class="view-value" th:text="${user?.phoneNumber} ?: '-'">-</div>
+                        <div class="inline-phone edit-field">
                             <select id="phoneAreaCode" data-editable="true">
                                 <option value="1">1 (USA/Canada)</option>
                                 <option value="44">44 (United Kingdom)</option>
@@ -366,6 +384,7 @@
         const areaCodeSelect = document.getElementById("phoneAreaCode");
         const localPhoneInput = document.getElementById("phoneLocalNumber");
         const fullPhoneInput = document.getElementById("phoneNumber");
+        const phoneDisplayValue = document.getElementById("phone-view-value");
         const startInEditMode = form.dataset.startInEdit === "true";
 
         const knownAreaCodes = ["1", "44", "62", "65", "81", "82", "86", "91"];
@@ -408,6 +427,20 @@
             const areaCode = areaCodeSelect ? areaCodeSelect.value.trim() : "";
             const localNumber = localPhoneInput ? localPhoneInput.value.replace(/\D/g, "") : "";
             fullPhoneInput.value = areaCode && localNumber ? areaCode + localNumber : "";
+            renderPhoneDisplayValue(areaCode, localNumber);
+        }
+
+        function renderPhoneDisplayValue(areaCode, localNumber) {
+            if (!phoneDisplayValue) {
+                return;
+            }
+
+            if (!areaCode || !localNumber) {
+                phoneDisplayValue.textContent = "-";
+                return;
+            }
+
+            phoneDisplayValue.textContent = "+" + areaCode + " " + localNumber;
         }
 
         const initialPhone = splitPhone(fullPhoneInput ? fullPhoneInput.value : "");
@@ -451,6 +484,17 @@
         }
 
         form.addEventListener("submit", syncCombinedPhoneValue);
+
+        document.querySelectorAll("[data-auto-dismiss='true']").forEach(function (alertEl) {
+            setTimeout(function () {
+                alertEl.classList.add("fade-out");
+                setTimeout(function () {
+                    if (alertEl.parentNode) {
+                        alertEl.parentNode.removeChild(alertEl);
+                    }
+                }, 260);
+            }, 4500);
+        });
     })();
 </script>
 </body>

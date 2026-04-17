@@ -63,7 +63,8 @@ class ProfileIntegrationTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"username\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"phoneAreaCode\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"phoneLocalNumber\"")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("readonly")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"email\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("[data-auto-dismiss='true']")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Email")));
     }
 
