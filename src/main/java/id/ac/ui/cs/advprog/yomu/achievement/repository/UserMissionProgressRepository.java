@@ -11,4 +11,6 @@ import java.util.List;
 public interface UserMissionProgressRepository extends JpaRepository<UserMissionProgress, Long> {
     Optional<UserMissionProgress> findByUserIdAndMissionId(UUID userId, Long missionId);
     List<UserMissionProgress> findByUserId(UUID userId);
+    @org.springframework.transaction.annotation.Transactional
+    void deleteByMissionId(Long missionId);
 }

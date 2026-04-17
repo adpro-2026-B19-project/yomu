@@ -26,10 +26,10 @@ import java.util.UUID;
 public class AchievementController {
 
     private final AchievementService achievementService;
-    private final DailyMissionService dailyMissionService; // Injeksi service baru
-    private final CurrentUserResolver currentUserResolver; // Injeksi resolver user
+    private final DailyMissionService dailyMissionService;
+    private final CurrentUserResolver currentUserResolver;
 
-    // ─── Thymeleaf Page ────────────────────────────────────────────────────────
+    // hymeleaf Page
 
     @GetMapping
     public String achievementListPage(Model model) {
@@ -48,7 +48,7 @@ public class AchievementController {
         return "achievement/ListAchievement";
     }
 
-    // ─── REST API ──────────────────────────────────────────────────────────────
+    // REST API
 
     @GetMapping("/api")
     @ResponseBody
@@ -93,11 +93,39 @@ public class AchievementController {
         return ResponseEntity.status(HttpStatus.CREATED).body("Misi Harian berhasil dibuat");
     }
 
-    // ─── EXCEPTION HANDLER ─────────────────────────────────────────────────────
-
+    // EXCEPTION HANDLER
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseBody
     public ResponseEntity<String> handleDuplicate(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
+    }
+
+    // EDIT MISI HARIAN
+    @PutMapping("/api/daily-mission/{id}")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> updateDailyMission(
+            @PathVariable Long id,
+            @RequestParam String title,
+            @RequestParam int targetCount) {
+        try {
+            dailyMissionService.updateDailyMission(id, title, targetCount);
+            return ResponseEntity.ok("Misi Harian berhasil diperbarui");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // DELETE MISI HARIAN
+    @DeleteMapping("/api/daily-mission/{id}")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteDailyMission(@PathVariable Long id) {
+        try {
+            dailyMissionService.deleteDailyMission(id);
+            return ResponseEntity.ok("Misi Harian berhasil dihapus");
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

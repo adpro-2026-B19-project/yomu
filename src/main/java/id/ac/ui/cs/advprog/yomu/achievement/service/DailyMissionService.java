@@ -11,4 +11,6 @@ public interface DailyMissionService {
     List<DailyMission> getTodayMissions();
     List<UserMissionProgress> getUserProgress(UUID userId);
     DailyMission createDailyMission(String title, int targetCount);
+    DailyMission updateDailyMission(Long id, String title, int targetCount);
+    void deleteDailyMission(Long id);
 }

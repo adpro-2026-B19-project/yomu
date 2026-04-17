@@ -26,7 +26,6 @@ public class DailyMissionServiceImpl implements DailyMissionService {
         List<DailyMission> todayMissions = dailyMissionRepository.findByActiveDate(today);
 
         for (DailyMission mission : todayMissions) {
-            // Cari progres user saat ini, jika belum ada, buat baru dengan progres = 0
             UserMissionProgress progress = progressRepository
                     .findByUserIdAndMissionId(userId, mission.getId())
                     .orElse(UserMissionProgress.builder()
@@ -36,11 +35,8 @@ public class DailyMissionServiceImpl implements DailyMissionService {
                             .completed(false)
                             .build());
 
-            // Jika misi belum selesai, tambahkan progresnya
             if (!progress.isCompleted()) {
                 progress.setCurrentProgress(progress.getCurrentProgress() + 1);
-
-                // Cek apakah target sudah tercapai
                 if (progress.getCurrentProgress() >= mission.getTargetCount()) {
                     progress.setCompleted(true);
                 }
@@ -67,5 +63,23 @@ public class DailyMissionServiceImpl implements DailyMissionService {
                 .activeDate(LocalDate.now())
                 .build();
         return dailyMissionRepository.save(mission);
+    }
+
+    @Override
+    public DailyMission updateDailyMission(Long id, String title, int targetCount) {
+        DailyMission mission = dailyMissionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Misi Harian dengan ID " + id + " tidak ditemukan"));
+        mission.setTitle(title);
+        mission.setTargetCount(targetCount);
+        return dailyMissionRepository.save(mission);
+    }
+
+    @Override
+    @Transactional
+    public void deleteDailyMission(Long id) {
+        DailyMission mission = dailyMissionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Misi Harian dengan ID " + id + " tidak ditemukan"));
+        progressRepository.deleteByMissionId(id);
+        dailyMissionRepository.delete(mission);
     }
 }
