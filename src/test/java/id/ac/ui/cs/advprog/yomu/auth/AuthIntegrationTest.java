@@ -202,7 +202,7 @@ class AuthIntegrationTest {
                         .param("identifier", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/profile"))
+                .andExpect(redirectedUrl("/"))
                 .andExpect(request().sessionAttribute("SPRING_SECURITY_CONTEXT", org.hamcrest.Matchers.notNullValue()))
                 .andReturn();
 
@@ -227,7 +227,7 @@ class AuthIntegrationTest {
                         .param("identifier", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/profile"));
+                .andExpect(redirectedUrl("/"));
     }
 
     @Test
@@ -240,6 +240,6 @@ class AuthIntegrationTest {
                         .param("identifier", "alice-user")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/profile"));
+                .andExpect(redirectedUrl("/"));
     }
 }
