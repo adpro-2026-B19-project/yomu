@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Admin Dashboard - Yomu Texts</title>
+    <style>
+        :root{ --primary:#3B82F6; --bg:#0F172A; --card:#1E293B; --border:#334155; --text:#E2E8F0; --muted:#94A3B8; --danger:#F87171; --success:#34D399; }
+        body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
+        .container{width:min(1100px,92vw);margin:40px auto;}
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;}
+        h1 { margin: 0; }
+        
+        .btn{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;text-decoration:none;font-size:14px;font-weight:600;}
+        .btn-primary { background: var(--primary); color: #fff; border:none;}
+        .btn-success { background: var(--success); color: #020617; border:none;}
+        .btn-danger { background: var(--danger); color: #fff; border:none;}
+        
+        .filters { display:flex; gap: 15px; margin-bottom: 20px; background:var(--card); padding:20px; border-radius:12px; border:1px solid var(--border);}
+        .input { background:#020617; color:#fff; border:1px solid var(--border); padding:8px 12px; border-radius:6px; }
+        
+        table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; border:1px solid var(--border);}
+        th, td { padding: 14px 20px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: rgba(0,0,0,0.2); font-weight: 700; color: var(--muted); text-transform: uppercase; font-size: 13px;}
+        
+        .badge-draft { background: rgba(245, 158, 11, 0.2); color: #F59E0B; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700;}
+        .badge-published { background: rgba(52, 211, 153, 0.2); color: var(--success); padding:4px 8px; border-radius:6px; font-size:12px; font-weight:700;}
+        
+        .alert { padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: 600;}
+        .alert-error { background: rgba(248, 113, 113, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+        .alert-success { background: rgba(52, 211, 153, 0.2); color: var(--success); border: 1px solid var(--success); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Dashboard Admin</h1>
+        <div style="display:flex;gap:10px;">
+            <a th:href="@{/texts}" class="btn">Kembali ke Home</a>
+            <a th:href="@{/admin/texts/create}" class="btn btn-primary">+ Buat Teks</a>
+        </div>
+    </div>
+
+    <div th:if="${param.error != null}" class="alert alert-error">
+        <span th:text="${param.error}">Error message</span>
+    </div>
+    <div th:if="${param.success != null}" class="alert alert-success">
+        Aksi berhasil dijalankan.
+    </div>
+
+    <form class="filters" method="get" th:action="@{/admin/texts}">
+        <select name="categoryId" class="input">
+            <option value="">Semua Kategori</option>
+            <option th:each="cat : ${categories}" th:value="${cat.id}" th:text="${cat.name}" th:selected="${param.categoryId != null and param.categoryId[0] == cat.id.toString()}"></option>
+        </select>
+        <select name="published" class="input">
+            <option value="">Semua Status</option>
+            <option value="true" th:selected="${param.published != null and param.published[0] == 'true'}">Published</option>
+            <option value="false" th:selected="${param.published != null and param.published[0] == 'false'}">Draft</option>
+        </select>
+        <button type="submit" class="btn">Filter</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Judul</th>
+                <th>Kategori</th>
+                <th>Status</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr th:each="text : ${texts}">
+                <td style="font-weight:600;" th:text="${text.title}">Judul Teks</td>
+                <td th:text="${text.category.name}">Kategori</td>
+                <td>
+                    <span th:if="${text.published}" class="badge-published">PUBLISHED</span>
+                    <span th:if="${!text.published}" class="badge-draft">DRAFT</span>
+                </td>
+                <td style="display:flex; gap:8px;">
+                    <a th:href="@{/admin/texts/{id}/questions(id=${text.id})}" class="btn">✏️ Soal</a>
+                    
+                    <form th:if="${!text.published}" method="post" th:action="@{/admin/texts/{id}/publish(id=${text.id})}" style="margin:0;">
+                         <button class="btn btn-success" type="submit" onclick="return confirm('Publish teks ini? Pastikan anda sudah mengisi kuis.');">🚀 Publish</button>
+                    </form>
+
+                    <form method="post" th:action="@{/admin/texts/{id}/delete(id=${text.id})}" style="margin:0;">
+                         <button class="btn btn-danger" type="submit" onclick="return confirm('Hapus teks ini?');">🗑️</button>
+                    </form>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div th:if="${#lists.isEmpty(texts)}" style="text-align:center; padding:40px; color:var(--muted);">
+        Tidak ada data teks ditemukan.
+    </div>
+
+</div>
+
+</body>
+</html>
