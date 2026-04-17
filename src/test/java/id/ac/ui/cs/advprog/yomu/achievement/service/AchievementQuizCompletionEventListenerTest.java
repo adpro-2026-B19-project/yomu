@@ -16,9 +16,12 @@ class AchievementQuizCompletionEventListenerTest {
     @Mock
     private AchievementService achievementService;
 
+    @Mock
+    private DailyMissionService dailyMissionService;
+
     @Test
-    void handleQuizCompletedShouldForwardToAchievementService() {
-        AchievementQuizCompletionEventListener listener = new AchievementQuizCompletionEventListener(achievementService);
+    void handleQuizCompletedShouldForwardToAchievementServiceAndDailyMissionService() {
+        AchievementQuizCompletionEventListener listener = new AchievementQuizCompletionEventListener(achievementService, dailyMissionService);
         UUID userId = UUID.randomUUID();
         LocalDateTime completedAt = LocalDateTime.now().minusMinutes(1);
 
@@ -30,7 +33,7 @@ class AchievementQuizCompletionEventListenerTest {
                 1.0d,
                 completedAt
         ));
-
+        verify(dailyMissionService).incrementProgress(userId);
         verify(achievementService).processQuizCompletion(userId, completedAt);
     }
 }

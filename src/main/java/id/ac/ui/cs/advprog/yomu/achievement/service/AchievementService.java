@@ -9,7 +9,8 @@ import java.util.UUID;
 
 public interface AchievementService {
     List<Achievement> getAllAchievements();
-    Achievement createAchievement(String name, String milestone);
     List<UserAchievement> getAchievementsByUserId(UUID userId);
+    Achievement createAchievement(String name, String milestone);
+    void toggleDisplayAchievement(UUID userId, Long achievementId);
     void processQuizCompletion(UUID userId, LocalDateTime completedAt);
 }
