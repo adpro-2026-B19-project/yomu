@@ -14,6 +14,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailExistenceChecker emailExistenceChecker;
     private final PasswordStrengthChecker passwordStrengthChecker;
     private final UsernameUniquenessService usernameUniquenessService;
+    private final AuthIdentifierValidator authIdentifierValidator;
     private final PasswordEncoder passwordEncoder;
 
     public AuthServiceImpl(
@@ -21,24 +22,41 @@ public class AuthServiceImpl implements AuthService {
             EmailExistenceChecker emailExistenceChecker,
             PasswordStrengthChecker passwordStrengthChecker,
             UsernameUniquenessService usernameUniquenessService,
+            AuthIdentifierValidator authIdentifierValidator,
             PasswordEncoder passwordEncoder
     ) {
         this.authRepository = authRepository;
         this.emailExistenceChecker = emailExistenceChecker;
         this.passwordStrengthChecker = passwordStrengthChecker;
         this.usernameUniquenessService = usernameUniquenessService;
+        this.authIdentifierValidator = authIdentifierValidator;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public RegistrationResult registerUser(RegisterRequest request) {
-        String normalizedEmail = normalize(request.email());
+        String normalizedEmail = authIdentifierValidator.normalize(request.email());
         String normalizedPassword = normalize(request.password());
-        String normalizedUsername = normalize(request.username());
+        String normalizedUsername = authIdentifierValidator.normalize(request.username());
 
         RegistrationResult requiredFieldsResult = validateRequiredRegistrationFields(normalizedEmail, normalizedPassword);
         if (requiredFieldsResult != null) {
             return requiredFieldsResult;
+        }
+
+        RegistrationResult emailFormatResult = validateEmailFormat(normalizedEmail);
+        if (emailFormatResult != null) {
+            return emailFormatResult;
+        }
+
+        RegistrationResult usernamePresenceResult = validateUsernamePresence(normalizedUsername);
+        if (usernamePresenceResult != null) {
+            return usernamePresenceResult;
+        }
+
+        RegistrationResult usernameFormatResult = validateUsernameFormat(normalizedUsername);
+        if (usernameFormatResult != null) {
+            return usernameFormatResult;
         }
 
         RegistrationResult emailExistenceResult = validateEmailExistence(normalizedEmail);
@@ -50,11 +68,6 @@ public class AuthServiceImpl implements AuthService {
         RegistrationResult passwordStrengthResult = validatePasswordStrength(passwordStrength);
         if (passwordStrengthResult != null) {
             return passwordStrengthResult;
-        }
-
-        RegistrationResult usernamePresenceResult = validateUsernamePresence(normalizedUsername);
-        if (usernamePresenceResult != null) {
-            return usernamePresenceResult;
         }
 
         RegistrationResult uniquenessResult = validateUniqueCredentials(normalizedEmail, normalizedUsername);
@@ -97,6 +110,14 @@ public class AuthServiceImpl implements AuthService {
         return null;
     }
 
+    private RegistrationResult validateEmailFormat(String email) {
+        if (!authIdentifierValidator.isValidEmail(email)) {
+            return RegistrationResult.failureResult("invalid_email", "Email is invalid");
+        }
+
+        return null;
+    }
+
     private RegistrationResult validatePasswordStrength(PasswordStrength passwordStrength) {
         if (passwordStrength == PasswordStrength.WEAK) {
             return RegistrationResult.failureResult("weak_password", "Password is too weak", passwordStrength);
@@ -108,6 +129,14 @@ public class AuthServiceImpl implements AuthService {
     private RegistrationResult validateUsernamePresence(String username) {
         if (username.isBlank()) {
             return RegistrationResult.failureResult("required_username", "Username is required");
+        }
+
+        return null;
+    }
+
+    private RegistrationResult validateUsernameFormat(String username) {
+        if (!authIdentifierValidator.isValidUsername(username)) {
+            return RegistrationResult.failureResult("invalid_username", "Username is invalid");
         }
 
         return null;

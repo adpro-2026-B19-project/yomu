@@ -40,6 +40,9 @@ class AuthServiceImplTest {
     private UsernameUniquenessService usernameUniquenessService;
 
     @Spy
+    private AuthIdentifierValidator authIdentifierValidator = new AuthIdentifierValidator();
+
+    @Spy
     private PasswordEncoder mockedPasswordEncoder = new BCryptPasswordEncoder();
 
     @InjectMocks
@@ -126,6 +129,32 @@ class AuthServiceImplTest {
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("nonexistent_email");
         assertThat(result.errorMessage()).isEqualTo("Email does not exist");
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void registerUserShouldFailWhenEmailFormatIsInvalid() {
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("invalid-email", "valid_user", "SafePassword1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_email");
+        assertThat(result.errorMessage()).isEqualTo("Email is invalid");
+        verify(emailExistenceChecker, never()).exists(anyString());
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void registerUserShouldFailWhenUsernameFormatIsInvalid() {
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("valid@example.com", "invalid username", "SafePassword1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_username");
+        assertThat(result.errorMessage()).isEqualTo("Username is invalid");
+        verify(usernameUniquenessService, never()).isUsernameTaken(anyString());
         verify(authRepository, never()).save(any());
     }
 

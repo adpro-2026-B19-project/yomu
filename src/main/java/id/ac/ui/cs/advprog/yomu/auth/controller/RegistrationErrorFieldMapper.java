@@ -11,8 +11,10 @@ public class RegistrationErrorFieldMapper {
             "duplicate_email", "email",
             "duplicate_username", "username",
             "required_email", "email",
+            "invalid_email", "email",
             "nonexistent_email", "email",
             "required_username", "username",
+            "invalid_username", "username",
             "required_password", "password",
             "weak_password", "password"
     );
