@@ -1,0 +1,6 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "DOCKERFILE"
+
+[deploy]
+startCommand = "sh -c 'java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar /app/app.jar'"
