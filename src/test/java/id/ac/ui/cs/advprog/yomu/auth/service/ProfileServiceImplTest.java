@@ -2,7 +2,6 @@ package id.ac.ui.cs.advprog.yomu.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -27,6 +26,9 @@ class ProfileServiceImplTest {
     @Mock
     private AuthRepository authRepository;
 
+    @Mock
+    private UsernameUniquenessService usernameUniquenessService;
+
     @InjectMocks
     private ProfileServiceImpl profileService;
 
@@ -37,7 +39,7 @@ class ProfileServiceImplTest {
         ReflectionTestUtils.setField(user, "id", userId);
 
         when(authRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(authRepository.existsByUsername("alice-updated")).thenReturn(false);
+        when(usernameUniquenessService.isUsernameTakenByAnotherUser("alice-updated", "alice")).thenReturn(false);
 
         ProfileService.UpdateProfileResult result = profileService.updateProfile(
                 new ProfileService.UpdateProfileRequest(userId, "alice-updated", "Alice Updated", 628222222222L)
@@ -64,7 +66,7 @@ class ProfileServiceImplTest {
         ReflectionTestUtils.setField(user, "id", userId);
 
         when(authRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(authRepository.existsByUsername("taken-name")).thenReturn(true);
+        when(usernameUniquenessService.isUsernameTakenByAnotherUser("taken-name", "alice")).thenReturn(true);
 
         ProfileService.UpdateProfileResult result = profileService.updateProfile(
                 new ProfileService.UpdateProfileRequest(userId, "taken-name", "Alice Updated", 628111111111L)
@@ -89,7 +91,7 @@ class ProfileServiceImplTest {
         );
 
         assertThat(result.success()).isTrue();
-        verify(authRepository, never()).existsByUsername(anyString());
+        verify(usernameUniquenessService).isUsernameTakenByAnotherUser("alice", "alice");
         verify(authRepository).save(user);
     }
 
@@ -102,7 +104,7 @@ class ProfileServiceImplTest {
         ReflectionTestUtils.setField(user, "createdAt", createdAt);
 
         when(authRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(authRepository.existsByUsername("alice-updated")).thenReturn(false);
+        when(usernameUniquenessService.isUsernameTakenByAnotherUser("alice-updated", "alice")).thenReturn(false);
 
         ProfileService.UpdateProfileResult result = profileService.updateProfile(
                 new ProfileService.UpdateProfileRequest(userId, "alice-updated", "Alice Updated", 628222222222L)
@@ -113,5 +115,56 @@ class ProfileServiceImplTest {
         assertThat(user.getPassword()).isEqualTo("super-secret");
         assertThat(user.getRole()).isEqualTo(AuthRole.ADMIN);
         assertThat(user.getCreatedAt()).isEqualTo(createdAt);
+    }
+
+    @Test
+    void updateProfileShouldFailWhenUserNotFound() {
+        UUID userId = UUID.randomUUID();
+        when(authRepository.findById(userId)).thenReturn(Optional.empty());
+
+        ProfileService.UpdateProfileResult result = profileService.updateProfile(
+                new ProfileService.UpdateProfileRequest(userId, "alice-updated", "Alice Updated", 628222222222L)
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("user_not_found");
+        assertThat(result.errorMessage()).isEqualTo("User not found");
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void updateProfileShouldFailWhenUsernameBlank() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = new AuthUser("alice", "alice@example.com", null, "Alice", "hashed");
+        ReflectionTestUtils.setField(user, "id", userId);
+        when(authRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        ProfileService.UpdateProfileResult result = profileService.updateProfile(
+                new ProfileService.UpdateProfileRequest(userId, "   ", "Alice Updated", 628222222222L)
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("required_username");
+        assertThat(result.errorMessage()).isEqualTo("Username is required");
+        verify(usernameUniquenessService, never()).isUsernameTakenByAnotherUser(any(), any());
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void updateProfileShouldKeepCurrentDisplayNameWhenRequestedDisplayNameBlank() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = new AuthUser("alice", "alice@example.com", null, "Alice Current", "hashed");
+        ReflectionTestUtils.setField(user, "id", userId);
+
+        when(authRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(usernameUniquenessService.isUsernameTakenByAnotherUser("alice-updated", "alice")).thenReturn(false);
+
+        ProfileService.UpdateProfileResult result = profileService.updateProfile(
+                new ProfileService.UpdateProfileRequest(userId, "alice-updated", "   ", 628222222222L)
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.updatedProfile().displayName()).isEqualTo("Alice Current");
+        assertThat(user.getDisplayName()).isEqualTo("Alice Current");
     }
 }

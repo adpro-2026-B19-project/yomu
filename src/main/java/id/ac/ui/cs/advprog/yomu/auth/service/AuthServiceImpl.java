@@ -13,17 +13,20 @@ public class AuthServiceImpl implements AuthService {
     private final AuthRepository authRepository;
     private final EmailExistenceChecker emailExistenceChecker;
     private final PasswordStrengthChecker passwordStrengthChecker;
+    private final UsernameUniquenessService usernameUniquenessService;
     private final PasswordEncoder passwordEncoder;
 
     public AuthServiceImpl(
             AuthRepository authRepository,
             EmailExistenceChecker emailExistenceChecker,
             PasswordStrengthChecker passwordStrengthChecker,
+            UsernameUniquenessService usernameUniquenessService,
             PasswordEncoder passwordEncoder
     ) {
         this.authRepository = authRepository;
         this.emailExistenceChecker = emailExistenceChecker;
         this.passwordStrengthChecker = passwordStrengthChecker;
+        this.usernameUniquenessService = usernameUniquenessService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -115,7 +118,7 @@ public class AuthServiceImpl implements AuthService {
             return RegistrationResult.failureResult("duplicate_email", "Email is already registered");
         }
 
-        if (authRepository.existsByUsername(username)) {
+        if (usernameUniquenessService.isUsernameTaken(username)) {
             return RegistrationResult.failureResult("duplicate_username", "Username is already taken");
         }
 

@@ -36,6 +36,9 @@ class AuthServiceImplTest {
     @Mock
     private PasswordStrengthChecker passwordStrengthChecker;
 
+    @Mock
+    private UsernameUniquenessService usernameUniquenessService;
+
     @Spy
     private PasswordEncoder mockedPasswordEncoder = new BCryptPasswordEncoder();
 
@@ -47,7 +50,7 @@ class AuthServiceImplTest {
         lenient().when(emailExistenceChecker.exists(anyString())).thenReturn(true);
         lenient().when(passwordStrengthChecker.assess(anyString())).thenReturn(PasswordStrength.STRONG);
         lenient().when(authRepository.existsByEmail(anyString())).thenReturn(false);
-        lenient().when(authRepository.existsByUsername(anyString())).thenReturn(false);
+        lenient().when(usernameUniquenessService.isUsernameTaken(anyString())).thenReturn(false);
     }
 
     @Test
@@ -68,7 +71,7 @@ class AuthServiceImplTest {
     @Test
     void registerUserShouldFailWhenUsernameAlreadyExists() {
         when(authRepository.existsByEmail("alice@example.com")).thenReturn(false);
-        when(authRepository.existsByUsername("alice")).thenReturn(true);
+        when(usernameUniquenessService.isUsernameTaken("alice")).thenReturn(true);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("alice@example.com", "alice", "RawPassword1!")
@@ -78,7 +81,7 @@ class AuthServiceImplTest {
         assertThat(result.errorCode()).isEqualTo("duplicate_username");
         assertThat(result.errorMessage()).isEqualTo("Username is already taken");
         verify(authRepository).existsByEmail("alice@example.com");
-        verify(authRepository).existsByUsername("alice");
+        verify(usernameUniquenessService).isUsernameTaken("alice");
         verify(authRepository, never()).save(any());
     }
 
@@ -91,14 +94,14 @@ class AuthServiceImplTest {
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("required_username");
         assertThat(result.errorMessage()).isEqualTo("Username is required");
-        verify(authRepository, never()).existsByUsername(anyString());
+        verify(usernameUniquenessService, never()).isUsernameTaken(anyString());
         verify(authRepository, never()).save(any());
     }
 
     @Test
     void registerUserShouldPersistHashedPasswordWhenValid() {
         when(authRepository.existsByEmail("dora@example.com")).thenReturn(false);
-        when(authRepository.existsByUsername("dora")).thenReturn(false);
+        when(usernameUniquenessService.isUsernameTaken("dora")).thenReturn(false);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("dora@example.com", "dora", "SecretPassword1!")

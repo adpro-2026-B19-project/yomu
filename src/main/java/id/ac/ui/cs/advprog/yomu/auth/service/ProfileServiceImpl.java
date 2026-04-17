@@ -10,9 +10,14 @@ import org.springframework.stereotype.Service;
 public class ProfileServiceImpl implements ProfileService {
 
     private final AuthRepository authRepository;
+    private final UsernameUniquenessService usernameUniquenessService;
 
-    public ProfileServiceImpl(AuthRepository authRepository) {
+    public ProfileServiceImpl(
+            AuthRepository authRepository,
+            UsernameUniquenessService usernameUniquenessService
+    ) {
         this.authRepository = authRepository;
+        this.usernameUniquenessService = usernameUniquenessService;
     }
 
     @Override
@@ -23,23 +28,16 @@ public class ProfileServiceImpl implements ProfileService {
         }
 
         String normalizedUsername = normalize(request.username());
-        if (normalizedUsername.isBlank()) {
-            return UpdateProfileResult.failureResult("required_username", "Username is required");
+        UpdateProfileResult usernameValidationResult = validateRequestedUsername(normalizedUsername, user.getUsername());
+        if (usernameValidationResult != null) {
+            return usernameValidationResult;
         }
 
-        if (isUsernameTakenByOtherUser(normalizedUsername, user.getUsername())) {
-            return UpdateProfileResult.failureResult("duplicate_username", "Username is already taken");
-        }
+        String updatedDisplayName = resolveDisplayName(user.getDisplayName(), request.displayName());
 
-        String normalizedDisplayName = normalize(request.displayName());
-        String updatedDisplayName = normalizedDisplayName.isBlank() ? user.getDisplayName() : normalizedDisplayName;
+        applyProfileChanges(user, normalizedUsername, updatedDisplayName, request.phoneNumber());
 
-        user.updateProfile(normalizedUsername, updatedDisplayName, request.phoneNumber());
-        authRepository.save(user);
-
-        return UpdateProfileResult.successResult(
-                new UpdatedProfileSummary(user.getUsername(), user.getEmail(), user.getDisplayName(), user.getPhoneNumber())
-        );
+        return buildSuccessResult(user);
     }
 
     private AuthUser resolveUser(UUID userId) {
@@ -50,8 +48,32 @@ public class ProfileServiceImpl implements ProfileService {
         return userOptional.orElse(null);
     }
 
-    private boolean isUsernameTakenByOtherUser(String requestedUsername, String currentUsername) {
-        return !requestedUsername.equals(currentUsername) && authRepository.existsByUsername(requestedUsername);
+    private UpdateProfileResult validateRequestedUsername(String requestedUsername, String currentUsername) {
+        if (requestedUsername.isBlank()) {
+            return UpdateProfileResult.failureResult("required_username", "Username is required");
+        }
+
+        if (usernameUniquenessService.isUsernameTakenByAnotherUser(requestedUsername, currentUsername)) {
+            return UpdateProfileResult.failureResult("duplicate_username", "Username is already taken");
+        }
+
+        return null;
+    }
+
+    private String resolveDisplayName(String currentDisplayName, String requestedDisplayName) {
+        String normalizedDisplayName = normalize(requestedDisplayName);
+        return normalizedDisplayName.isBlank() ? currentDisplayName : normalizedDisplayName;
+    }
+
+    private void applyProfileChanges(AuthUser user, String username, String displayName, Long phoneNumber) {
+        user.updateProfile(username, displayName, phoneNumber);
+        authRepository.save(user);
+    }
+
+    private UpdateProfileResult buildSuccessResult(AuthUser user) {
+        return UpdateProfileResult.successResult(
+                new UpdatedProfileSummary(user.getUsername(), user.getEmail(), user.getDisplayName(), user.getPhoneNumber())
+        );
     }
 
     private String normalize(String value) {
