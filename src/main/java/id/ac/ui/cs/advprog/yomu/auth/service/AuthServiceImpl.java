@@ -156,11 +156,11 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResult loginUser(LoginRequest request) {
-        String normalizedIdentifier = authIdentifierValidator.normalize(request.email());
+        String normalizedIdentifier = authIdentifierValidator.normalize(request.identifier());
         String normalizedPassword = normalize(request.password());
 
         if (normalizedIdentifier.isBlank()) {
-            return LoginResult.failureResult("required_email", "Email is required");
+            return LoginResult.failureResult("required_identifier", "Email or username is required");
         }
 
         if (normalizedPassword.isBlank()) {
@@ -169,17 +169,17 @@ public class AuthServiceImpl implements AuthService {
 
         Optional<AuthUser> userOptional = resolveLoginUser(normalizedIdentifier);
         if (userOptional.isEmpty()) {
-            return LoginResult.failureResult("invalid_credentials", "Invalid email or password");
+            return LoginResult.failureResult("invalid_credentials", "Invalid email/username or password");
         }
 
         AuthUser user = userOptional.get();
         String storedPassword = user.getPassword();
         if (storedPassword == null || storedPassword.isBlank()) {
-            return LoginResult.failureResult("invalid_credentials", "Invalid email or password");
+            return LoginResult.failureResult("invalid_credentials", "Invalid email/username or password");
         }
 
         if (!passwordEncoder.matches(normalizedPassword, storedPassword)) {
-            return LoginResult.failureResult("invalid_credentials", "Invalid email or password");
+            return LoginResult.failureResult("invalid_credentials", "Invalid email/username or password");
         }
 
         return LoginResult.successResult(new LoggedInUserSummary(user.getUsername(), user.getEmail()));

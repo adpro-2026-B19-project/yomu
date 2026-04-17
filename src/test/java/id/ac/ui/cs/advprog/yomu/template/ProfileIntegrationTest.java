@@ -113,7 +113,7 @@ class ProfileIntegrationTest {
     private MvcResult loginAs(String email, String password) throws Exception {
         return mockMvc.perform(post("/auth/login")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())
-                        .param("email", email)
+                        .param("identifier", email)
                         .param("password", password))
                 .andExpect(status().is3xxRedirection())
                 .andReturn();

@@ -174,12 +174,12 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void loginUserShouldFailWhenEmailIsBlank() {
+    void loginUserShouldFailWhenIdentifierIsBlank() {
         AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("   ", "SecretPass1!"));
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("required_email");
-        assertThat(result.errorMessage()).isEqualTo("Email is required");
+        assertThat(result.errorCode()).isEqualTo("required_identifier");
+        assertThat(result.errorMessage()).isEqualTo("Email or username is required");
     }
 
     @Test
@@ -199,7 +199,7 @@ class AuthServiceImplTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("invalid_credentials");
-        assertThat(result.errorMessage()).isEqualTo("Invalid email or password");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email/username or password");
     }
 
     @Test
@@ -212,7 +212,7 @@ class AuthServiceImplTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("invalid_credentials");
-        assertThat(result.errorMessage()).isEqualTo("Invalid email or password");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email/username or password");
     }
 
     @Test
@@ -229,5 +229,22 @@ class AuthServiceImplTest {
         assertThat(result.loggedInUser()).isNotNull();
         assertThat(result.loggedInUser().username()).isEqualTo("alice");
         assertThat(result.loggedInUser().email()).isEqualTo("alice@example.com");
+    }
+
+    @Test
+    void loginUserShouldSucceedWhenUsernameAndPasswordAreValid() {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        when(authRepository.findByUsername("alice-user"))
+                .thenReturn(Optional.of(new AuthUser("alice-user", "alice@example.com", null, "alice", hashedPassword)));
+
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice-user", "CorrectPass1!"));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.errorCode()).isNull();
+        assertThat(result.errorMessage()).isNull();
+        assertThat(result.loggedInUser()).isNotNull();
+        assertThat(result.loggedInUser().username()).isEqualTo("alice-user");
+        assertThat(result.loggedInUser().email()).isEqualTo("alice@example.com");
+        verify(authRepository).findByUsername("alice-user");
     }
 }

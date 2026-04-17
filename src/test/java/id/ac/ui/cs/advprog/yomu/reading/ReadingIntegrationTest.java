@@ -206,7 +206,7 @@ class ReadingIntegrationTest {
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", email)
+                        .param("identifier", email)
                         .param("password", rawPassword))
                 .andExpect(status().is3xxRedirection())
                 .andReturn();
