@@ -29,7 +29,7 @@ public class AuthUser {
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Column(unique = true)
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column
@@ -65,6 +65,12 @@ public class AuthUser {
         this.displayName = displayName;
         this.password = password;
         this.role = role;
+    }
+
+    public void updateProfile(String username, String displayName, Long phoneNumber) {
+        this.username = username;
+        this.displayName = displayName;
+        this.phoneNumber = phoneNumber;
     }
 
     @PrePersist

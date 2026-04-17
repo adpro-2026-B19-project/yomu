@@ -81,7 +81,7 @@
             <div class="illus" aria-label="Image placeholder"></div>
 
             <h1>Login</h1>
-            <p class="muted" style="margin:0 0 10px;">Sign in with your registered email and password.</p>
+            <p class="muted" style="margin:0 0 10px;">Sign in with your email or username and password.</p>
 
             <div class="alert success" data-auto-dismiss="true"
                  th:if="${registeredEmail != null and !#strings.isEmpty(registeredEmail)}">
@@ -104,11 +104,12 @@
             <form th:action="@{/auth/login}" method="post" th:object="${loginForm}">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
-                <label for="email">Email</label>
-                <input id="email" type="email" autocomplete="email" required th:field="*{email}" />
+                <label for="identifier">Email or username</label>
+                <input id="identifier" type="text" autocomplete="username" required
+                       placeholder="you@example.com or your_username" th:field="*{identifier}" />
                 <div class="muted" style="margin-top:6px;color:var(--danger);"
-                     th:if="${#fields.hasErrors('email')}" th:errors="*{email}">
-                    Email error
+                     th:if="${#fields.hasErrors('identifier')}" th:errors="*{identifier}">
+                    Identifier error
                 </div>
 
                 <label for="password">Password</label>

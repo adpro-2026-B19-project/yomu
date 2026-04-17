@@ -1,11 +1,9 @@
-<!-- templates/profile/index.html (Yomu dark theme, read-only, no appbar) -->
 <!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Yomu · Profile</title>
-
+    <title>Yomu - Profile</title>
     <style>
         :root{
             --primary:#3B82F6;
@@ -15,30 +13,139 @@
             --text:#E2E8F0;
             --muted:#94A3B8;
             --panel:#020617;
+            --danger:#F87171;
+            --success:#34D399;
         }
-
         *{ box-sizing:border-box; }
-
         body{
             margin:0;
             font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
             background:var(--bg);
             color:var(--text);
         }
-
+        a{
+            text-decoration:none;
+            color:inherit;
+        }
         .container{
-            width:min(900px,92vw);
+            width:min(1100px,92vw);
             margin:0 auto;
+        }
+        header{
+            position:sticky;
+            top:0;
+            background:#020617;
+            border-bottom:1px solid var(--border);
+            z-index:20;
+        }
+        .nav{
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            padding:14px 0;
+        }
+        .brand{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            font-weight:800;
+        }
+        .logo-box{
+            width:34px;
+            height:34px;
+            border-radius:10px;
+            background:var(--primary);
+        }
+        .navlinks{
+            display:flex;
+            gap:14px;
+            align-items:center;
+        }
+        .btn{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            padding:10px 14px;
+            border-radius:10px;
+            border:1px solid var(--border);
+            background:var(--card);
+            font-weight:700;
+            color:var(--text);
+            cursor:pointer;
+        }
+        .btn.primary{
+            background:var(--primary);
+            border-color:var(--primary);
+            color:#fff;
+        }
+        .user-menu{
+            position:relative;
+        }
+        .menu-trigger{
+            display:inline-flex;
+            align-items:center;
+            gap:10px;
+            padding:8px 12px;
+            border-radius:12px;
+            border:1px solid var(--border);
+            background:var(--card);
+            font-weight:700;
+            cursor:pointer;
+        }
+        .menu-trigger::-webkit-details-marker{
+            display:none;
+        }
+        .avatar-holder{
+            width:32px;
+            height:32px;
+            border-radius:50%;
+            border:1px dashed var(--border);
+            background:#020617;
+            flex-shrink:0;
+        }
+        .menu-panel{
+            position:absolute;
+            right:0;
+            top:calc(100% + 8px);
+            min-width:220px;
+            background:var(--card);
+            border:1px solid var(--border);
+            border-radius:12px;
+            padding:8px;
+            display:grid;
+            gap:6px;
+            z-index:30;
+        }
+        .menu-item{
+            display:block;
+            padding:9px 10px;
+            border-radius:10px;
+            font-weight:600;
+        }
+        .menu-item:hover{
+            background:#0b1224;
+        }
+        .menu-form{
+            margin:0;
+        }
+        .menu-logout{
+            width:100%;
+            text-align:left;
+            background:rgba(248,113,113,.15);
+            border:1px solid rgba(248,113,113,.4);
+            color:var(--danger);
+            cursor:pointer;
+        }
+        main.container{
+            width:min(900px,92vw);
             padding:40px 0;
         }
-
         .card{
             background:var(--card);
             border:1px solid var(--border);
             border-radius:16px;
             padding:20px;
         }
-
         .header{
             display:flex;
             align-items:center;
@@ -46,7 +153,6 @@
             margin-bottom:20px;
             flex-wrap:wrap;
         }
-
         .avatar{
             width:80px;
             height:80px;
@@ -54,79 +160,133 @@
             border:1px dashed var(--border);
             background:var(--panel);
         }
-
         h1{
             margin:0;
             font-size:26px;
             line-height:1.1;
         }
-
         .muted{ color:var(--muted); }
-
+        .alert{
+            border:1px solid var(--border);
+            background:rgba(2,6,23,.5);
+            border-radius:12px;
+            padding:10px 12px;
+            margin:10px 0;
+        }
+        .alert.danger{ border-color:rgba(248,113,113,.35); }
+        .alert.success{ border-color:rgba(52,211,153,.35); }
+        .alert.fade-out{
+            opacity:0;
+            transform:translateY(-4px);
+            transition:opacity .25s ease, transform .25s ease;
+        }
         table{
             width:100%;
             border-collapse:collapse;
             margin-top:10px;
         }
-
         td{
             padding:12px 0;
             border-top:1px solid rgba(148,163,184,.15);
             vertical-align:top;
         }
-
         td:first-child{
             color:var(--muted);
             width:180px;
             padding-right:14px;
         }
-
-        .footer{
+        input, select{
+            width:100%;
+            padding:10px 12px;
+            border-radius:10px;
+            border:1px solid var(--border);
+            background:rgba(2,6,23,.55);
+            color:var(--text);
+            outline:none;
+        }
+        input[readonly], input[disabled], select[disabled]{
+            opacity:.8;
+            cursor:not-allowed;
+        }
+        .view-value{
+            min-height:20px;
+            display:flex;
+            align-items:center;
+            color:var(--text);
+        }
+        .edit-field{ display:none; }
+        .error-text{
+            margin-top:6px;
+            color:var(--danger);
+            font-size:12px;
+        }
+        .inline-phone{
+            display:grid;
+            grid-template-columns:180px 1fr;
+            gap:8px;
+        }
+        .inline-phone.edit-field{ display:none; }
+        .actions{
             margin-top:20px;
             display:flex;
             gap:10px;
+            align-items:center;
             flex-wrap:wrap;
-            align-items:center;
         }
-
-        .btn{
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            padding:10px 14px;
-            border-radius:12px;
-            border:1px solid var(--border);
-            background:var(--panel);
-            color:var(--text);
-            font-weight:800;
-            cursor:pointer;
-            text-decoration:none;
+        .edit-only{ display:none; }
+        .profile-form.is-editing .edit-only{ display:inline-flex; }
+        .profile-form.is-editing .view-only{ display:none; }
+        .profile-form.is-editing .edit-field{ display:block; }
+        .profile-form.is-editing .view-value{ display:none; }
+        .profile-form.is-editing .inline-phone.edit-field{ display:grid; }
+        @media (max-width:760px){
+            .inline-phone{
+                grid-template-columns:1fr;
+            }
         }
-
-        .btn.primary{
-            background:var(--primary);
-            border-color:var(--primary);
-            color:#fff;
-        }
-
-        .btn:hover{ filter:brightness(1.05); }
     </style>
 </head>
-
 <body>
+<header>
+    <div class="container nav">
+        <a class="brand" th:href="@{/}">
+            <div class="logo-box"></div>
+            <span>Yomu</span>
+        </a>
+        <nav class="navlinks">
+            <details class="user-menu" th:if="${user != null}">
+                <summary class="menu-trigger">
+                    <span class="avatar-holder" aria-label="Profile image placeholder"></span>
+                    <span th:text="${user.username}">username</span>
+                </summary>
+                <div class="menu-panel">
+                    <a class="menu-item" th:href="@{/profile}">Profiles</a>
+                    <a class="menu-item" th:href="@{/achievements}">Achievements</a>
+                    <a class="menu-item" th:href="@{/texts}">Read</a>
+                    <a class="menu-item" th:href="@{/texts}">Quiz</a>
+                    <a class="menu-item" th:href="@{/interaction}">Clan</a>
+                    <form class="menu-form" th:action="@{/auth/logout}" method="post">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                        <button type="submit" class="menu-item menu-logout">Logout</button>
+                    </form>
+                </div>
+            </details>
+            <a th:href="@{/auth/login}" class="btn" th:unless="${user != null}">Login</a>
+            <a th:href="@{/auth/register}" class="btn primary" th:unless="${user != null}">Register</a>
+        </nav>
+    </div>
+</header>
+
 <main class="container">
     <section class="card">
-
         <div class="header">
             <div class="avatar" aria-label="Avatar placeholder"></div>
-
             <div style="min-width:240px;">
                 <h1 th:text="${user?.displayName} ?: 'User'">User</h1>
                 <div class="muted">
                     @<span th:text="${user?.username} ?: 'username'">username</span>
                 </div>
             </div>
-
             <div style="margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;">
                 <span class="muted" style="align-self:center;">
                     <strong th:text="${user?.role} ?: 'USER'">USER</strong>
@@ -134,39 +294,210 @@
             </div>
         </div>
 
-        <table>
-            <tr>
-                <td>Username</td>
-                <td th:text="${user?.username} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Display Name</td>
-                <td th:text="${user?.displayName} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Email</td>
-                <td th:text="${user?.email} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Phone Number</td>
-                <td th:text="${user?.phoneNumber} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Created At</td>
-                <td th:text="${user != null and user.createdAt != null ? #temporals.format(user.createdAt, 'dd-MM-yyyy') : '-'}">-</td>
-            </tr>
-        </table>
-
-        <div class="footer">
-            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                <button class="btn" type="submit">Logout</button>
-            </form>
-
-            <a class="btn primary" th:href="@{/}">Home</a>
+        <div class="alert success" data-auto-dismiss="true" th:if="${success}">
+            <strong style="color:var(--success);">Success.</strong>
+            <div class="muted" th:text="${success}">Profile updated successfully</div>
+        </div>
+        <div class="alert danger" data-auto-dismiss="true" th:if="${warning}">
+            <strong style="color:var(--danger);">Update failed.</strong>
+            <div class="muted" th:text="${warning}">Error message</div>
         </div>
 
+        <form id="profile-form" class="profile-form"
+              th:action="@{/profile}" method="post" th:object="${form}"
+              th:attr="data-start-in-edit=${#fields.hasAnyErrors()}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+            <table>
+                <tr>
+                    <td>Username</td>
+                    <td>
+                        <div class="view-value" th:text="*{username} ?: '-'">-</div>
+                        <input class="edit-field" id="username" type="text" autocomplete="username" th:field="*{username}" data-editable="true" />
+                        <div class="error-text" th:if="${#fields.hasErrors('username')}" th:errors="*{username}">
+                            Username error
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Display Name</td>
+                    <td>
+                        <div class="view-value" th:text="*{displayName} ?: '-'">-</div>
+                        <input class="edit-field" id="displayName" type="text" autocomplete="name" th:field="*{displayName}" data-editable="true" />
+                        <div class="error-text" th:if="${#fields.hasErrors('displayName')}" th:errors="*{displayName}">
+                            Display name error
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Email</td>
+                    <td>
+                        <div class="view-value" id="email-view" th:text="${user?.email} ?: '-'">-</div>
+                        <input class="edit-field" id="email" type="email" th:value="${user?.email}" readonly />
+                    </td>
+                </tr>
+                <tr>
+                    <td>Phone Number</td>
+                    <td>
+                        <div id="phone-view-value" class="view-value" th:text="${user?.phoneNumber} ?: '-'">-</div>
+                        <div class="inline-phone edit-field">
+                            <select id="phoneAreaCode" data-editable="true">
+                                <option value="1">1 (USA/Canada)</option>
+                                <option value="44">44 (United Kingdom)</option>
+                                <option value="62">62 (Indonesia)</option>
+                                <option value="65">65 (Singapore)</option>
+                                <option value="81">81 (Japan)</option>
+                                <option value="82">82 (South Korea)</option>
+                                <option value="86">86 (China)</option>
+                                <option value="91">91 (India)</option>
+                            </select>
+                            <input id="phoneLocalNumber" type="text" inputmode="numeric" autocomplete="tel-national" data-editable="true" />
+                        </div>
+                        <input id="phoneNumber" type="hidden" th:field="*{phoneNumber}" />
+                        <div class="error-text" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}">
+                            Phone number error
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Created At</td>
+                    <td th:text="${user != null and user.createdAt != null ? #temporals.format(user.createdAt, 'dd-MM-yyyy') : '-'}">-</td>
+                </tr>
+            </table>
+
+            <div class="actions">
+                <button id="edit-profile-btn" class="btn view-only" type="button">Edit Profile</button>
+                <button id="save-profile-btn" class="btn primary edit-only" type="submit">Save Profile</button>
+                <button id="revert-profile-btn" class="btn edit-only" type="button">Revert Changes</button>
+            </div>
+        </form>
     </section>
 </main>
+
+<script th:inline="javascript">
+    (function () {
+        const form = document.getElementById("profile-form");
+        if (!form) {
+            return;
+        }
+
+        const editButton = document.getElementById("edit-profile-btn");
+        const revertButton = document.getElementById("revert-profile-btn");
+        const editableFields = form.querySelectorAll("[data-editable='true']");
+        const areaCodeSelect = document.getElementById("phoneAreaCode");
+        const localPhoneInput = document.getElementById("phoneLocalNumber");
+        const fullPhoneInput = document.getElementById("phoneNumber");
+        const phoneDisplayValue = document.getElementById("phone-view-value");
+        const startInEditMode = form.dataset.startInEdit === "true";
+
+        const knownAreaCodes = ["1", "44", "62", "65", "81", "82", "86", "91"];
+
+        function setEditMode(enabled) {
+            form.classList.toggle("is-editing", enabled);
+            editableFields.forEach(function (field) {
+                field.disabled = !enabled;
+            });
+        }
+
+        function splitPhone(fullNumber) {
+            const digits = (fullNumber || "").replace(/\D/g, "");
+            if (!digits) {
+                return { areaCode: "62", localNumber: "" };
+            }
+
+            const sortedCodes = knownAreaCodes.slice().sort(function (a, b) {
+                return b.length - a.length;
+            });
+            const matchedCode = sortedCodes.find(function (code) {
+                return digits.startsWith(code);
+            });
+
+            if (!matchedCode) {
+                return { areaCode: "62", localNumber: digits };
+            }
+
+            return {
+                areaCode: matchedCode,
+                localNumber: digits.slice(matchedCode.length)
+            };
+        }
+
+        function syncCombinedPhoneValue() {
+            if (!fullPhoneInput) {
+                return;
+            }
+
+            const areaCode = areaCodeSelect ? areaCodeSelect.value.trim() : "";
+            const localNumber = localPhoneInput ? localPhoneInput.value.replace(/\D/g, "") : "";
+            fullPhoneInput.value = areaCode && localNumber ? areaCode + localNumber : "";
+            renderPhoneDisplayValue(areaCode, localNumber);
+        }
+
+        function renderPhoneDisplayValue(areaCode, localNumber) {
+            if (!phoneDisplayValue) {
+                return;
+            }
+
+            if (!areaCode || !localNumber) {
+                phoneDisplayValue.textContent = "-";
+                return;
+            }
+
+            phoneDisplayValue.textContent = "+" + areaCode + " " + localNumber;
+        }
+
+        const initialPhone = splitPhone(fullPhoneInput ? fullPhoneInput.value : "");
+        if (areaCodeSelect) {
+            areaCodeSelect.value = initialPhone.areaCode;
+            Array.from(areaCodeSelect.options).forEach(function (option) {
+                option.defaultSelected = option.value === initialPhone.areaCode;
+            });
+        }
+        if (localPhoneInput) {
+            localPhoneInput.value = initialPhone.localNumber;
+            localPhoneInput.defaultValue = initialPhone.localNumber;
+        }
+        syncCombinedPhoneValue();
+
+        setEditMode(startInEditMode);
+
+        if (editButton) {
+            editButton.addEventListener("click", function () {
+                setEditMode(true);
+            });
+        }
+
+        if (revertButton) {
+            revertButton.addEventListener("click", function () {
+                form.reset();
+                syncCombinedPhoneValue();
+                setEditMode(false);
+            });
+        }
+
+        if (areaCodeSelect) {
+            areaCodeSelect.addEventListener("change", syncCombinedPhoneValue);
+        }
+
+        if (localPhoneInput) {
+            localPhoneInput.addEventListener("input", function () {
+                localPhoneInput.value = localPhoneInput.value.replace(/\D/g, "");
+                syncCombinedPhoneValue();
+            });
+        }
+
+        form.addEventListener("submit", syncCombinedPhoneValue);
+
+        document.querySelectorAll("[data-auto-dismiss='true']").forEach(function (alertEl) {
+            setTimeout(function () {
+                alertEl.classList.add("fade-out");
+                setTimeout(function () {
+                    if (alertEl.parentNode) {
+                        alertEl.parentNode.removeChild(alertEl);
+                    }
+                }, 260);
+            }, 4500);
+        });
+    })();
+</script>
 </body>
 </html>
