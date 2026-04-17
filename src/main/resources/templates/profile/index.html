@@ -225,6 +225,7 @@
             grid-template-columns:180px 1fr;
             gap:8px;
         }
+        .inline-phone.edit-field{ display:none; }
         .actions{
             margin-top:20px;
             display:flex;
@@ -330,7 +331,8 @@
                 <tr>
                     <td>Email</td>
                     <td>
-                        <div class="view-value" id="email" th:text="${user?.email} ?: '-'">-</div>
+                        <div class="view-value" id="email-view" th:text="${user?.email} ?: '-'">-</div>
+                        <input class="edit-field" id="email" type="email" th:value="${user?.email}" readonly />
                     </td>
                 </tr>
                 <tr>
