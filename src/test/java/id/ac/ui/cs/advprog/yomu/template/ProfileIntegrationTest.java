@@ -56,10 +56,14 @@ class ProfileIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(model().attributeExists("form"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Profile")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Edit Profile")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Save Profile")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Revert Changes")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/profile\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"username\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"phoneAreaCode\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"phoneLocalNumber\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("readonly")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Email")));
     }
 
