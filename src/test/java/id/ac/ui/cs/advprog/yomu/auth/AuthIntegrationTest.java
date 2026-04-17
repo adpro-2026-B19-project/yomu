@@ -216,4 +216,30 @@ class AuthIntegrationTest {
                 .andExpect(model().attribute("user",
                         org.hamcrest.Matchers.hasProperty("email", org.hamcrest.Matchers.is("alice@example.com"))));
     }
+
+    @Test
+    void loginShouldSucceedWithIdentifierFieldWhenIdentifierIsEmail() throws Exception {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword));
+
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("identifier", "alice@example.com")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"));
+    }
+
+    @Test
+    void loginShouldSucceedWithIdentifierFieldWhenIdentifierIsUsername() throws Exception {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        authRepository.save(new AuthUser("alice-user", "alice@example.com", null, "alice", hashedPassword));
+
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("identifier", "alice-user")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"));
+    }
 }
