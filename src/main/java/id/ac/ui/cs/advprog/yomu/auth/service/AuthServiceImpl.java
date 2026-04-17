@@ -31,7 +31,7 @@ public class AuthServiceImpl implements AuthService {
     public RegistrationResult registerUser(RegisterRequest request) {
         String normalizedEmail = normalize(request.email());
         String normalizedPassword = normalize(request.password());
-        String normalizedUsername = resolveRegistrationUsername(request.username(), normalizedEmail);
+        String normalizedUsername = normalize(request.username());
 
         RegistrationResult requiredFieldsResult = validateRequiredRegistrationFields(normalizedEmail, normalizedPassword);
         if (requiredFieldsResult != null) {
@@ -151,22 +151,6 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return LoginResult.successResult(new LoggedInUserSummary(user.getUsername(), user.getEmail()));
-    }
-
-    private String resolveRegistrationUsername(String username, String email) {
-        String normalizedUsername = normalize(username);
-        if (!normalizedUsername.isBlank()) {
-            return normalizedUsername;
-        }
-        return deriveUsernameFromEmail(email);
-    }
-
-    private String deriveUsernameFromEmail(String email) {
-        int atIndex = email.indexOf('@');
-        if (atIndex <= 0) {
-            return "";
-        }
-        return email.substring(0, atIndex).trim();
     }
 
     private String normalize(String value) {

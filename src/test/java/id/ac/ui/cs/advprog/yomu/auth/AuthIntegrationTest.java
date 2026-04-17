@@ -45,7 +45,8 @@ class AuthIntegrationTest {
         mockMvc.perform(get("/auth/register"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("auth/register"))
-                .andExpect(model().attributeExists("form"));
+                .andExpect(model().attributeExists("form"))
+                .andExpect(model().attributeExists("suggestedUsername"));
     }
 
     @Test
@@ -86,7 +87,7 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void registerShouldUseEmailLocalPartWhenUsernameBlank() throws Exception {
+    void registerShouldRejectBlankUsername() throws Exception {
         long before = authRepository.count();
 
         mockMvc.perform(post("/auth/register")
@@ -95,11 +96,11 @@ class AuthIntegrationTest {
                         .param("username", "   ")
                         .param("password", "NoraPassword1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/login"))
-                .andExpect(flash().attribute("registeredName", "nora"));
+                .andExpect(redirectedUrl("/auth/register"))
+                .andExpect(flash().attribute("warning", "Username is required"));
 
-        assertThat(authRepository.count()).isEqualTo(before + 1);
-        assertThat(authRepository.findByUsername("nora")).isPresent();
+        assertThat(authRepository.count()).isEqualTo(before);
+        assertThat(authRepository.findByUsername("nora")).isNotPresent();
     }
 
     @Test

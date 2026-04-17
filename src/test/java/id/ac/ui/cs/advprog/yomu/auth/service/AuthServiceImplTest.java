@@ -83,23 +83,16 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void registerUserShouldDefaultUsernameFromEmailLocalPart() {
-        when(authRepository.existsByEmail("charlie@example.com")).thenReturn(false);
-        when(authRepository.existsByUsername("charlie")).thenReturn(false);
-
+    void registerUserShouldFailWhenUsernameIsBlank() {
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("charlie@example.com", "   ", "RawPassword1!")
         );
 
-        assertThat(result.success()).isTrue();
-        assertThat(result.errorCode()).isNull();
-        assertThat(result.errorMessage()).isNull();
-
-        ArgumentCaptor<AuthUser> userCaptor = ArgumentCaptor.forClass(AuthUser.class);
-        verify(authRepository).save(userCaptor.capture());
-        assertThat(userCaptor.getValue().getEmail()).isEqualTo("charlie@example.com");
-        assertThat(userCaptor.getValue().getUsername()).isEqualTo("charlie");
-        assertThat(userCaptor.getValue().getDisplayName()).isEqualTo("charlie");
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("required_username");
+        assertThat(result.errorMessage()).isEqualTo("Username is required");
+        verify(authRepository, never()).existsByUsername(anyString());
+        verify(authRepository, never()).save(any());
     }
 
     @Test
