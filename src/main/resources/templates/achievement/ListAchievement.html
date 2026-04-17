@@ -287,6 +287,44 @@
 <main class="container">
 
     <div class="page-header">
+        <div class="admin-card" th:if="${loggedInName != null and todayMissions != null}">
+            <h2 style="color: var(--accent); display: flex; align-items: center; gap: 8px;">
+                📅 Misi Harian Hari Ini
+            </h2>
+
+            <div th:if="${#lists.isEmpty(todayMissions)}" class="muted">
+                <p>Belum ada misi harian yang aktif untuk hari ini.</p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div th:each="mission : ${todayMissions}"
+                     style="background: #020617; padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+
+                    <div style="flex: 1;">
+                        <strong style="font-size: 1.05rem;" th:text="${mission.title}">Judul Misi</strong>
+
+                        <div th:with="progList=${userProgress.?[mission.id == #root.mission.id]}">
+                            <p style="margin: 6px 0 0; font-size: 0.85rem; color: var(--muted);"
+                               th:text="${#lists.isEmpty(progList)} ? 'Progress: 0 / ' + ${mission.targetCount} : 'Progress: ' + ${progList[0].currentProgress} + ' / ' + ${mission.targetCount}">
+                                Progress: 0 / 3
+                            </p>
+                        </div>
+                    </div>
+
+                    <div th:with="progList=${userProgress.?[mission.id == #root.mission.id]}">
+                    <span th:if="${not #lists.isEmpty(progList) and progList[0].completed}"
+                          style="background: rgba(52,211,153,.15); color: var(--success); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: bold;">
+                        Selesai ✅
+                    </span>
+                        <span th:unless="${not #lists.isEmpty(progList) and progList[0].completed}"
+                              style="background: rgba(59,130,246,.15); color: var(--primary); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: bold;">
+                        Berjalan ⏳
+                    </span>
+                    </div>
+
+                </div>
+            </div>
+        </div>
         <h1>🏆 Achievements</h1>
         <p>Track your milestones and accomplishments on Yomu.</p>
     </div>
@@ -312,10 +350,23 @@
     <!-- Achievement Cards -->
     <div th:unless="${#lists.isEmpty(achievements)}" class="achievement-grid">
         <div class="achievement-card" th:each="achievement : ${achievements}">
-            <div class="icon-slot">🏅</div>
-            <span class="achievement-badge">Achievement</span>
-            <strong th:text="${achievement.name}">Achievement Name</strong>
-            <p th:text="${achievement.milestone}">Milestone description</p>
+            <div th:unless="${#lists.isEmpty(achievements)}" class="achievement-grid">
+                <div class="achievement-card" th:each="achievement : ${achievements}">
+                    <div class="icon-slot">🏅</div>
+                    <span class="achievement-badge">Achievement</span>
+                    <strong th:text="${achievement.name}">Achievement Name</strong>
+                    <p th:text="${achievement.milestone}">Milestone description</p>
+
+                    <button th:if="${loggedInName != null}"
+                            class="btn-submit"
+                            style="margin-top: 16px; width: 100%; font-size: 0.8rem; padding: 8px; background: var(--panel); border: 1px solid var(--border); color: var(--text);"
+                            th:onclick="'toggleDisplay(' + ${achievement.id} + ')'"
+                            onmouseover="this.style.borderColor='var(--primary)'"
+                            onmouseout="this.style.borderColor='var(--border)'">
+                        👁️ Tampilkan di Profil Publik
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -378,6 +429,32 @@
                 message.style.color = '#F87171';
                 message.textContent = 'Connection error. Please try again.';
             });
+    }
+
+    function toggleDisplay(achievementId) {
+        const csrfInput = document.querySelector('input[name="_csrf"]');
+        const csrfToken = csrfInput ? csrfInput.value : '';
+
+        fetch('/achievements/api/user/toggle-display/' + achievementId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            }
+        })
+            .then(res => {
+                if (res.ok) {
+                    alert('Sip! Status tampilan di profil berhasil diubah.');
+                } else if (res.status === 400) {
+                    res.text().then(text => alert('Gagal: ' + text + '\n(Pastikan Anda sudah menyelesaikan syarat achievement ini terlebih dahulu)'));
+                } else if (res.status === 401) {
+                    alert('Sesi berakhir. Silakan login kembali.');
+                    window.location.href = '/auth/login';
+                } else {
+                    alert('Terjadi kesalahan pada server.');
+                }
+            })
+            .catch(() => alert('Gagal menghubungi server. Periksa koneksi internet Anda.'));
     }
 </script>
 

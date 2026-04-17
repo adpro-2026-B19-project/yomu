@@ -1,9 +1,11 @@
 package id.ac.ui.cs.advprog.yomu.achievement.controller;
 
+import id.ac.ui.cs.advprog.yomu.achievement.service.DailyMissionService;
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
 import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
 import id.ac.ui.cs.advprog.yomu.achievement.dto.AchievementCreateForm;
+import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver; // Tambahkan ini
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -24,6 +26,8 @@ import java.util.UUID;
 public class AchievementController {
 
     private final AchievementService achievementService;
+    private final DailyMissionService dailyMissionService; // Injeksi service baru
+    private final CurrentUserResolver currentUserResolver; // Injeksi resolver user
 
     // ─── Thymeleaf Page ────────────────────────────────────────────────────────
 
@@ -35,6 +39,10 @@ public class AchievementController {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
             model.addAttribute("loggedInName", auth.getName());
+            currentUserResolver.resolveUser(auth).ifPresent(user -> {
+                model.addAttribute("todayMissions", dailyMissionService.getTodayMissions());
+                model.addAttribute("userProgress", dailyMissionService.getUserProgress(user.getId()));
+            });
         }
 
         return "achievement/ListAchievement";
@@ -61,6 +69,31 @@ public class AchievementController {
         Achievement created = achievementService.createAchievement(form.getName(), form.getMilestone());
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
+
+    @PostMapping("/api/user/toggle-display/{achievementId}")
+    @ResponseBody
+    public ResponseEntity<String> toggleDisplay(@PathVariable Long achievementId, Authentication authentication) {
+        return currentUserResolver.resolveUser(authentication)
+                .map(user -> {
+                    try {
+                        achievementService.toggleDisplayAchievement(user.getId(), achievementId);
+                        return ResponseEntity.ok("Status display berhasil diubah");
+                    } catch (IllegalArgumentException e) {
+                        return ResponseEntity.badRequest().body(e.getMessage());
+                    }
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Harap login terlebih dahulu"));
+    }
+
+    @PostMapping("/api/daily-mission")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> createDailyMission(@RequestParam String title, @RequestParam int targetCount) {
+        dailyMissionService.createDailyMission(title, targetCount);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Misi Harian berhasil dibuat");
+    }
+
+    // ─── EXCEPTION HANDLER ─────────────────────────────────────────────────────
 
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseBody

@@ -10,4 +10,6 @@ public interface AchievementService {
     List<Achievement> getAllAchievements();
     Achievement createAchievement(String name, String milestone);
     List<UserAchievement> getAchievementsByUserId(UUID userId);
+    void toggleDisplayAchievement(UUID userId, Long achievementId);
+    void checkAndUnlockAchievements(UUID userId);
 }
