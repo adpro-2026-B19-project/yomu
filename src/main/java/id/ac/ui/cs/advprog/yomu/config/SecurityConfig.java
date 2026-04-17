@@ -25,6 +25,7 @@ public class SecurityConfig {
                         "/js/**",
                         "/images/**"
                 ).permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/h2-console/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()
                 .anyRequest().authenticated()

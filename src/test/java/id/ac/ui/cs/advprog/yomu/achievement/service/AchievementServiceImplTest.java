@@ -4,6 +4,7 @@ import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.AchievementRepository;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.UserAchievementRepository;
+import id.ac.ui.cs.advprog.yomu.reading.repository.QuizAttemptRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,9 @@ class AchievementServiceImplTest {
 
     @Mock
     private UserAchievementRepository userAchievementRepository;
+
+    @Mock
+    private QuizAttemptRepository quizAttemptRepository;
 
     @InjectMocks
     private AchievementServiceImpl achievementService;
@@ -112,5 +116,21 @@ class AchievementServiceImplTest {
         List<UserAchievement> result = achievementService.getAchievementsByUserId(userId);
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void processQuizCompletion_unlocksEligibleAchievements() {
+        UUID userId = UUID.randomUUID();
+        when(quizAttemptRepository.countByUserId(userId.toString())).thenReturn(3L);
+        when(achievementRepository.findAll()).thenReturn(List.of(
+                Achievement.builder().id(1L).name("First Steps").milestone("Complete 1 reading").build(),
+                Achievement.builder().id(2L).name("Reader").milestone("Complete 3 readings").build(),
+                Achievement.builder().id(3L).name("Veteran").milestone("Complete 5 readings").build()
+        ));
+        when(userAchievementRepository.existsByUserIdAndAchievementId(any(UUID.class), any(Long.class))).thenReturn(false);
+
+        achievementService.processQuizCompletion(userId, LocalDateTime.now());
+
+        verify(userAchievementRepository, times(2)).save(any(UserAchievement.class));
     }
 }

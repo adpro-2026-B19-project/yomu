@@ -44,6 +44,9 @@ public class Clan {
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(nullable = false)
+    private double bronzeScore = 0.0d;
+
     @OneToMany(mappedBy = "clan", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<ClanMember> members = new ArrayList<>();
 
