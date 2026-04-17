@@ -7,5 +7,4 @@ out
 data
 *.iml
 *.log
-Dockerfile
 compose.override.yml
