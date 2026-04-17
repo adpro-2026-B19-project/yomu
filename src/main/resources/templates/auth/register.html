@@ -85,8 +85,6 @@
             <div class="illus" aria-label="Image placeholder"></div>
 
             <h1>Create account</h1>
-            <p class="muted" style="margin:0 0 10px;">Register with a valid email. Username is optional.</p>
-
             <div class="alert danger" data-auto-dismiss="true" th:if="${warning}">
                 <strong style="color:var(--danger);">Registration failed.</strong>
                 <div class="muted" th:text="${warning}">Error message</div>
@@ -99,7 +97,6 @@
                     <div>
                         <label for="email">Email *</label>
                         <input id="email" type="email" autocomplete="email" required th:field="*{email}" />
-                        <div class="hint">Must be valid and unique.</div>
                         <div class="hint" style="color:var(--danger);" th:if="${#fields.hasErrors('email')}" th:errors="*{email}">
                             Email error
                         </div>
@@ -107,7 +104,6 @@
                     <div>
                         <label for="username">Username</label>
                         <input id="username" type="text" autocomplete="username" th:field="*{username}" />
-                        <div class="hint">Optional. If blank, it will use the email local-part.</div>
                         <div class="hint" style="color:var(--danger);" th:if="${#fields.hasErrors('username')}" th:errors="*{username}">
                             Username error
                         </div>
