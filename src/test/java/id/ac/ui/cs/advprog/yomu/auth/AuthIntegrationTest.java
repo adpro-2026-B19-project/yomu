@@ -173,7 +173,7 @@ class AuthIntegrationTest {
     void loginShouldFailWhenEmailNotRegistered() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", "ghost@example.com")
+                        .param("identifier", "ghost@example.com")
                         .param("password", "GhostPass1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login?error"));
@@ -186,7 +186,7 @@ class AuthIntegrationTest {
 
         mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", "alice@example.com")
+                        .param("identifier", "alice@example.com")
                         .param("password", "WrongPass1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login?error"));
@@ -199,7 +199,7 @@ class AuthIntegrationTest {
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", "alice@example.com")
+                        .param("identifier", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/profile"))

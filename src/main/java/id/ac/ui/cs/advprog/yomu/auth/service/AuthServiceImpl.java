@@ -156,10 +156,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public LoginResult loginUser(LoginRequest request) {
-        String normalizedEmail = normalize(request.email());
+        String normalizedIdentifier = authIdentifierValidator.normalize(request.email());
         String normalizedPassword = normalize(request.password());
 
-        if (normalizedEmail.isBlank()) {
+        if (normalizedIdentifier.isBlank()) {
             return LoginResult.failureResult("required_email", "Email is required");
         }
 
@@ -167,7 +167,7 @@ public class AuthServiceImpl implements AuthService {
             return LoginResult.failureResult("required_password", "Password is required");
         }
 
-        Optional<AuthUser> userOptional = authRepository.findByEmail(normalizedEmail);
+        Optional<AuthUser> userOptional = resolveLoginUser(normalizedIdentifier);
         if (userOptional.isEmpty()) {
             return LoginResult.failureResult("invalid_credentials", "Invalid email or password");
         }
@@ -183,6 +183,17 @@ public class AuthServiceImpl implements AuthService {
         }
 
         return LoginResult.successResult(new LoggedInUserSummary(user.getUsername(), user.getEmail()));
+    }
+
+    private Optional<AuthUser> resolveLoginUser(String normalizedIdentifier) {
+        AuthIdentifierValidator.IdentifierType identifierType = authIdentifierValidator.classify(normalizedIdentifier);
+        if (identifierType == AuthIdentifierValidator.IdentifierType.EMAIL) {
+            return authRepository.findByEmail(normalizedIdentifier);
+        }
+        if (identifierType == AuthIdentifierValidator.IdentifierType.USERNAME) {
+            return authRepository.findByUsername(normalizedIdentifier);
+        }
+        return Optional.empty();
     }
 
     private String normalize(String value) {
