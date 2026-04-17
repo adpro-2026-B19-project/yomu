@@ -105,7 +105,6 @@
                         <label for="username">Username</label>
                         <input id="username" type="text" autocomplete="username" th:field="*{username}"
                                th:placeholder="${suggestedUsername}" placeholder="reader-abcdef123456" />
-                        <div class="hint">Suggested: <span th:text="${suggestedUsername}">reader-abcdef123456</span></div>
                         <div class="hint" style="color:var(--danger);" th:if="${#fields.hasErrors('username')}" th:errors="*{username}">
                             Username error
                         </div>
