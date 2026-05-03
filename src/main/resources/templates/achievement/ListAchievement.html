@@ -5,6 +5,8 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Achievements – Yomu</title>
+    <meta name="csrf-token" th:content="${_csrf.token}"/>
+    <meta name="csrf-header" th:content="${_csrf.headerName}"/>
     <style>
         :root {
             --primary: #3B82F6;
@@ -246,7 +248,6 @@
 </head>
 <body>
 
-<!-- ── Header ── -->
 <header>
     <div class="container nav">
         <a class="brand" th:href="@{/}">
@@ -254,7 +255,6 @@
             <span>Yomu</span>
         </a>
         <nav class="navlinks">
-            <!-- Logged in: dropdown menu -->
             <details class="user-menu" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}">
                 <summary class="menu-trigger">
                     <span class="avatar-holder"></span>
@@ -263,8 +263,9 @@
                 <div class="menu-panel">
                     <a class="menu-item" th:href="@{/profile}">Profile</a>
                     <a class="menu-item" th:href="@{/achievements}">Achievements</a>
-                    <a class="menu-item" th:href="@{/read}">Read</a>
-                    <a class="menu-item" th:href="@{/quiz}">Quiz</a>
+
+                    <a class="menu-item" th:href="@{/texts}">Read & Quiz</a>
+
                     <a class="menu-item" th:href="@{/interaction}">Clan</a>
                     <form class="menu-form" th:action="@{/auth/logout}" method="post">
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -272,7 +273,6 @@
                     </form>
                 </div>
             </details>
-            <!-- Not logged in -->
             <a th:href="@{/auth/login}" class="btn"
                th:unless="${loggedInName != null and !#strings.isEmpty(loggedInName)}">Login</a>
             <a th:href="@{/auth/register}" class="btn primary"
@@ -281,15 +281,51 @@
     </div>
 </header>
 
-<!-- ── Main ── -->
 <main class="container">
 
     <div class="page-header">
+        <div class="admin-card" th:if="${loggedInName != null and todayMissions != null}">
+            <h2 style="color: var(--accent); display: flex; align-items: center; gap: 8px;">
+                📅 Misi Harian Hari Ini
+            </h2>
+
+            <div th:if="${#lists.isEmpty(todayMissions)}" class="muted">
+                <p>Belum ada misi harian yang aktif untuk hari ini.</p>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div th:each="mission : ${todayMissions}"
+                     style="background: #020617; padding: 14px 18px; border: 1px solid var(--border); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+
+                    <div style="flex: 1;">
+                        <strong style="font-size: 1.05rem;" th:text="${mission.title}">Judul Misi</strong>
+
+                        <div th:with="progList=${userProgress.?[mission.id == #root.mission.id]}">
+                            <p style="margin: 6px 0 0; font-size: 0.85rem; color: var(--muted);"
+                               th:text="${#lists.isEmpty(progList)} ? 'Progress: 0 / ' + ${mission.targetCount} : 'Progress: ' + ${progList[0].currentProgress} + ' / ' + ${mission.targetCount}">
+                                Progress: 0 / 3
+                            </p>
+                        </div>
+                    </div>
+
+                    <div th:with="progList=${userProgress.?[mission.id == #root.mission.id]}">
+                    <span th:if="${not #lists.isEmpty(progList) and progList[0].completed}"
+                          style="background: rgba(52,211,153,.15); color: var(--success); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: bold;">
+                        Selesai ✅
+                    </span>
+                        <span th:unless="${not #lists.isEmpty(progList) and progList[0].completed}"
+                              style="background: rgba(59,130,246,.15); color: var(--primary); padding: 6px 12px; border-radius: 8px; font-size: 0.8rem; font-weight: bold;">
+                        Berjalan ⏳
+                    </span>
+                    </div>
+
+                </div>
+            </div>
+        </div>
         <h1>🏆 Achievements</h1>
         <p>Track your milestones and accomplishments on Yomu.</p>
     </div>
 
-    <!-- Admin: Create Achievement -->
     <div class="admin-card" sec:authorize="hasRole('ADMIN')">
         <h2>Create New Achievement</h2>
         <div class="form-row">
@@ -300,26 +336,66 @@
         <p id="formMessage"></p>
     </div>
 
-    <!-- Empty State -->
+    <div th:if="${loggedInName != null}">
+        <h2 style="margin-bottom: 20px; color: var(--text);">🏅 Achievement Saya</h2>
+
+        <div th:if="${#lists.isEmpty(userAchievements)}" class="empty-state">
+            <div class="empty-icon">😢</div>
+            <h2>Belum ada achievement</h2>
+            <p>Anda belum memiliki achievement. Ayo kerjakan kuis!</p>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(userAchievements)}" class="achievement-grid">
+            <div class="achievement-card" th:each="ua : ${userAchievements}">
+                <div class="icon-slot">🏆</div>
+                <span class="achievement-badge" style="color: #10B981; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3);">Dimiliki</span>
+                <strong th:text="${ua.achievement.name}">Achievement Name</strong>
+                <p th:text="${ua.achievement.milestone}">Milestone description</p>
+
+                <button class="btn-submit"
+                        style="margin-top: 16px; width: 100%; font-size: 0.8rem; padding: 8px; background: var(--card); border: 1px solid var(--border); color: var(--text);"
+                        th:onclick="'toggleDisplay(' + ${ua.achievement.id} + ')'"
+                        onmouseover="this.style.borderColor='var(--primary)'"
+                        onmouseout="this.style.borderColor='var(--border)'">
+                    <span th:text="${ua.displayed ? '🙈 Sembunyikan' : '👁️ Tampilkan di Profil'}"></span>
+                </button>
+            </div>
+        </div>
+
+        <hr style="border: 0; height: 1px; background: var(--border); margin: 40px 0;">
+    </div>
+
+
+    <h2 style="margin-bottom: 20px; color: var(--text);">🌍 Katalog Global Achievement</h2>
+
     <div th:if="${#lists.isEmpty(achievements)}" class="empty-state">
         <div class="empty-icon">🎯</div>
         <h2>No achievements yet</h2>
         <p>Achievements will appear here once they are created by an admin.</p>
     </div>
 
-    <!-- Achievement Cards -->
     <div th:unless="${#lists.isEmpty(achievements)}" class="achievement-grid">
-        <div class="achievement-card" th:each="achievement : ${achievements}">
+        <div class="achievement-card locked" th:each="achievement : ${achievements}">
             <div class="icon-slot">🏅</div>
-            <span class="achievement-badge">Achievement</span>
+            <span class="achievement-badge">Katalog</span>
             <strong th:text="${achievement.name}">Achievement Name</strong>
             <p th:text="${achievement.milestone}">Milestone description</p>
+
+            <div sec:authorize="hasRole('ADMIN')" style="margin-top: 15px; display: flex; gap: 8px;">
+                <button class="btn" style="flex: 1; padding: 6px; font-size: 0.75rem; background: #1e293b; border: 1px solid #F59E0B; color: #F59E0B;"
+                        th:onclick="'editAchievement(' + ${achievement.id} + ')'">
+                    ✏️ Edit
+                </button>
+                <button class="btn" style="flex: 1; padding: 6px; font-size: 0.75rem; background: #1e293b; border: 1px solid #F87171; color: #F87171;"
+                        th:onclick="'deleteAchievement(' + ${achievement.id} + ')'">
+                    🗑️ Hapus
+                </button>
+            </div>
         </div>
     </div>
 
 </main>
 
-<!-- ── Footer ── -->
 <footer>
     <div class="container">
         <div style="display:flex; justify-content:space-between; flex-wrap:wrap;">
@@ -345,9 +421,15 @@
             return;
         }
 
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const csrfHeader = document.querySelector('meta[name="csrf-header"]').content;
+
         fetch('/achievements/api', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                [csrfHeader]: csrfToken
+            },
             body: JSON.stringify({ name: name, milestone: milestone })
         })
             .then(res => {
@@ -369,6 +451,53 @@
             .catch(() => {
                 message.style.color = '#F87171';
                 message.textContent = 'Connection error. Please try again.';
+            });
+    }
+
+    function toggleDisplay(achievementId) {
+        const csrfInput = document.querySelector('input[name="_csrf"]');
+        const csrfToken = csrfInput ? csrfInput.value : '';
+
+        fetch('/achievements/api/user/toggle-display/' + achievementId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            }
+        })
+            .then(res => {
+                if (res.ok) {
+                    alert('Sip! Status tampilan di profil berhasil diubah.');
+                    window.location.reload();
+                } else if (res.status === 400) {
+                    res.text().then(text => alert('Gagal: ' + text + '\n(Pastikan Anda sudah menyelesaikan syarat achievement ini terlebih dahulu)'));
+                } else if (res.status === 401) {
+                    alert('Sesi berakhir. Silakan login kembali.');
+                    window.location.href = '/auth/login';
+                } else {
+                    alert('Terjadi kesalahan pada server.');
+                }
+            })
+            .catch(() => alert('Gagal menghubungi server. Periksa koneksi internet Anda.'));
+    }
+
+    function deleteAchievement(id) {
+        if (!confirm('Apakah Anda yakin ingin menghapus achievement ini?')) return;
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const csrfHeader = document.querySelector('meta[name="csrf-header"]').content;
+
+        fetch('/achievements/api/' + id, {
+            method: 'DELETE',
+            headers: { [csrfHeader]: csrfToken }
+        })
+            .then(res => {
+                if (res.ok) {
+                    alert('Achievement berhasil dihapus.');
+                    location.reload();
+                } else {
+                    alert('Gagal menghapus achievement.');
+                }
             });
     }
 </script>

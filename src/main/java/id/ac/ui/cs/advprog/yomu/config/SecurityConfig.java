@@ -25,6 +25,7 @@ public class SecurityConfig {
                         "/js/**",
                         "/images/**"
                 ).permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/h2-console/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()
                 .anyRequest().authenticated()
@@ -33,7 +34,7 @@ public class SecurityConfig {
         http.formLogin(form -> form
                 .loginPage("/auth/login")
                 .loginProcessingUrl("/auth/login")
-                .usernameParameter("email")
+                .usernameParameter("identifier")
                 .passwordParameter("password")
                 .defaultSuccessUrl("/profile", true)
                 .failureUrl("/auth/login?error")

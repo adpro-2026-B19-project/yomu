@@ -24,7 +24,7 @@ public class Text {
 
     private String createdByUserId;
 
-    private boolean published = true;
+    private boolean published = false;
 
     private Instant createdAt = Instant.now();
 
@@ -53,6 +53,10 @@ public class Text {
         return category;
     }
 
+    public boolean isPublished(){
+        return published;
+    }
+
     public void setTitle(String title){
         this.title = title;
     }
@@ -63,5 +67,9 @@ public class Text {
 
     public void setCategory(Category category){
         this.category = category;
+    }
+
+    public void setPublished(boolean published){
+        this.published = published;
     }
 }

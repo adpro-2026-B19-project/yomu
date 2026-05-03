@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Manage Questions - Admin Yomu</title>
+    <style>
+        :root{ --primary:#3B82F6; --bg:#0F172A; --card:#1E293B; --border:#334155; --text:#E2E8F0; --danger:#F87171; --success:#34D399; --muted:#94A3B8; }
+        body{background:var(--bg);color:var(--text);font-family:system-ui;margin:0;padding:20px;}
+        .container{max-width:900px;margin:auto;}
+        .card{background:var(--card);padding:20px;border-radius:12px;border:1px solid var(--border);margin-bottom:20px;}
+        .input, select, textarea{width:100%;padding:10px;margin-top:5px;border-radius:6px;border:1px solid var(--border);background:#0f172a;color:#fff;}
+        .btn{padding:10px 15px;background:var(--primary);color:#fff;border:none;border-radius:6px;cursor:pointer;text-decoration:none;display:inline-block;}
+        .btn-danger{background:var(--danger);}
+        .btn-secondary{background:transparent;border:1px solid var(--border);}
+        .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+        ul{list-style:none;padding:0;}
+        li{padding:15px;border:1px solid var(--border);margin-bottom:10px;border-radius:8px;background:rgba(255,255,255,0.02);}
+        .option-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+        .muted{color:var(--muted);}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a th:href="@{/texts}" class="btn btn-secondary" style="margin-bottom:20px;">&larr; Back to Texts</a>
+    <h2>Manage Questions</h2>
+    <p>Text: <strong th:text="${text.title}">Judul Teks</strong></p>
+
+    <div class="card">
+        <h3>Existing Questions</h3>
+        <p th:if="${#lists.isEmpty(questions)}">Tidak ada soal. Silakan tambah soal baru.</p>
+        <ul th:if="${not #lists.isEmpty(questions)}">
+            <li th:each="question, iter : ${questions}">
+                <form th:if="${question.options != null and question.options.size() == 4}"
+                      th:action="@{/admin/texts/questions/{qid}/edit(qid=${question.id})}" method="post">
+                    <div style="margin-bottom:12px;">
+                        <label>Pertanyaan</label>
+                        <textarea name="questionText" rows="2" class="input" th:text="${question.question}" required></textarea>
+                    </div>
+
+                    <div class="option-grid">
+                        <div>
+                            <label>Option A</label>
+                            <input type="hidden" name="optionAId" th:value="${question.options[0].id}"/>
+                            <input name="optionA" class="input" th:value="${question.options[0].text}" required/>
+                        </div>
+                        <div>
+                            <label>Option B</label>
+                            <input type="hidden" name="optionBId" th:value="${question.options[1].id}"/>
+                            <input name="optionB" class="input" th:value="${question.options[1].text}" required/>
+                        </div>
+                        <div>
+                            <label>Option C</label>
+                            <input type="hidden" name="optionCId" th:value="${question.options[2].id}"/>
+                            <input name="optionC" class="input" th:value="${question.options[2].text}" required/>
+                        </div>
+                        <div>
+                            <label>Option D</label>
+                            <input type="hidden" name="optionDId" th:value="${question.options[3].id}"/>
+                            <input name="optionD" class="input" th:value="${question.options[3].text}" required/>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <label>Correct Option</label>
+                        <select name="correctOption" class="input" required>
+                            <option value="A" th:selected="${question.options[0].correct}">A</option>
+                            <option value="B" th:selected="${question.options[1].correct}">B</option>
+                            <option value="C" th:selected="${question.options[2].correct}">C</option>
+                            <option value="D" th:selected="${question.options[3].correct}">D</option>
+                        </select>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-top:15px;">
+                        <button type="submit" class="btn">Save Changes</button>
+                        <button type="submit"
+                                class="btn btn-danger"
+                                th:formaction="@{/admin/texts/questions/{qid}/delete(qid=${question.id})}"
+                                formmethod="post"
+                                onclick="return confirm('Hapus soal ini?');">
+                            Delete Question
+                        </button>
+                    </div>
+                </form>
+
+                <div th:if="${question.options == null or question.options.size() != 4}">
+                    <strong th:text="${iter.count + '. ' + question.question}">Question</strong>
+                    <p class="muted">Question ini tidak punya 4 opsi lengkap, jadi belum bisa diedit dari form ini.</p>
+                    <form th:action="@{/admin/texts/questions/{qid}/delete(qid=${question.id})}" method="post" style="display:inline;">
+                        <button class="btn btn-danger" onclick="return confirm('Hapus soal ini?');">Delete Question</button>
+                    </form>
+                </div>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h3>Add New Question</h3>
+        <form th:action="@{/admin/texts/{id}/questions(id=${text.id})}" method="post">
+            <div style="margin-bottom: 15px;">
+                <label>Question Text</label>
+                <input name="questionText" class="input" required/>
+            </div>
+            <div class="row">
+                <div>
+                    <label>Option A</label>
+                    <input name="optionA" class="input" required/>
+                </div>
+                <div>
+                    <label>Option B</label>
+                    <input name="optionB" class="input" required/>
+                </div>
+                <div>
+                    <label>Option C</label>
+                    <input name="optionC" class="input" required/>
+                </div>
+                <div>
+                    <label>Option D</label>
+                    <input name="optionD" class="input" required/>
+                </div>
+            </div>
+            <div style="margin-top: 15px;">
+                <label>Correct Option</label>
+                <select name="correctOption" class="input" required>
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                    <option value="D">D</option>
+                </select>
+            </div>
+            <button type="submit" class="btn" style="margin-top:15px;">Add Question</button>
+        </form>
+    </div>
+
+</div>
+
+</body>
+</html>

@@ -7,12 +7,12 @@ import org.springframework.stereotype.Component;
 public class LoginErrorFieldMapper {
 
     private static final Map<String, String> FIELD_BY_ERROR_CODE = Map.of(
-            "required_email", "email",
+            "required_identifier", "identifier",
             "required_password", "password",
             "invalid_credentials", "password"
     );
 
     public String resolve(String errorCode) {
-        return FIELD_BY_ERROR_CODE.getOrDefault(errorCode, "email");
+        return FIELD_BY_ERROR_CODE.getOrDefault(errorCode, "identifier");
     }
 }

@@ -8,4 +8,6 @@ public interface TextRepository extends JpaRepository<Text, Long> {
 
     List<Text> findByPublishedTrue();
 
+    java.util.Optional<Text> findByIdAndPublishedTrue(Long id);
+
 }

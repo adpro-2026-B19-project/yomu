@@ -10,14 +10,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import id.ac.ui.cs.advprog.yomu.reading.model.Category;
+import id.ac.ui.cs.advprog.yomu.reading.model.Option;
+import id.ac.ui.cs.advprog.yomu.reading.model.Question;
 import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.OptionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,8 +31,6 @@ import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-
-import java.util.List;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -70,9 +72,16 @@ class ReadingIntegrationTest {
     }
 
     @Test
-    void adminCreateTextWithQuestionsShouldPersistToDatabase() throws Exception {
-        MockHttpSession session = loginAs("admin@yomu.com", "AdminPass123!", "ADMIN");
+    void nonAdminShouldNotAccessAdminCreatePage() throws Exception {
+        MockHttpSession session = loginAs("student@ui.ac.id", "Maba2025!", AuthRole.USER);
 
+        mockMvc.perform(get("/admin/texts/create").session(session))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminCanCreateDraftAndAddQuestions() throws Exception {
+        MockHttpSession session = loginAs("admin@yomu.com", "AdminPass123!", AuthRole.ADMIN);
         Category techCategory = categoryRepository.save(new Category("Technology"));
 
         mockMvc.perform(post("/admin/texts")
@@ -80,37 +89,43 @@ class ReadingIntegrationTest {
                         .with(csrf())
                         .param("title", "Java 25 Features")
                         .param("content", "Java 25 is awesome because...")
-                        .param("categoryId", techCategory.getId().toString())
-                        // Pertanyaan Kuis
-                        .param("question", "What version is this?")
-                        .param("optionA", "Java 21")
-                        .param("optionB", "Java 25")
-                        .param("optionC", "Java 8")
-                        .param("optionD", "Python")
-                        .param("correct", "B"))
+                        .param("categoryId", techCategory.getId().toString()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/texts/create?success"));
+                .andExpect(redirectedUrl("/admin/texts?success=created"));
 
         List<Text> texts = textRepository.findAll();
         assertThat(texts).hasSize(1);
         assertThat(texts.get(0).getTitle()).isEqualTo("Java 25 Features");
-        assertThat(texts.get(0).getCategory().getName()).isEqualTo("Technology");
+        assertThat(texts.get(0).isPublished()).isFalse();
+
+        Long textId = texts.get(0).getId();
+        mockMvc.perform(post("/admin/texts/" + textId + "/questions")
+                        .session(session)
+                        .with(csrf())
+                        .param("questionText", "What version is this?")
+                        .param("optionA", "Java 21")
+                        .param("optionB", "Java 25")
+                        .param("optionC", "Java 8")
+                        .param("optionD", "Python")
+                        .param("correctOption", "B"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/texts/" + textId + "/questions"));
 
         assertThat(questionRepository.count()).isEqualTo(1);
         assertThat(questionRepository.findAll().get(0).getQuestion()).isEqualTo("What version is this?");
-
         assertThat(optionRepository.count()).isEqualTo(4);
     }
 
     @Test
-    void studentCanViewListOfTexts() throws Exception {
+    void studentCanViewListOfPublishedTexts() throws Exception {
         Category sportCat = categoryRepository.save(new Category("Sports"));
-        textRepository.save(new Text("Manchester United Win", "Finally they won...", sportCat, "admin-id"));
+        Text text = new Text("Manchester United Win", "Finally they won...", sportCat, "admin-id");
+        text.setPublished(true);
+        textRepository.save(text);
 
-        MockHttpSession session = loginAs("student@ui.ac.id", "Maba2025!", "USER");
+        MockHttpSession session = loginAs("student@ui.ac.id", "Maba2025!", AuthRole.USER);
 
-        mockMvc.perform(get("/texts")
-                        .session(session))
+        mockMvc.perform(get("/texts").session(session))
                 .andExpect(status().isOk())
                 .andExpect(view().name("reading/texts"))
                 .andExpect(model().attributeExists("texts"))
@@ -118,30 +133,90 @@ class ReadingIntegrationTest {
     }
 
     @Test
-    void studentCanViewTextDetail() throws Exception {
+    void studentCannotViewDraftTextDetail() throws Exception {
         Category scienceCat = categoryRepository.save(new Category("Science"));
         Text savedText = textRepository.save(new Text("Quantum Physics", "It is complex.", scienceCat, "admin-id"));
 
-        MockHttpSession session = loginAs("student@ui.ac.id", "Maba2025!", "USER");
+        MockHttpSession session = loginAs("student@ui.ac.id", "Maba2025!", AuthRole.USER);
 
-        mockMvc.perform(get("/texts/" + savedText.getId())
-                        .session(session))
+        mockMvc.perform(get("/texts/" + savedText.getId()).session(session))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void studentCanViewPublishedTextDetail() throws Exception {
+        Category scienceCat = categoryRepository.save(new Category("Science"));
+        Text savedText = new Text("Quantum Physics", "It is complex.", scienceCat, "admin-id");
+        savedText.setPublished(true);
+        savedText = textRepository.save(savedText);
+
+        MockHttpSession session = loginAs("student@ui.ac.id", "Maba2025!", AuthRole.USER);
+
+        mockMvc.perform(get("/texts/" + savedText.getId()).session(session))
                 .andExpect(status().isOk())
                 .andExpect(view().name("reading/text-detail"))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Quantum Physics")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("It is complex.")));
     }
 
-    private MockHttpSession loginAs(String email, String rawPassword, String role) throws Exception {
-        authRepository.save(new AuthUser("user-" + email.hashCode(), email, null, role, passwordEncoder.encode(rawPassword)));
+    @Test
+    void adminCanEditExistingQuestion() throws Exception {
+        MockHttpSession session = loginAs("admin@yomu.com", "AdminPass123!", AuthRole.ADMIN);
+        Category category = categoryRepository.save(new Category("History"));
+        Text text = textRepository.save(new Text("Ancient Rome", "Roma...", category, "admin-id"));
+
+        Question question = new Question();
+        question.setText(text);
+        question.setQuestion("Old question");
+        question = questionRepository.save(question);
+        Long questionId = question.getId();
+
+        Option optA = optionRepository.save(createOption(question, "A1", true));
+        Option optB = optionRepository.save(createOption(question, "B1", false));
+        Option optC = optionRepository.save(createOption(question, "C1", false));
+        Option optD = optionRepository.save(createOption(question, "D1", false));
+
+        mockMvc.perform(post("/admin/texts/questions/" + question.getId() + "/edit")
+                        .session(session)
+                        .with(csrf())
+                        .param("questionText", "Updated question")
+                        .param("optionAId", optA.getId().toString())
+                        .param("optionBId", optB.getId().toString())
+                        .param("optionCId", optC.getId().toString())
+                        .param("optionDId", optD.getId().toString())
+                        .param("optionA", "A2")
+                        .param("optionB", "B2")
+                        .param("optionC", "C2")
+                        .param("optionD", "D2")
+                        .param("correctOption", "C"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/texts/" + text.getId() + "/questions"));
+
+        Question updatedQuestion = questionRepository.findById(questionId).orElseThrow();
+        assertThat(updatedQuestion.getQuestion()).isEqualTo("Updated question");
+        List<Option> options = optionRepository.findAll().stream()
+                .filter(option -> option.getQuestion().getId().equals(questionId))
+                .toList();
+        assertThat(options).extracting(Option::getText).containsExactlyInAnyOrder("A2", "B2", "C2", "D2");
+        assertThat(options.stream().filter(Option::isCorrect)).singleElement().extracting(Option::getText).isEqualTo("C2");
+    }
+
+    private MockHttpSession loginAs(String email, String rawPassword, AuthRole role) throws Exception {
+        authRepository.save(new AuthUser("user-" + email.hashCode(), email, null, role.name(), passwordEncoder.encode(rawPassword), role));
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", email)
+                        .param("identifier", email)
                         .param("password", rawPassword))
                 .andExpect(status().is3xxRedirection())
                 .andReturn();
 
         return (MockHttpSession) loginResult.getRequest().getSession(false);
+    }
+
+    private Option createOption(Question question, String text, boolean correct) {
+        Option option = new Option(text, correct);
+        option.setQuestion(question);
+        return option;
     }
 }

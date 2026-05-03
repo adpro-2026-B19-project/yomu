@@ -7,6 +7,8 @@ import id.ac.ui.cs.advprog.yomu.achievement.dto.AchievementCreateForm;
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
 import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
+import id.ac.ui.cs.advprog.yomu.achievement.service.DailyMissionService;
+import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -28,6 +30,12 @@ class AchievementControllerTest {
     @Mock
     private AchievementService achievementService;
 
+    @Mock
+    private DailyMissionService dailyMissionService;
+
+    @Mock
+    private CurrentUserResolver currentUserResolver;
+
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
@@ -35,25 +43,38 @@ class AchievementControllerTest {
 
     @Test
     void achievementListPageShouldSetAchievementsAndLoggedInNameWhenAuthenticated() {
-        AchievementController controller = new AchievementController(achievementService);
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
         Achievement achievement = Achievement.builder().name("First Win").milestone("M1").build();
         when(achievementService.getAllAchievements()).thenReturn(List.of(achievement));
 
-        Authentication authenticated = new TestingAuthenticationToken("player", "pass", "ROLE_USER");
-        SecurityContextHolder.getContext().setAuthentication(authenticated);
+        Authentication auth = new TestingAuthenticationToken("user1", "pass", "ROLE_USER");
+        SecurityContextHolder.getContext().setAuthentication(auth);
 
         ExtendedModelMap model = new ExtendedModelMap();
-        String view = controller.achievementListPage(model);
+        String viewName = controller.achievementListPage(model);
 
-        assertThat(view).isEqualTo("achievement/ListAchievement");
-        assertThat(model.getAttribute("achievements")).isEqualTo(List.of(achievement));
-        assertThat(model.getAttribute("loggedInName")).isEqualTo("player");
+        assertThat(viewName).isEqualTo("achievement/ListAchievement");
+        assertThat(model.getAttribute("achievements")).asList().containsExactly(achievement);
+        assertThat(model.getAttribute("loggedInName")).isEqualTo("user1");
     }
 
     @Test
-    void achievementListPageShouldNotSetLoggedInNameForAnonymous() {
-        AchievementController controller = new AchievementController(achievementService);
+    void achievementListPageShouldNotSetLoggedInNameWhenNotAuthenticated() {
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
         when(achievementService.getAllAchievements()).thenReturn(List.of());
+        SecurityContextHolder.getContext().setAuthentication(null);
+
+        ExtendedModelMap model = new ExtendedModelMap();
+        controller.achievementListPage(model);
+
+        assertThat(model.containsAttribute("loggedInName")).isFalse();
+    }
+
+    @Test
+    void achievementListPageShouldNotSetLoggedInNameForAnonymousUser() {
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
+        when(achievementService.getAllAchievements()).thenReturn(List.of());
+
         SecurityContextHolder.getContext().setAuthentication(
                 new AnonymousAuthenticationToken("key", "anonymousUser", List.of(
                         new SimpleGrantedAuthority("ROLE_ANONYMOUS")
@@ -68,7 +89,7 @@ class AchievementControllerTest {
 
     @Test
     void restEndpointsShouldReturnExpectedResponse() {
-        AchievementController controller = new AchievementController(achievementService);
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
         UUID userId = UUID.randomUUID();
         Achievement achievement = Achievement.builder().name("A").milestone("M").build();
         UserAchievement userAchievement = new UserAchievement();

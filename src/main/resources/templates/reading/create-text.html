@@ -38,7 +38,7 @@
 <header>
     <div class="container" style="display:flex; justify-content:space-between; align-items:center;">
         <span style="font-weight: 800; font-size: 18px;">Yomu Admin</span>
-        <a th:href="@{/texts}" class="btn btn-ghost">Batal & Kembali</a>
+        <a th:href="@{/admin/texts}" class="btn btn-ghost">Batal & Kembali</a>
     </div>
 </header>
 
@@ -66,42 +66,8 @@
             <textarea name="content" rows="10" required placeholder="Tuliskan materi bacaan di sini..."></textarea>
         </div>
 
-        <div class="card">
-            <h3>❓ Pertanyaan Kuis (Wajib 1)</h3>
-
-            <label>Pertanyaan</label>
-            <input type="text" name="question" required placeholder="Apa inti dari tulisan di atas?">
-
-            <div class="grid-2">
-                <div>
-                    <label>Opsi A</label>
-                    <input type="text" name="optionA" required>
-                </div>
-                <div>
-                    <label>Opsi B</label>
-                    <input type="text" name="optionB" required>
-                </div>
-                <div>
-                    <label>Opsi C</label>
-                    <input type="text" name="optionC" required>
-                </div>
-                <div>
-                    <label>Opsi D</label>
-                    <input type="text" name="optionD" required>
-                </div>
-            </div>
-
-            <label>Jawaban Benar</label>
-            <select name="correct" required style="width: 100px;">
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="D">D</option>
-            </select>
-        </div>
-
         <div style="margin-bottom: 50px;">
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Simpan Materi</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Draft</button>
         </div>
     </form>
 </main>
