@@ -89,7 +89,7 @@ public class AdminTextController {
     @PostMapping("/{id}/delete")
     public String deleteText(@PathVariable Long id) {
         textService.deleteText(id);
-        return "redirect:/texts";
+        return "redirect:/admin/texts?success=deleted";
     }
 
     @GetMapping("/{id}/questions")

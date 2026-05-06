@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.league.controller;
 
 import id.ac.ui.cs.advprog.yomu.league.dto.QuizCompletionApiEventRequest;
+import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 import id.ac.ui.cs.advprog.yomu.league.service.ClanService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -42,6 +43,15 @@ public class LeagueIntegrationRestController {
 
     @GetMapping("/leaderboard/bronze")
     public List<ClanService.LeaderboardEntry> bronzeLeaderboard() {
-        return clanService.getBronzeLeaderboard();
+        return clanService.getLeaderboard(TierCode.BRONZE);
+    }
+
+    @GetMapping("/leaderboard/{tierCode}")
+    public List<ClanService.LeaderboardEntry> leaderboardByTier(@org.springframework.web.bind.annotation.PathVariable String tierCode) {
+        try {
+            return clanService.getLeaderboard(TierCode.valueOf(tierCode.trim().toUpperCase()));
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown tier code", exception);
+        }
     }
 }

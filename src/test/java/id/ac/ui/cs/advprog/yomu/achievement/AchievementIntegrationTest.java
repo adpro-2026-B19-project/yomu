@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.achievement;
 
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
+import id.ac.ui.cs.advprog.yomu.achievement.model.AchievementRequirementType;
 import id.ac.ui.cs.advprog.yomu.achievement.model.DailyMission;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserMissionProgress;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserStatistic;
@@ -58,11 +59,14 @@ public class AchievementIntegrationTest {
                 .title("Misi Baca 1 Teks Test")
                 .targetCount(1)
                 .activeDate(LocalDate.now())
+                .primary(true)
                 .build();
         dailyMissionRepository.save(testMission);
         testAchievement = Achievement.builder()
                 .name("Pembaca Pemula Test")
-                .milestone("1")
+                .milestone("Selesaikan 1 bacaan")
+                .requirementType(AchievementRequirementType.READING_COUNT)
+                .targetValue(1)
                 .build();
         achievementRepository.save(testAchievement);
     }

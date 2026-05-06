@@ -3,59 +3,53 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Riwayat Kuis - Yomu</title>
-    <style>
-        :root{ --primary:#3B82F6; --bg:#0F172A; --card:#1E293B; --border:#334155; --text:#E2E8F0; --muted:#94A3B8; --success:#34D399; }
-        body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
-        header{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--border); padding: 14px 0;}
-        .container{width:min(1100px,92vw);margin:0 auto;}
-        .nav{display:flex;align-items:center;}
-        .btn{padding:8px 16px;border-radius:12px;background:var(--card);border:1px solid var(--border);color:var(--text);text-decoration:none;font-weight:600;}
-        .btn:hover{background:var(--border);}
-
-        h2 { margin-top: 40px; margin-bottom: 20px;}
-        
-        .timeline { display:flex; flex-direction:column; gap:16px; margin-bottom:60px;}
-        .attempt-card { background:var(--card); border:1px solid var(--border); padding:20px 24px; border-radius:16px; display:flex; justify-content:space-between; align-items:center;}
-        
-        .attempt-info h3 { margin:0 0 5px; font-size:18px;}
-        .attempt-info p { margin:0; color:var(--muted); font-size:14px;}
-        
-        .score-pill { background:rgba(52, 211, 153, 0.1); border:1px solid rgba(52, 211, 153, 0.3); padding:8px 16px; border-radius:40px; color:var(--success); font-weight:800; text-align:center;}
-        
-        .empty-state { text-align: center; padding: 60px 20px; border: 2px dashed var(--border); border-radius: 16px; color: var(--muted); }
-    </style>
+    <title>Yomu - Quiz History</title>
+    <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-
-<header>
-    <div class="container nav">
-        <a class="btn" th:href="@{/texts}">&larr; Kembali</a>
+<header class="site-header">
+    <div class="site-shell site-nav">
+        <a class="site-brand" th:href="@{/}">
+            <span class="site-brand-mark">Y</span>
+            <span>Yomu</span>
+        </a>
+        <nav class="nav-links">
+            <a class="button button-secondary" th:href="@{/texts}">Back to library</a>
+            <a class="nav-link" th:href="@{/achievements}">Achievements</a>
+            <a class="nav-link" th:href="@{/clans}">League</a>
+        </nav>
     </div>
 </header>
 
-<main class="container">
-    <h2>Riwayat Kuis Saya</h2>
-
-    <div th:if="${#lists.isEmpty(history)}" class="empty-state">
-        <h3>Belum ada riwayat kuis</h3>
-        <p>Ayo mulai baca dan selesaikan kuis untuk mencetak skor pertamamu!</p>
-        <a th:href="@{/texts}" class="btn" style="background:var(--primary);color:#fff;border:none;margin-top:10px;display:inline-block;">Jelajahi Bacaan</a>
-    </div>
-
-    <div class="timeline" th:if="${not #lists.isEmpty(history)}">
-        <div class="attempt-card" th:each="attempt : ${history}">
-            <div class="attempt-info">
-                <h3 th:text="${attempt.text.title}">Judul Teks</h3>
-                <p>Diselesaikan pada: <span th:text="${#times.format(attempt.timestamp, 'dd MMM yyyy, HH:mm')}">Tgl</span></p>
-            </div>
-            <div class="score-pill">
-                Skor: <span th:text="${attempt.score}">0</span><br/>
-                <span style="font-size:12px;font-weight:600;">(Akurasi <span th:text="${#numbers.formatDecimal(attempt.accuracy * 100, 0, 0)}">100</span>%)</span>
-            </div>
+<main class="page-main">
+    <section class="panel surface-strong">
+        <div class="section-head">
+            <span class="eyebrow">My history</span>
+            <h1 class="page-title">Each completed quiz stays visible.</h1>
+            <p class="page-lead">Use this page to review what you finished, when you finished it, and how clean the result was.</p>
         </div>
-    </div>
-</main>
+    </section>
 
+    <section class="section">
+        <div th:if="${#lists.isEmpty(history)}" class="empty-state">
+            <strong>No quiz history yet.</strong>
+            <p class="muted">Start with one reading set and your first result will appear here.</p>
+            <a th:href="@{/texts}" class="button button-primary">Open library</a>
+        </div>
+
+        <div class="timeline" th:if="${not #lists.isEmpty(history)}">
+            <article class="timeline-entry" th:each="attempt : ${history}">
+                <div class="stack" style="gap:8px;">
+                    <h2 style="font-size:1.4rem;" th:text="${attempt.text.title}">Reading title</h2>
+                    <p class="muted">Completed on <span th:text="${#times.format(attempt.timestamp, 'dd MMM yyyy, HH:mm')}">01 Jan 2026, 10:00</span></p>
+                </div>
+                <div class="score-surface">
+                    <strong th:text="${attempt.score}">90</strong>
+                    <span class="caption">Accuracy <span th:text="${#numbers.formatDecimal(attempt.accuracy * 100, 0, 0)}">100</span>%</span>
+                </div>
+            </article>
+        </div>
+    </section>
+</main>
 </body>
 </html>

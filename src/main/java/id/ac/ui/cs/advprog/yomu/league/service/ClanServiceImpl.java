@@ -2,12 +2,15 @@ package id.ac.ui.cs.advprog.yomu.league.service;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
+import id.ac.ui.cs.advprog.yomu.integration.profile.AchievementProfilePort;
+import id.ac.ui.cs.advprog.yomu.integration.reading.ReadingStatsPort;
 import id.ac.ui.cs.advprog.yomu.league.model.Clan;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequest;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMember;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanMemberRole;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanQuizScoreEvent;
+import id.ac.ui.cs.advprog.yomu.league.model.LeagueSeason;
 import id.ac.ui.cs.advprog.yomu.league.model.Tier;
 import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanJoinRequestRepository;
@@ -15,10 +18,17 @@ import id.ac.ui.cs.advprog.yomu.league.repository.ClanMemberRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanQuizScoreEventRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.ClanRepository;
 import id.ac.ui.cs.advprog.yomu.league.repository.TierRepository;
+import id.ac.ui.cs.advprog.yomu.league.scoring.ActiveScoreModifier;
+import id.ac.ui.cs.advprog.yomu.league.scoring.CalculatedClanScore;
+import id.ac.ui.cs.advprog.yomu.league.scoring.ClanScoreCalculator;
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +44,10 @@ public class ClanServiceImpl implements ClanService {
     private final ClanQuizScoreEventRepository clanQuizScoreEventRepository;
     private final TierRepository tierRepository;
     private final AuthRepository authRepository;
+    private final LeagueSeasonService leagueSeasonService;
+    private final ClanScoreCalculator clanScoreCalculator;
+    private final ReadingStatsPort readingStatsPort;
+    private final AchievementProfilePort achievementProfilePort;
 
     public ClanServiceImpl(
             ClanRepository clanRepository,
@@ -41,7 +55,11 @@ public class ClanServiceImpl implements ClanService {
             ClanJoinRequestRepository clanJoinRequestRepository,
             ClanQuizScoreEventRepository clanQuizScoreEventRepository,
             TierRepository tierRepository,
-            AuthRepository authRepository
+            AuthRepository authRepository,
+            LeagueSeasonService leagueSeasonService,
+            ClanScoreCalculator clanScoreCalculator,
+            ReadingStatsPort readingStatsPort,
+            AchievementProfilePort achievementProfilePort
     ) {
         this.clanRepository = clanRepository;
         this.clanMemberRepository = clanMemberRepository;
@@ -49,6 +67,10 @@ public class ClanServiceImpl implements ClanService {
         this.clanQuizScoreEventRepository = clanQuizScoreEventRepository;
         this.tierRepository = tierRepository;
         this.authRepository = authRepository;
+        this.leagueSeasonService = leagueSeasonService;
+        this.clanScoreCalculator = clanScoreCalculator;
+        this.readingStatsPort = readingStatsPort;
+        this.achievementProfilePort = achievementProfilePort;
     }
 
     @Override
@@ -68,10 +90,7 @@ public class ClanServiceImpl implements ClanService {
             throw new IllegalArgumentException("Clan name already exists");
         }
 
-        Tier defaultTier = tierRepository.findByCode(TierCode.BRONZE)
-                .orElseGet(() -> tierRepository.save(new Tier(TierCode.BRONZE, "Bronze")));
-
-        Clan clan = clanRepository.save(new Clan(normalizedName, defaultTier, creatorUserId));
+        Clan clan = clanRepository.save(new Clan(normalizedName, resolveTier(TierCode.BRONZE), creatorUserId));
         ClanMember leader = clanMemberRepository.save(new ClanMember(clan, creatorUserId, ClanMemberRole.LEADER));
         clan.addMember(leader);
 
@@ -218,11 +237,13 @@ public class ClanServiceImpl implements ClanService {
             return;
         }
 
+        LeagueSeason activeSeason = leagueSeasonService.getOrCreateActiveSeason();
         ClanQuizScoreEvent event = new ClanQuizScoreEvent(
                 payload.eventId(),
                 member.getClan().getId(),
                 payload.userId(),
                 payload.textId(),
+                activeSeason.getId(),
                 payload.score(),
                 payload.accuracy(),
                 payload.completedAt()
@@ -233,23 +254,114 @@ public class ClanServiceImpl implements ClanService {
         } catch (DataIntegrityViolationException ignoredDuplicate) {
             return;
         }
+    }
 
-        clanRepository.incrementBronzeScore(member.getClan().getId(), payload.score());
+    @Override
+    @Transactional
+    public void deleteClan(UUID clanId, UUID requesterUserId) {
+        if (requesterUserId == null) {
+            throw new IllegalArgumentException("Requester user id is required");
+        }
+
+        Clan clan = getExistingClan(clanId);
+        ClanMember requesterMembership = clanMemberRepository.findByClanIdAndUserId(clanId, requesterUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Only clan leader can delete this clan"));
+        if (requesterMembership.getRole() != ClanMemberRole.LEADER) {
+            throw new IllegalArgumentException("Only clan leader can delete this clan");
+        }
+
+        clanJoinRequestRepository.deleteByClanId(clanId);
+        clanRepository.delete(clan);
+    }
+
+    @Override
+    @Transactional
+    public SeasonTransitionResult endCurrentSeason() {
+        LeagueSeason endedSeason = leagueSeasonService.endActiveSeason();
+        Map<TierCode, List<LeaderboardEntry>> standingsByTier = new EnumMap<>(TierCode.class);
+        for (TierCode tierCode : TierCode.values()) {
+            standingsByTier.put(tierCode, getLeaderboardForSeason(tierCode, endedSeason.getId()));
+        }
+
+        Map<UUID, Clan> clansById = clanRepository.findAllWithTierAndMembers().stream()
+                .collect(Collectors.toMap(Clan::getId, Function.identity(), (left, right) -> left));
+        List<TierChange> plannedChanges = new java.util.ArrayList<>();
+
+        addPromotions(plannedChanges, standingsByTier.get(TierCode.BRONZE), TierCode.SILVER);
+        addPromotions(plannedChanges, standingsByTier.get(TierCode.SILVER), TierCode.GOLD);
+        addPromotions(plannedChanges, standingsByTier.get(TierCode.GOLD), TierCode.DIAMOND);
+        addDegradations(plannedChanges, standingsByTier.get(TierCode.SILVER), TierCode.BRONZE);
+        addDegradations(plannedChanges, standingsByTier.get(TierCode.GOLD), TierCode.SILVER);
+        addDegradations(plannedChanges, standingsByTier.get(TierCode.DIAMOND), TierCode.GOLD);
+
+        for (TierChange plannedChange : plannedChanges) {
+            Clan clan = clansById.get(plannedChange.clanId());
+            if (clan != null) {
+                clan.changeTier(resolveTier(TierCode.valueOf(plannedChange.newTier())));
+            }
+        }
+        if (!plannedChanges.isEmpty()) {
+            clanRepository.saveAll(
+                    plannedChanges.stream()
+                            .map(change -> clansById.get(change.clanId()))
+                            .filter(java.util.Objects::nonNull)
+                            .distinct()
+                            .toList()
+            );
+        }
+
+        LeagueSeason newSeason = leagueSeasonService.startNextSeason();
+        return new SeasonTransitionResult(
+                endedSeason.getSeasonNumber(),
+                newSeason.getSeasonNumber(),
+                List.copyOf(plannedChanges)
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<LeaderboardEntry> getLeaderboard(TierCode tierCode) {
+        if (tierCode == null) {
+            throw new IllegalArgumentException("Tier code is required");
+        }
+
+        List<Clan> clans = clanRepository.findAllByTierCodeForLeaderboard(tierCode);
+        if (clans.isEmpty()) {
+            return List.of();
+        }
+
+        LeagueSeason activeSeason = leagueSeasonService.findActiveSeason();
+        Map<UUID, List<ClanQuizScoreEvent>> seasonEventsByClanId = activeSeason == null
+                ? Map.of()
+                : clanQuizScoreEventRepository.findBySeasonIdAndClanIdIn(
+                        activeSeason.getId(),
+                        clans.stream().map(Clan::getId).toList()
+                )
+                .stream()
+                .collect(Collectors.groupingBy(ClanQuizScoreEvent::getClanId));
+
+        return clans.stream()
+                .map(clan -> new ScoredClan(
+                        clan,
+                        toLeaderboardEntry(
+                                clan,
+                                clanScoreCalculator.calculate(
+                                        clan,
+                                        seasonEventsByClanId.getOrDefault(clan.getId(), List.of())
+                                )
+                        )
+                ))
+                .sorted(Comparator
+                        .comparing((ScoredClan scoredClan) -> scoredClan.entry().score()).reversed()
+                        .thenComparing(scoredClan -> scoredClan.clan().getCreatedAt()))
+                .map(ScoredClan::entry)
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<LeaderboardEntry> getBronzeLeaderboard() {
-        return clanRepository.findLeaderboardByTierCode(TierCode.BRONZE)
-                .stream()
-                .map(clan -> new LeaderboardEntry(
-                        clan.getId(),
-                        clan.getName(),
-                        clan.getTier().getCode().name(),
-                        clan.getMembers().size(),
-                        clan.getBronzeScore()
-                ))
-                .toList();
+        return getLeaderboard(TierCode.BRONZE);
     }
 
     @Override
@@ -263,9 +375,19 @@ public class ClanServiceImpl implements ClanService {
                 .orElseThrow(() -> new IllegalArgumentException("User was not found"));
 
         ClanMember member = clanMemberRepository.findByUserIdWithClan(userId).orElse(null);
-        ClanQuizScoreEventRepository.UserQuizStats stats = clanQuizScoreEventRepository
-                .summarizeByUserId(userId)
-                .orElse(null);
+        ReadingStatsPort.UserReadingStats readingStats = readingStatsPort.getUserReadingStats(userId);
+
+        double currentClanScore = 0.0d;
+        if (member != null) {
+            LeagueSeason activeSeason = leagueSeasonService.findActiveSeason();
+            List<ClanQuizScoreEvent> seasonEvents = activeSeason == null
+                    ? List.of()
+                    : clanQuizScoreEventRepository.findBySeasonIdAndClanId(
+                    activeSeason.getId(),
+                    member.getClan().getId()
+            );
+            currentClanScore = clanScoreCalculator.calculate(member.getClan(), seasonEvents).finalScore();
+        }
 
         return new PublicProfile(
                 user.getId(),
@@ -275,10 +397,18 @@ public class ClanServiceImpl implements ClanService {
                 member != null ? member.getClan().getName() : null,
                 member != null ? member.getClan().getTier().getCode().name() : null,
                 member != null ? member.getRole().name() : null,
-                member != null ? member.getClan().getBronzeScore() : 0.0d,
-                stats != null ? stats.getCompletedQuizCount() : 0L,
-                stats != null ? stats.getTotalScore() : 0.0d,
-                stats != null ? stats.getAverageAccuracy() : 0.0d
+                currentClanScore,
+                readingStats.totalTextsCompleted(),
+                readingStats.totalScore(),
+                readingStats.averageAccuracy(),
+                achievementProfilePort.getDisplayedAchievements(userId).stream()
+                        .map(displayedAchievement -> new DisplayedAchievement(
+                                displayedAchievement.achievementId(),
+                                displayedAchievement.name(),
+                                displayedAchievement.milestone(),
+                                displayedAchievement.unlockedAt()
+                        ))
+                        .toList()
         );
     }
 
@@ -290,6 +420,108 @@ public class ClanServiceImpl implements ClanService {
                 clan.getMembers().size(),
                 clan.getCreatedByUserId()
         );
+    }
+
+    private LeaderboardEntry toLeaderboardEntry(Clan clan, CalculatedClanScore calculatedClanScore) {
+        return new LeaderboardEntry(
+                clan.getId(),
+                clan.getName(),
+                clan.getTier().getCode().name(),
+                clan.getMembers().size(),
+                calculatedClanScore.baseScore(),
+                calculatedClanScore.finalScore(),
+                calculatedClanScore.activeModifiers().stream()
+                        .map(this::toScoreModifier)
+                        .toList(),
+                calculatedClanScore.formulaDescription()
+        );
+    }
+
+    private ScoreModifier toScoreModifier(ActiveScoreModifier modifier) {
+        return new ScoreModifier(
+                modifier.code(),
+                modifier.label(),
+                modifier.multiplier(),
+                modifier.description()
+        );
+    }
+
+    private Tier resolveTier(TierCode tierCode) {
+        return tierRepository.findByCode(tierCode)
+                .orElseGet(() -> tierRepository.save(new Tier(tierCode, formatTierDisplayName(tierCode))));
+    }
+
+    private List<LeaderboardEntry> getLeaderboardForSeason(TierCode tierCode, UUID seasonId) {
+        List<Clan> clans = clanRepository.findAllByTierCodeForLeaderboard(tierCode);
+        if (clans.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, List<ClanQuizScoreEvent>> seasonEventsByClanId = clanQuizScoreEventRepository
+                .findBySeasonIdAndClanIdIn(seasonId, clans.stream().map(Clan::getId).toList())
+                .stream()
+                .collect(Collectors.groupingBy(ClanQuizScoreEvent::getClanId));
+
+        return clans.stream()
+                .map(clan -> new ScoredClan(
+                        clan,
+                        toLeaderboardEntry(
+                                clan,
+                                clanScoreCalculator.calculate(
+                                        clan,
+                                        seasonEventsByClanId.getOrDefault(clan.getId(), List.of())
+                                )
+                        )
+                ))
+                .sorted(Comparator
+                        .comparing((ScoredClan scoredClan) -> scoredClan.entry().score()).reversed()
+                        .thenComparing(scoredClan -> scoredClan.clan().getCreatedAt()))
+                .map(ScoredClan::entry)
+                .toList();
+    }
+
+    private void addPromotions(List<TierChange> plannedChanges, List<LeaderboardEntry> standings, TierCode targetTier) {
+        int movementCount = calculateMovementCount(standings.size());
+        for (int index = 0; index < movementCount; index++) {
+            LeaderboardEntry clan = standings.get(index);
+            plannedChanges.add(new TierChange(
+                    clan.clanId(),
+                    clan.clanName(),
+                    clan.tier(),
+                    targetTier.name(),
+                    "PROMOTION"
+            ));
+        }
+    }
+
+    private void addDegradations(List<TierChange> plannedChanges, List<LeaderboardEntry> standings, TierCode targetTier) {
+        int movementCount = calculateMovementCount(standings.size());
+        for (int index = standings.size() - movementCount; index < standings.size(); index++) {
+            if (index < 0) {
+                continue;
+            }
+            LeaderboardEntry clan = standings.get(index);
+            plannedChanges.add(new TierChange(
+                    clan.clanId(),
+                    clan.clanName(),
+                    clan.tier(),
+                    targetTier.name(),
+                    "DEGRADATION"
+            ));
+        }
+    }
+
+    private int calculateMovementCount(int tierSize) {
+        int movementCount = (int) Math.floor(tierSize * 0.25d);
+        if (movementCount == 0 && tierSize >= 4) {
+            return 1;
+        }
+        return movementCount;
+    }
+
+    private String formatTierDisplayName(TierCode tierCode) {
+        String normalized = tierCode.name().toLowerCase();
+        return normalized.substring(0, 1).toUpperCase() + normalized.substring(1);
     }
 
     private String normalize(String value) {
@@ -329,5 +561,8 @@ public class ClanServiceImpl implements ClanService {
         }
         return clanRepository.findByIdForDetail(clanId)
                 .orElseThrow(() -> new IllegalArgumentException("Clan was not found"));
+    }
+
+    private record ScoredClan(Clan clan, LeaderboardEntry entry) {
     }
 }

@@ -25,4 +25,8 @@ public class DailyMission {
 
     @Column(nullable = false)
     private LocalDate activeDate; // Tanggal kapan misi ini berlaku
+
+    @Column(name = "is_primary", nullable = false)
+    @Builder.Default
+    private boolean primary = false;
 }

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.transaction.annotation.Transactional;
 
 public interface ClanJoinRequestRepository extends JpaRepository<ClanJoinRequest, UUID> {
     boolean existsByClanIdAndRequesterUserIdAndStatus(UUID clanId, UUID requesterUserId, ClanJoinRequestStatus status);
@@ -13,4 +14,7 @@ public interface ClanJoinRequestRepository extends JpaRepository<ClanJoinRequest
     Optional<ClanJoinRequest> findByIdAndClanId(UUID id, UUID clanId);
 
     List<ClanJoinRequest> findByClanIdAndStatusOrderByCreatedAtAsc(UUID clanId, ClanJoinRequestStatus status);
+
+    @Transactional
+    void deleteByClanId(UUID clanId);
 }
