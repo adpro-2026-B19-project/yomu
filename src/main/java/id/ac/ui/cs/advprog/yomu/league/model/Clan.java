@@ -60,6 +60,10 @@ public class Clan {
         this.members.add(member);
     }
 
+    public void changeTier(Tier newTier) {
+        this.tier = newTier;
+    }
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {

@@ -56,21 +56,33 @@ public class DailyMissionServiceImpl implements DailyMissionService {
     }
 
     @Override
-    public DailyMission createDailyMission(String title, int targetCount) {
+    @Transactional
+    public DailyMission createDailyMission(String title, int targetCount, boolean primary) {
+        validateDailyMission(targetCount);
+        if (primary) {
+            clearExistingPrimaryMission(LocalDate.now(), null);
+        }
         DailyMission mission = DailyMission.builder()
                 .title(title)
                 .targetCount(targetCount)
                 .activeDate(LocalDate.now())
+                .primary(primary)
                 .build();
         return dailyMissionRepository.save(mission);
     }
 
     @Override
-    public DailyMission updateDailyMission(Long id, String title, int targetCount) {
+    @Transactional
+    public DailyMission updateDailyMission(Long id, String title, int targetCount, boolean primary) {
+        validateDailyMission(targetCount);
         DailyMission mission = dailyMissionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Misi Harian dengan ID " + id + " tidak ditemukan"));
+        if (primary) {
+            clearExistingPrimaryMission(mission.getActiveDate(), id);
+        }
         mission.setTitle(title);
         mission.setTargetCount(targetCount);
+        mission.setPrimary(primary);
         return dailyMissionRepository.save(mission);
     }
 
@@ -81,5 +93,20 @@ public class DailyMissionServiceImpl implements DailyMissionService {
                 .orElseThrow(() -> new IllegalArgumentException("Misi Harian dengan ID " + id + " tidak ditemukan"));
         progressRepository.deleteByMissionId(id);
         dailyMissionRepository.delete(mission);
+    }
+
+    private void validateDailyMission(int targetCount) {
+        if (targetCount <= 0) {
+            throw new IllegalArgumentException("Target misi harian harus lebih besar dari nol");
+        }
+    }
+
+    private void clearExistingPrimaryMission(LocalDate activeDate, Long excludedMissionId) {
+        dailyMissionRepository.findByActiveDateAndPrimaryTrue(activeDate)
+                .filter(existing -> excludedMissionId == null || !existing.getId().equals(excludedMissionId))
+                .ifPresent(existing -> {
+                    existing.setPrimary(false);
+                    dailyMissionRepository.save(existing);
+                });
     }
 }

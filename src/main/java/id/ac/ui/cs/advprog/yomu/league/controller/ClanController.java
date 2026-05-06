@@ -4,6 +4,7 @@ import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import id.ac.ui.cs.advprog.yomu.league.dto.ClanCreateForm;
+import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 import id.ac.ui.cs.advprog.yomu.league.service.ClanService;
 import jakarta.validation.Valid;
 import java.time.LocalDateTime;
@@ -67,8 +68,13 @@ public class ClanController {
     }
 
     @GetMapping("/leaderboard")
-    public String bronzeLeaderboardPage(Model model, Authentication authentication) {
-        List<ClanService.LeaderboardEntry> entries = clanService.getBronzeLeaderboard();
+    public String leaderboardPage(
+            @RequestParam(defaultValue = "BRONZE") String tier,
+            Model model,
+            Authentication authentication
+    ) {
+        TierCode selectedTier = parseTierCodeOrDefault(tier);
+        List<ClanService.LeaderboardEntry> entries = clanService.getLeaderboard(selectedTier);
         List<ClanService.ClanSummary> clans = clanService.listClans();
         Map<UUID, UUID> clanCreatorById = clans.stream().collect(Collectors.toMap(
                 ClanService.ClanSummary::id,
@@ -83,11 +89,25 @@ public class ClanController {
                         entry.clanName(),
                         entry.tier(),
                         entry.memberCount(),
+                        entry.baseScore(),
                         entry.score(),
+                        entry.activeModifiers().stream()
+                                .map(modifier -> new ScoreModifierView(
+                                        modifier.code(),
+                                        modifier.label(),
+                                        modifier.multiplier(),
+                                        modifier.description()
+                                ))
+                                .toList(),
+                        entry.formulaDescription(),
                         clanCreatorById.get(entry.clanId()),
                         userNamesById.getOrDefault(clanCreatorById.get(entry.clanId()), "Unknown user")
                 ))
                 .toList());
+        model.addAttribute("selectedTier", selectedTier.name());
+        model.addAttribute("availableTiers", TierCode.values());
+        model.addAttribute("tierFormula", describeTier(selectedTier));
+        model.addAttribute("adminCanEndSeason", isAdmin(authentication));
         currentUserResolver.resolveUsername(authentication)
                 .ifPresent(username -> model.addAttribute("loggedInName", username));
         return "league/leaderboard";
@@ -113,7 +133,15 @@ public class ClanController {
                     profile.clanScore(),
                     profile.completedQuizCount(),
                     profile.totalQuizScore(),
-                    profile.averageAccuracy()
+                    profile.averageAccuracy(),
+                    profile.displayedAchievements().stream()
+                            .map(achievement -> new DisplayedAchievementView(
+                                    achievement.achievementId(),
+                                    achievement.name(),
+                                    achievement.milestone(),
+                                    achievement.unlockedAt()
+                            ))
+                            .toList()
             ));
             currentUserResolver.resolveUsername(authentication)
                     .ifPresent(username -> model.addAttribute("loggedInName", username));
@@ -260,6 +288,42 @@ public class ClanController {
         return "redirect:/clans/" + clanId;
     }
 
+    @PostMapping("/clans/{clanId}/delete")
+    public String deleteClan(
+            @PathVariable UUID clanId,
+            RedirectAttributes redirectAttributes,
+            Authentication authentication
+    ) {
+        Optional<AuthUser> currentUser = currentUserResolver.resolveUser(authentication);
+        if (currentUser.isEmpty()) {
+            return "redirect:/auth/login";
+        }
+
+        try {
+            clanService.deleteClan(clanId, currentUser.get().getId());
+            redirectAttributes.addFlashAttribute("success", "Clan deleted successfully");
+            return "redirect:/clans";
+        } catch (IllegalArgumentException exception) {
+            redirectAttributes.addFlashAttribute("error", exception.getMessage());
+            return "redirect:/clans/" + clanId;
+        }
+    }
+
+    @PostMapping("/admin/league/season/end")
+    public String endSeason(RedirectAttributes redirectAttributes) {
+        ClanService.SeasonTransitionResult result = clanService.endCurrentSeason();
+        redirectAttributes.addFlashAttribute(
+                "success",
+                "Season %d ended. Season %d started. %d clan movement(s) processed."
+                        .formatted(
+                                result.endedSeasonNumber(),
+                                result.newSeasonNumber(),
+                                result.clanTierChanges().size()
+                        )
+        );
+        return "redirect:/leaderboard?tier=BRONZE";
+    }
+
     private Map<UUID, String> resolveDisplayNames(List<UUID> userIds) {
         return authRepository.findAllById(userIds.stream().distinct().toList())
                 .stream()
@@ -275,6 +339,32 @@ public class ClanController {
             return user.getDisplayName();
         }
         return user.getUsername();
+    }
+
+    private TierCode parseTierCodeOrDefault(String tier) {
+        try {
+            return TierCode.valueOf(tier == null ? "BRONZE" : tier.trim().toUpperCase());
+        } catch (IllegalArgumentException ignoredInvalidTier) {
+            return TierCode.BRONZE;
+        }
+    }
+
+    private String describeTier(TierCode tierCode) {
+        return switch (tierCode) {
+            case BRONZE -> "Bronze menghitung total skor kuis seluruh anggota pada season aktif.";
+            case SILVER ->
+                    "Silver memakai rata-rata tertimbang total skor season per anggota. Anggota aktif berbobot 1.25.";
+            case GOLD ->
+                    "Gold memakai rata-rata tertimbang total skor season per anggota. Anggota aktif berbobot 1.5.";
+            case DIAMOND ->
+                    "Diamond memakai formula Gold lalu menambahkan faktor frekuensi aktivitas mingguan dengan cap 25%.";
+        };
+    }
+
+    private boolean isAdmin(Authentication authentication) {
+        return authentication != null
+                && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()));
     }
 
     private ClanService.JoinRequestDecision toDecision(String action) {
@@ -332,9 +422,20 @@ public class ClanController {
             String clanName,
             String tier,
             long memberCount,
+            double baseScore,
             double score,
+            List<ScoreModifierView> activeModifiers,
+            String formulaDescription,
             UUID createdByUserId,
             String createdByName
+    ) {
+    }
+
+    private record ScoreModifierView(
+            String code,
+            String label,
+            double multiplier,
+            String description
     ) {
     }
 
@@ -349,7 +450,16 @@ public class ClanController {
             double clanScore,
             long completedQuizCount,
             double totalQuizScore,
-            double averageAccuracy
+            double averageAccuracy,
+            List<DisplayedAchievementView> displayedAchievements
+    ) {
+    }
+
+    private record DisplayedAchievementView(
+            Long achievementId,
+            String name,
+            String milestone,
+            LocalDateTime unlockedAt
     ) {
     }
 }

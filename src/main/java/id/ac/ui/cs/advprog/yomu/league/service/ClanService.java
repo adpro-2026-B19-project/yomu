@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.yomu.league.service;
 import java.util.List;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 
 public interface ClanService {
     ClanSummary createClan(CreateClanRequest request, UUID creatorUserId);
@@ -16,6 +17,12 @@ public interface ClanService {
     void reviewJoinRequest(UUID clanId, UUID joinRequestId, UUID reviewerUserId, JoinRequestDecision decision);
 
     void recordQuizCompletion(QuizCompletionPayload payload);
+
+    void deleteClan(UUID clanId, UUID requesterUserId);
+
+    SeasonTransitionResult endCurrentSeason();
+
+    List<LeaderboardEntry> getLeaderboard(TierCode tierCode);
 
     List<LeaderboardEntry> getBronzeLeaderboard();
 
@@ -67,7 +74,34 @@ public interface ClanService {
             String clanName,
             String tier,
             long memberCount,
-            double score
+            double baseScore,
+            double score,
+            List<ScoreModifier> activeModifiers,
+            String formulaDescription
+    ) {
+    }
+
+    record ScoreModifier(
+            String code,
+            String label,
+            double multiplier,
+            String description
+    ) {
+    }
+
+    record SeasonTransitionResult(
+            int endedSeasonNumber,
+            int newSeasonNumber,
+            List<TierChange> clanTierChanges
+    ) {
+    }
+
+    record TierChange(
+            UUID clanId,
+            String clanName,
+            String previousTier,
+            String newTier,
+            String reason
     ) {
     }
 
@@ -82,7 +116,16 @@ public interface ClanService {
             double clanScore,
             long completedQuizCount,
             double totalQuizScore,
-            double averageAccuracy
+            double averageAccuracy,
+            List<DisplayedAchievement> displayedAchievements
+    ) {
+    }
+
+    record DisplayedAchievement(
+            Long achievementId,
+            String name,
+            String milestone,
+            LocalDateTime unlockedAt
     ) {
     }
 }

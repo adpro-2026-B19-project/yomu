@@ -5,7 +5,7 @@ import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
 import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
 import id.ac.ui.cs.advprog.yomu.achievement.dto.AchievementCreateForm;
-import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver; // Tambahkan ini
+import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,6 +42,7 @@ public class AchievementController {
             currentUserResolver.resolveUser(auth).ifPresent(user -> {
                 model.addAttribute("todayMissions", dailyMissionService.getTodayMissions());
                 model.addAttribute("userProgress", dailyMissionService.getUserProgress(user.getId()));
+                model.addAttribute("userAchievements", achievementService.getAchievementsByUserId(user.getId()));
             });
         }
 
@@ -66,8 +67,38 @@ public class AchievementController {
     @ResponseBody
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Achievement> createAchievement(@RequestBody @Valid AchievementCreateForm form) {
-        Achievement created = achievementService.createAchievement(form.getName(), form.getMilestone());
+        Achievement created = achievementService.createAchievement(
+                form.getName(),
+                form.getMilestone(),
+                form.getRequirementType(),
+                form.getTargetValue()
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    @PutMapping("/api/{achievementId}")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Achievement> updateAchievement(
+            @PathVariable Long achievementId,
+            @RequestBody @Valid AchievementCreateForm form
+    ) {
+        Achievement updated = achievementService.updateAchievement(
+                achievementId,
+                form.getName(),
+                form.getMilestone(),
+                form.getRequirementType(),
+                form.getTargetValue()
+        );
+        return ResponseEntity.ok(updated);
+    }
+
+    @DeleteMapping("/api/{achievementId}")
+    @ResponseBody
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteAchievement(@PathVariable Long achievementId) {
+        achievementService.deleteAchievement(achievementId);
+        return ResponseEntity.ok("Achievement berhasil dihapus");
     }
 
     @PostMapping("/api/user/toggle-display/{achievementId}")
@@ -88,8 +119,12 @@ public class AchievementController {
     @PostMapping("/api/daily-mission")
     @ResponseBody
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> createDailyMission(@RequestParam String title, @RequestParam int targetCount) {
-        dailyMissionService.createDailyMission(title, targetCount);
+    public ResponseEntity<String> createDailyMission(
+            @RequestParam String title,
+            @RequestParam int targetCount,
+            @RequestParam(defaultValue = "false") boolean primary
+    ) {
+        dailyMissionService.createDailyMission(title, targetCount, primary);
         return ResponseEntity.status(HttpStatus.CREATED).body("Misi Harian berhasil dibuat");
     }
 
@@ -107,9 +142,10 @@ public class AchievementController {
     public ResponseEntity<String> updateDailyMission(
             @PathVariable Long id,
             @RequestParam String title,
-            @RequestParam int targetCount) {
+            @RequestParam int targetCount,
+            @RequestParam(defaultValue = "false") boolean primary) {
         try {
-            dailyMissionService.updateDailyMission(id, title, targetCount);
+            dailyMissionService.updateDailyMission(id, title, targetCount, primary);
             return ResponseEntity.ok("Misi Harian berhasil diperbarui");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

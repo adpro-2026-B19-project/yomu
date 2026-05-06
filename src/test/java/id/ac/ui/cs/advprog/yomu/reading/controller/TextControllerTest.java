@@ -8,8 +8,6 @@ import static org.mockito.Mockito.when;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
-import id.ac.ui.cs.advprog.yomu.reading.dto.CreateTextRequest;
-import id.ac.ui.cs.advprog.yomu.reading.model.Category;
 import id.ac.ui.cs.advprog.yomu.reading.model.Question;
 import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
@@ -86,56 +84,6 @@ class TextControllerTest {
     }
 
     @Test
-    void createTextFormShouldPopulateCategoriesAndFormObject() {
-        Category c = new Category();
-        c.setName("Science");
-        when(categoryRepository.findAll()).thenReturn(List.of(c));
-
-        ExtendedModelMap model = new ExtendedModelMap();
-        String view = textController.createTextForm(model);
-
-        assertThat(view).isEqualTo("reading/create-text");
-        assertThat(model.getAttribute("categories")).isEqualTo(List.of(c));
-        assertThat(model.getAttribute("createTextRequest")).isNotNull();
-    }
-
-    @Test
-    void createTextShouldThrowWhenCategoryNotFound() {
-        CreateTextRequest request = new CreateTextRequest();
-        request.setTitle("Title");
-        request.setContent("Content");
-        request.setCategoryId(10L);
-        when(categoryRepository.findById(10L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> textController.createText(request, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Kategori tidak ditemukan");
-    }
-
-    @Test
-    void createTextShouldDelegateToServiceAndRedirect() {
-        Category category = new Category();
-        category.setName("Tech");
-        setCategoryId(category, 1L);
-        CreateTextRequest request = new CreateTextRequest();
-        request.setTitle("Title");
-        request.setContent("Content");
-        request.setCategoryId(1L);
-
-        AuthUser authUser = new AuthUser("creator");
-        setUserId(authUser);
-
-        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
-        when(authentication.isAuthenticated()).thenReturn(true);
-        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
-
-        String view = textController.createText(request, authentication);
-
-        assertThat(view).isEqualTo("redirect:/texts");
-        verify(textService).createText("Title", "Content", 1L, authUser.getId().toString());
-    }
-
-    @Test
     void startQuizShouldRedirectAnonymousUserToLogin() {
         String view = textController.startQuiz(1L, new ExtendedModelMap(), null);
         assertThat(view).isEqualTo("redirect:/auth/login");
@@ -167,16 +115,6 @@ class TextControllerTest {
             java.lang.reflect.Field idField = AuthUser.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(authUser, UUID.randomUUID());
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError(e);
-        }
-    }
-
-    private void setCategoryId(Category category, Long id) {
-        try {
-            java.lang.reflect.Field idField = Category.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(category, id);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
         }

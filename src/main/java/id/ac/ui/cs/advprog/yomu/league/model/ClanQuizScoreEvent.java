@@ -42,6 +42,9 @@ public class ClanQuizScoreEvent {
     @Column(name = "text_id", nullable = false, updatable = false)
     private UUID textId;
 
+    @Column(name = "season_id", nullable = false, updatable = false)
+    private UUID seasonId;
+
     @Column(nullable = false, updatable = false)
     private double score;
 
@@ -59,6 +62,7 @@ public class ClanQuizScoreEvent {
             UUID clanId,
             UUID userId,
             UUID textId,
+            UUID seasonId,
             double score,
             double accuracy,
             LocalDateTime completedAt
@@ -67,6 +71,7 @@ public class ClanQuizScoreEvent {
         this.clanId = clanId;
         this.userId = userId;
         this.textId = textId;
+        this.seasonId = seasonId;
         this.score = score;
         this.accuracy = accuracy;
         this.completedAt = completedAt;

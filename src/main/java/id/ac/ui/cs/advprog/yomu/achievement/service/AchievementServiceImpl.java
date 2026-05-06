@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.achievement.service;
 
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
+import id.ac.ui.cs.advprog.yomu.achievement.model.AchievementRequirementType;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserStatistic;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.AchievementRepository;
@@ -35,15 +36,51 @@ public class AchievementServiceImpl implements AchievementService {
 
     @Override
     @Transactional
-    public Achievement createAchievement(String name, String milestone) {
-        if (achievementRepository.existsByName(name)) {
+    public Achievement createAchievement(
+            String name,
+            String milestone,
+            AchievementRequirementType requirementType,
+            int targetValue
+    ) {
+        String normalizedName = normalizeRequiredText(name, "Nama achievement wajib diisi");
+        if (achievementRepository.existsByName(normalizedName)) {
             throw new IllegalArgumentException("Achievement dengan nama tersebut sudah ada");
         }
-        Achievement achievement = Achievement.builder()
-                .name(name)
-                .milestone(milestone)
-                .build();
-        return achievementRepository.save(achievement);
+        return achievementRepository.save(buildAchievement(null, normalizedName, milestone, requirementType, targetValue));
+    }
+
+    @Override
+    @Transactional
+    public Achievement updateAchievement(
+            Long id,
+            String name,
+            String milestone,
+            AchievementRequirementType requirementType,
+            int targetValue
+    ) {
+        Achievement existing = achievementRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Achievement tidak ditemukan"));
+        String normalizedName = normalizeRequiredText(name, "Nama achievement wajib diisi");
+        achievementRepository.findByName(normalizedName)
+                .filter(candidate -> !candidate.getId().equals(id))
+                .ifPresent(candidate -> {
+                    throw new IllegalArgumentException("Achievement dengan nama tersebut sudah ada");
+                });
+        existing.setName(normalizedName);
+        existing.setMilestone(milestone);
+        existing.setRequirementType(normalizeRequirementType(requirementType));
+        existing.setTargetValue(normalizeTargetValue(targetValue));
+        return achievementRepository.save(existing);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAchievement(Long id) {
+        if (!achievementRepository.existsById(id)) {
+            throw new IllegalArgumentException("Achievement tidak ditemukan");
+        }
+        userAchievementRepository.deleteByAchievementId(id);
+        achievementRepository.deleteById(id);
     }
 
     @Override
@@ -82,18 +119,55 @@ public class AchievementServiceImpl implements AchievementService {
                 .toList();
 
         for (Achievement ach : unobtainedAchievements) {
-            try {
-                int targetMilestone = Integer.parseInt(ach.getMilestone());
-                if (totalUserReading >= targetMilestone) {
-                    UserAchievement newUa = UserAchievement.builder()
-                            .userId(userId)
-                            .achievement(ach)
-                            .displayed(false)
-                            .unlockedAt(completedAt)
-                            .build();
-                    userAchievementRepository.save(newUa);
-                }
-            } catch (NumberFormatException e) {}
+            if (ach.getRequirementType() == AchievementRequirementType.READING_COUNT
+                    && totalUserReading >= ach.getTargetValue()) {
+                UserAchievement newUa = UserAchievement.builder()
+                        .userId(userId)
+                        .achievement(ach)
+                        .displayed(false)
+                        .unlockedAt(completedAt)
+                        .build();
+                userAchievementRepository.save(newUa);
+            }
         }
+    }
+
+    private Achievement buildAchievement(
+            Long id,
+            String name,
+            String milestone,
+            AchievementRequirementType requirementType,
+            int targetValue
+    ) {
+        String normalizedName = normalizeRequiredText(name, "Nama achievement wajib diisi");
+        String normalizedMilestone = normalizeRequiredText(milestone, "Deskripsi milestone wajib diisi");
+        return Achievement.builder()
+                .id(id)
+                .name(normalizedName)
+                .milestone(normalizedMilestone)
+                .requirementType(normalizeRequirementType(requirementType))
+                .targetValue(normalizeTargetValue(targetValue))
+                .build();
+    }
+
+    private String normalizeRequiredText(String value, String message) {
+        if (value == null || value.trim().isEmpty()) {
+            throw new IllegalArgumentException(message);
+        }
+        return value.trim();
+    }
+
+    private AchievementRequirementType normalizeRequirementType(AchievementRequirementType requirementType) {
+        if (requirementType == null) {
+            return AchievementRequirementType.READING_COUNT;
+        }
+        return requirementType;
+    }
+
+    private int normalizeTargetValue(int targetValue) {
+        if (targetValue <= 0) {
+            throw new IllegalArgumentException("Target achievement harus lebih besar dari nol");
+        }
+        return targetValue;
     }
 }
