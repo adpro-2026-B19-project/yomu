@@ -2,12 +2,9 @@ package id.ac.ui.cs.advprog.yomu.reading.controller;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
-import id.ac.ui.cs.advprog.yomu.reading.model.Text;
-import id.ac.ui.cs.advprog.yomu.reading.model.Category;
 import id.ac.ui.cs.advprog.yomu.reading.model.Question;
 import id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt;
-import id.ac.ui.cs.advprog.yomu.reading.dto.CreateTextRequest;
-import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
+import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
 
@@ -23,16 +20,13 @@ import java.util.Map;
 @RequestMapping("/texts")
 public class TextController {
 
-    private final CategoryRepository categoryRepository;
     private final QuestionRepository questionRepository;
     private final TextService textService;
     private final CurrentUserResolver currentUserResolver;
 
-    public TextController(CategoryRepository categoryRepository,
-            QuestionRepository questionRepository,
+    public TextController(QuestionRepository questionRepository,
             TextService textService,
             CurrentUserResolver currentUserResolver) {
-        this.categoryRepository = categoryRepository;
         this.questionRepository = questionRepository;
         this.textService = textService;
         this.currentUserResolver = currentUserResolver;
@@ -56,7 +50,7 @@ public class TextController {
         return "reading/history";
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     public String getTextDetail(@PathVariable Long id, Model model, Authentication authentication) {
         Text text = textService.getPublishedTextById(id);
 
@@ -74,7 +68,7 @@ public class TextController {
         return "reading/text-detail";
     }
 
-    @GetMapping("/{id}/quiz")
+    @GetMapping("/{id:\\d+}/quiz")
     public String startQuiz(@PathVariable Long id, Model model, Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/auth/login";
@@ -96,7 +90,7 @@ public class TextController {
         return "reading/quiz";
     }
 
-    @PostMapping("/{id}/quiz/submit")
+    @PostMapping("/{id:\\d+}/quiz/submit")
     public String submitQuiz(@PathVariable Long id,
             @RequestParam Map<String, String> formData,
             Model model,
@@ -118,27 +112,4 @@ public class TextController {
         }
     }
 
-    @GetMapping("/create")
-    public String createTextForm(Model model) {
-        List<Category> categories = categoryRepository.findAll();
-        model.addAttribute("categories", categories);
-        model.addAttribute("createTextRequest", new CreateTextRequest());
-        return "reading/create-text";
-    }
-
-    @PostMapping("/create")
-    public String createText(@ModelAttribute CreateTextRequest request, Authentication authentication) {
-        Category category = categoryRepository.findById(request.getCategoryId())
-                .orElseThrow(() -> new IllegalArgumentException("Kategori tidak ditemukan"));
-
-        String userId = "system";
-        if (authentication != null && authentication.isAuthenticated()) {
-            AuthUser authUser = currentUserResolver.resolveUser(authentication).orElse(null);
-            if (authUser != null)
-                userId = authUser.getId().toString();
-        }
-
-        textService.createText(request.getTitle(), request.getContent(), category.getId(), userId);
-        return "redirect:/texts";
-    }
 }

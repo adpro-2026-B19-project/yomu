@@ -20,6 +20,7 @@ import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.OptionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
+import id.ac.ui.cs.advprog.yomu.reading.repository.QuizAttemptRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,10 +55,14 @@ class ReadingIntegrationTest {
     @Autowired
     private OptionRepository optionRepository;
 
+    @Autowired
+    private QuizAttemptRepository quizAttemptRepository;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @BeforeEach
     void cleanDatabase() {
+        quizAttemptRepository.deleteAll();
         optionRepository.deleteAll();
         questionRepository.deleteAll();
         textRepository.deleteAll();
@@ -77,6 +82,14 @@ class ReadingIntegrationTest {
 
         mockMvc.perform(get("/admin/texts/create").session(session))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void learnerFacingCreateRouteShouldNoLongerExist() throws Exception {
+        MockHttpSession session = loginAs("student-route@ui.ac.id", "Maba2025!", AuthRole.USER);
+
+        mockMvc.perform(get("/texts/create").session(session))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -206,7 +219,7 @@ class ReadingIntegrationTest {
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", email)
+                        .param("identifier", email)
                         .param("password", rawPassword))
                 .andExpect(status().is3xxRedirection())
                 .andReturn();

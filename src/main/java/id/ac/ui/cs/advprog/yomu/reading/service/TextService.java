@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -187,7 +188,7 @@ public class TextService {
     }
     
     public List<QuizAttempt> getUserQuizHistory(String userId) {
-        List<QuizAttempt> attempts = quizAttemptRepository.findByUserId(userId);
+        List<QuizAttempt> attempts = new ArrayList<>(quizAttemptRepository.findByUserId(userId));
         attempts.sort((a, b) -> b.getTimestamp().compareTo(a.getTimestamp())); // Sort descending
         return attempts;
     }

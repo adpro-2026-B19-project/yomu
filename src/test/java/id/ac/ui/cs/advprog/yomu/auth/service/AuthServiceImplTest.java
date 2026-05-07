@@ -36,6 +36,12 @@ class AuthServiceImplTest {
     @Mock
     private PasswordStrengthChecker passwordStrengthChecker;
 
+    @Mock
+    private UsernameUniquenessService usernameUniquenessService;
+
+    @Spy
+    private AuthIdentifierValidator authIdentifierValidator = new AuthIdentifierValidator();
+
     @Spy
     private PasswordEncoder mockedPasswordEncoder = new BCryptPasswordEncoder();
 
@@ -46,66 +52,59 @@ class AuthServiceImplTest {
     void setUp() {
         lenient().when(emailExistenceChecker.exists(anyString())).thenReturn(true);
         lenient().when(passwordStrengthChecker.assess(anyString())).thenReturn(PasswordStrength.STRONG);
+        lenient().when(authRepository.existsByEmail(anyString())).thenReturn(false);
+        lenient().when(usernameUniquenessService.isUsernameTaken(anyString())).thenReturn(false);
     }
 
     @Test
     void registerUserShouldFailWhenEmailAlreadyExists() {
-        when(authRepository.findByEmail("alice@example.com"))
-                .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", "hashed")));
+        when(authRepository.existsByEmail("alice@example.com")).thenReturn(true);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("alice@example.com", "alice", "RawPassword1!")
         );
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("registration_failed");
-        assertThat(result.errorMessage()).isEqualTo("Unable to complete registration");
-        verify(authRepository).findByEmail("alice@example.com");
+        assertThat(result.errorCode()).isEqualTo("duplicate_email");
+        assertThat(result.errorMessage()).isEqualTo("Email is already registered");
+        verify(authRepository).existsByEmail("alice@example.com");
         verify(authRepository, never()).save(any());
     }
 
     @Test
     void registerUserShouldFailWhenUsernameAlreadyExists() {
-        when(authRepository.findByEmail("alice@example.com")).thenReturn(Optional.empty());
-        when(authRepository.findByUsername("alice"))
-                .thenReturn(Optional.of(new AuthUser("alice", "other@example.com", null, "alice", "hashed")));
+        when(authRepository.existsByEmail("alice@example.com")).thenReturn(false);
+        when(usernameUniquenessService.isUsernameTaken("alice")).thenReturn(true);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("alice@example.com", "alice", "RawPassword1!")
         );
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("registration_failed");
-        assertThat(result.errorMessage()).isEqualTo("Unable to complete registration");
-        verify(authRepository).findByEmail("alice@example.com");
-        verify(authRepository).findByUsername("alice");
+        assertThat(result.errorCode()).isEqualTo("duplicate_username");
+        assertThat(result.errorMessage()).isEqualTo("Username is already taken");
+        verify(authRepository).existsByEmail("alice@example.com");
+        verify(usernameUniquenessService).isUsernameTaken("alice");
         verify(authRepository, never()).save(any());
     }
 
     @Test
-    void registerUserShouldDefaultUsernameFromEmailLocalPart() {
-        when(authRepository.findByEmail("charlie@example.com")).thenReturn(Optional.empty());
-        when(authRepository.findByUsername("charlie")).thenReturn(Optional.empty());
-
+    void registerUserShouldFailWhenUsernameIsBlank() {
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("charlie@example.com", "   ", "RawPassword1!")
         );
 
-        assertThat(result.success()).isTrue();
-        assertThat(result.errorCode()).isNull();
-        assertThat(result.errorMessage()).isNull();
-
-        ArgumentCaptor<AuthUser> userCaptor = ArgumentCaptor.forClass(AuthUser.class);
-        verify(authRepository).save(userCaptor.capture());
-        assertThat(userCaptor.getValue().getEmail()).isEqualTo("charlie@example.com");
-        assertThat(userCaptor.getValue().getUsername()).isEqualTo("charlie");
-        assertThat(userCaptor.getValue().getDisplayName()).isEqualTo("charlie");
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("required_username");
+        assertThat(result.errorMessage()).isEqualTo("Username is required");
+        verify(usernameUniquenessService, never()).isUsernameTaken(anyString());
+        verify(authRepository, never()).save(any());
     }
 
     @Test
     void registerUserShouldPersistHashedPasswordWhenValid() {
-        when(authRepository.findByEmail("dora@example.com")).thenReturn(Optional.empty());
-        when(authRepository.findByUsername("dora")).thenReturn(Optional.empty());
+        when(authRepository.existsByEmail("dora@example.com")).thenReturn(false);
+        when(usernameUniquenessService.isUsernameTaken("dora")).thenReturn(false);
 
         AuthService.RegistrationResult result = authService.registerUser(
                 new AuthService.RegisterRequest("dora@example.com", "dora", "SecretPassword1!")
@@ -134,6 +133,32 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void registerUserShouldFailWhenEmailFormatIsInvalid() {
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("invalid-email", "valid_user", "SafePassword1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_email");
+        assertThat(result.errorMessage()).isEqualTo("Email is invalid");
+        verify(emailExistenceChecker, never()).exists(anyString());
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void registerUserShouldFailWhenUsernameFormatIsInvalid() {
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("valid@example.com", "invalid username", "SafePassword1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_username");
+        assertThat(result.errorMessage()).isEqualTo("Username is invalid");
+        verify(usernameUniquenessService, never()).isUsernameTaken(anyString());
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
     void registerUserShouldFailWhenPasswordStrengthIsWeak() {
         when(passwordStrengthChecker.assess("weakpass")).thenReturn(PasswordStrength.WEAK);
 
@@ -149,12 +174,12 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void loginUserShouldFailWhenEmailIsBlank() {
+    void loginUserShouldFailWhenIdentifierIsBlank() {
         AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("   ", "SecretPass1!"));
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorCode()).isEqualTo("required_email");
-        assertThat(result.errorMessage()).isEqualTo("Email is required");
+        assertThat(result.errorCode()).isEqualTo("required_identifier");
+        assertThat(result.errorMessage()).isEqualTo("Email or username is required");
     }
 
     @Test
@@ -174,7 +199,7 @@ class AuthServiceImplTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("invalid_credentials");
-        assertThat(result.errorMessage()).isEqualTo("Invalid email or password");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email/username or password");
     }
 
     @Test
@@ -187,7 +212,7 @@ class AuthServiceImplTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("invalid_credentials");
-        assertThat(result.errorMessage()).isEqualTo("Invalid email or password");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email/username or password");
     }
 
     @Test
@@ -204,5 +229,22 @@ class AuthServiceImplTest {
         assertThat(result.loggedInUser()).isNotNull();
         assertThat(result.loggedInUser().username()).isEqualTo("alice");
         assertThat(result.loggedInUser().email()).isEqualTo("alice@example.com");
+    }
+
+    @Test
+    void loginUserShouldSucceedWhenUsernameAndPasswordAreValid() {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        when(authRepository.findByUsername("alice-user"))
+                .thenReturn(Optional.of(new AuthUser("alice-user", "alice@example.com", null, "alice", hashedPassword)));
+
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice-user", "CorrectPass1!"));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.errorCode()).isNull();
+        assertThat(result.errorMessage()).isNull();
+        assertThat(result.loggedInUser()).isNotNull();
+        assertThat(result.loggedInUser().username()).isEqualTo("alice-user");
+        assertThat(result.loggedInUser().email()).isEqualTo("alice@example.com");
+        verify(authRepository).findByUsername("alice-user");
     }
 }

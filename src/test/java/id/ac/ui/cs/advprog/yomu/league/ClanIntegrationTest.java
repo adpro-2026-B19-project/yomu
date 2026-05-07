@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import id.ac.ui.cs.advprog.yomu.league.model.ClanJoinRequestStatus;
@@ -258,7 +259,7 @@ class ClanIntegrationTest {
 
         mockMvc.perform(get("/players/" + learnerUser.getId()).session(leaderSession))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("Public Quiz Stats")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Public Reading Stats")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(learnerUser.getUsername())))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Geometry Guild")))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
@@ -266,16 +267,162 @@ class ClanIntegrationTest {
                 )));
     }
 
+    @Test
+    void leaderCanDeleteClan() throws Exception {
+        MockHttpSession leaderSession = loginAs("delete-leader@example.com", "LeaderPass1!");
+
+        mockMvc.perform(post("/clans")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("name", "Disposable Guild"))
+                .andExpect(status().is3xxRedirection());
+
+        var clan = clanRepository.findAll().stream().findFirst().orElseThrow();
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/delete")
+                        .session(leaderSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clans"));
+
+        assertThat(clanRepository.count()).isEqualTo(0);
+    }
+
+    @Test
+    void nonLeaderCannotDeleteClan() throws Exception {
+        MockHttpSession leaderSession = loginAs("owner@example.com", "LeaderPass1!");
+        MockHttpSession memberSession = loginAs("member@example.com", "MemberPass1!");
+
+        mockMvc.perform(post("/clans")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("name", "Protected Guild"))
+                .andExpect(status().is3xxRedirection());
+
+        var clan = clanRepository.findAll().stream().findFirst().orElseThrow();
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/join")
+                        .session(memberSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection());
+
+        var joinRequest = clanJoinRequestRepository.findAll().getFirst();
+        mockMvc.perform(post("/clans/" + clan.getId() + "/requests/" + joinRequest.getId() + "/decision")
+                        .session(leaderSession)
+                        .with(csrf())
+                        .param("action", "approve"))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/delete")
+                        .session(memberSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clans/" + clan.getId()));
+
+        assertThat(clanRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void adminCanEndSeasonAndPromoteTopBronzeClan() throws Exception {
+        MockHttpSession adminSession = loginAs("admin@example.com", "AdminPass1!", AuthRole.ADMIN);
+        MockHttpSession alphaSession = loginAs("alpha@example.com", "AlphaPass1!");
+        MockHttpSession betaSession = loginAs("beta@example.com", "BetaPass1!");
+        MockHttpSession gammaSession = loginAs("gamma@example.com", "GammaPass1!");
+        MockHttpSession deltaSession = loginAs("delta@example.com", "DeltaPass1!");
+
+        createClan(alphaSession, "Alpha Clan");
+        createClan(betaSession, "Beta Clan");
+        createClan(gammaSession, "Gamma Clan");
+        createClan(deltaSession, "Delta Clan");
+
+        postClanQuizScore(alphaSession, "alpha@example.com", 95.0d, 0.95d);
+        postClanQuizScore(betaSession, "beta@example.com", 75.0d, 0.75d);
+        postClanQuizScore(gammaSession, "gamma@example.com", 55.0d, 0.55d);
+        postClanQuizScore(deltaSession, "delta@example.com", 35.0d, 0.60d);
+
+        mockMvc.perform(post("/admin/league/season/end")
+                        .session(adminSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/leaderboard?tier=BRONZE"));
+
+        var alphaClan = clanRepository.findAllForListing().stream()
+                .filter(clan -> clan.getName().equals("Alpha Clan"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(alphaClan.getTier().getCode()).isEqualTo(TierCode.SILVER);
+    }
+
+    @Test
+    void nonAdminCannotEndSeason() throws Exception {
+        MockHttpSession userSession = loginAs("regular@example.com", "RegularPass1!");
+
+        mockMvc.perform(post("/admin/league/season/end")
+                        .session(userSession)
+                        .with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
     private MockHttpSession loginAs(String email, String rawPassword) throws Exception {
-        authRepository.save(new AuthUser("user-" + email.hashCode(), email, null, "user", passwordEncoder.encode(rawPassword)));
+        return loginAs(email, rawPassword, AuthRole.USER);
+    }
+
+    private MockHttpSession loginAs(String email, String rawPassword, AuthRole role) throws Exception {
+        authRepository.save(new AuthUser(
+                "user-" + email.hashCode(),
+                email,
+                null,
+                "user",
+                passwordEncoder.encode(rawPassword),
+                role
+        ));
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", email)
+                        .param("identifier", email)
                         .param("password", rawPassword))
                 .andExpect(status().is3xxRedirection())
                 .andReturn();
 
         return (MockHttpSession) loginResult.getRequest().getSession(false);
+    }
+
+    private void createClan(MockHttpSession session, String clanName) throws Exception {
+        mockMvc.perform(post("/clans")
+                        .session(session)
+                        .with(csrf())
+                        .param("name", clanName))
+                .andExpect(status().is3xxRedirection());
+    }
+
+    private void postClanQuizScore(
+            MockHttpSession session,
+            String memberEmail,
+            double score,
+            double accuracy
+    ) throws Exception {
+        var member = authRepository.findByEmail(memberEmail).orElseThrow();
+        mockMvc.perform(post("/api/league/events/quiz-completions")
+                        .session(session)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventId":"%s",
+                                  "userId":"%s",
+                                  "textId":"%s",
+                                  "score":%s,
+                                  "accuracy":%s,
+                                  "completedAt":"%s"
+                                }
+                                """.formatted(
+                                UUID.randomUUID(),
+                                member.getId(),
+                                UUID.randomUUID(),
+                                score,
+                                accuracy,
+                                LocalDateTime.now().minusMinutes(1)
+                        )))
+                .andExpect(status().isAccepted());
     }
 }

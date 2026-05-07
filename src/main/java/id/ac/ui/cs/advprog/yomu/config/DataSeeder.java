@@ -1,10 +1,23 @@
 package id.ac.ui.cs.advprog.yomu.config;
 
-import id.ac.ui.cs.advprog.yomu.reading.model.*;
-import id.ac.ui.cs.advprog.yomu.reading.repository.*;
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
+import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
+import id.ac.ui.cs.advprog.yomu.reading.model.Category;
+import id.ac.ui.cs.advprog.yomu.reading.model.Option;
+import id.ac.ui.cs.advprog.yomu.reading.model.Question;
+import id.ac.ui.cs.advprog.yomu.reading.model.Text;
+import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
+import id.ac.ui.cs.advprog.yomu.reading.repository.OptionRepository;
+import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
+import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -14,74 +27,234 @@ public class DataSeeder implements CommandLineRunner {
     private final TextRepository textRepository;
     private final QuestionRepository questionRepository;
     private final OptionRepository optionRepository;
+    private final AuthRepository authRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
+        seedAdminUser();
+        seedReadingModule();
+    }
 
-        if (categoryRepository.count() > 0) {
+    private void seedAdminUser() {
+        if (authRepository.findByUsername("admin").isEmpty()) {
+            AuthUser admin = new AuthUser(
+                    "admin",
+                    "admin@yomu.com",
+                    null,
+                    "Administrator",
+                    passwordEncoder.encode("admin"),
+                    AuthRole.ADMIN
+            );
+            authRepository.save(admin);
+        }
+    }
+
+    private void seedReadingModule() {
+        Category digitalLiteracy = getOrCreateCategory("Digital Literacy");
+        Category newsMedia = getOrCreateCategory("News & Media");
+        Category science = getOrCreateCategory("Science");
+
+        seedTextIfMissing(
+                "Mengenali Berita Palsu di Media Sosial",
+                """
+                Di era digital, informasi dapat menyebar dengan sangat cepat melalui media sosial.
+                Namun, tidak semua informasi yang beredar dapat dipercaya. Berita palsu sering kali
+                dibuat dengan judul sensasional agar menarik perhatian pembaca. Selain itu, berita palsu
+                sering tidak mencantumkan sumber yang jelas atau menggunakan potongan informasi yang
+                tidak lengkap. Oleh karena itu, pembaca perlu memeriksa sumber berita, tanggal publikasi,
+                dan membandingkan informasi dengan media lain yang kredibel sebelum mempercayai atau
+                membagikannya.
+                """,
+                digitalLiteracy,
+                List.of(
+                        new QuizSeed(
+                            "Apa langkah penting sebelum membagikan informasi dari media sosial?",
+                            "Langsung membagikannya jika judulnya menarik",
+                            "Memeriksa sumber dan membandingkan dengan media kredibel",
+                            "Mempercayai semua informasi yang viral",
+                            "Mengabaikan tanggal publikasi berita",
+                            "B"
+                        ),
+                        new QuizSeed(
+                            "Mengapa judul sensasional perlu diwaspadai?",
+                            "Karena selalu berasal dari sumber resmi",
+                            "Karena biasanya tidak perlu diverifikasi",
+                            "Karena dapat digunakan untuk menarik perhatian dan menyebarkan berita palsu",
+                            "Karena pasti berisi informasi akademik",
+                            "C"
+                        ),
+                        new QuizSeed(
+                            "Apa ciri berita palsu yang disebutkan dalam teks?",
+                            "Selalu memiliki data lengkap",
+                            "Tidak mencantumkan sumber jelas atau menggunakan informasi tidak lengkap",
+                            "Selalu ditulis oleh lembaga resmi",
+                            "Selalu menggunakan bahasa ilmiah",
+                            "B"
+                        )
+                )
+        );
+
+        seedTextIfMissing(
+                "Pentingnya Membaca Berita dari Berbagai Sumber",
+                """
+                Membaca berita dari satu sumber saja dapat membuat seseorang memiliki pemahaman yang
+                terbatas terhadap suatu peristiwa. Setiap media dapat memiliki sudut pandang, prioritas,
+                dan gaya penyajian yang berbeda. Dengan membandingkan beberapa sumber, pembaca dapat
+                melihat informasi secara lebih utuh dan mengurangi risiko terjebak pada bias tertentu.
+                Kebiasaan ini penting untuk membangun kemampuan berpikir kritis, terutama ketika
+                menghadapi isu publik yang kompleks.
+                """,
+                newsMedia,
+                List.of(
+                        new QuizSeed(
+                            "Mengapa membaca berita dari satu sumber saja dapat bermasalah?",
+                            "Karena semua media pasti salah",
+                            "Karena pemahaman pembaca bisa menjadi terbatas",
+                            "Karena berita tidak perlu dibandingkan",
+                            "Karena sumber berita selalu memiliki isi yang sama",
+                            "B"
+                        ),
+                        new QuizSeed(
+                            "Apa manfaat membandingkan beberapa sumber berita?",
+                            "Membuat pembaca tidak perlu berpikir kritis",
+                            "Mengurangi risiko terjebak pada bias tertentu",
+                            "Menghapus semua perbedaan sudut pandang",
+                            "Membuat berita menjadi lebih pendek",
+                            "B"
+                        ),
+                        new QuizSeed(
+                            "Kemampuan apa yang dapat dibangun melalui kebiasaan membandingkan berita?",
+                            "Kemampuan berpikir kritis",
+                            "Kemampuan menghafal judul",
+                            "Kemampuan membuat berita viral",
+                            "Kemampuan menghindari membaca",
+                            "A"
+                        )
+                )
+        );
+
+        seedTextIfMissing(
+                "Mengapa Data Perlu Diperiksa Sebelum Dipercaya",
+                """
+                Data sering digunakan untuk memperkuat argumen dalam artikel, presentasi, maupun
+                unggahan media sosial. Namun, data yang terlihat meyakinkan belum tentu akurat.
+                Pembaca perlu memperhatikan sumber data, metode pengumpulan, tahun publikasi, dan
+                konteks penggunaan data tersebut. Data lama atau data yang diambil dari konteks berbeda
+                dapat menimbulkan kesimpulan yang keliru. Karena itu, memeriksa data merupakan bagian
+                penting dari literasi informasi.
+                """,
+                science,
+                List.of(
+                        new QuizSeed(
+                                "Mengapa data yang terlihat meyakinkan belum tentu akurat?",
+                                "Karena semua data pasti palsu",
+                                "Karena data tetap perlu diperiksa sumber, metode, dan konteksnya",
+                                "Karena data tidak boleh dipakai dalam argumen",
+                                "Karena data hanya berlaku untuk media sosial",
+                                "B"
+                        ),
+                        new QuizSeed(
+                                "Apa yang perlu diperhatikan saat memeriksa data?",
+                                "Warna grafik saja",
+                                "Jumlah komentar pembaca",
+                                "Sumber data, metode pengumpulan, tahun publikasi, dan konteks",
+                                "Jumlah emoji dalam unggahan",
+                                "C"
+                        ),
+                        new QuizSeed(
+                                "Apa akibat dari penggunaan data lama atau data di luar konteks?",
+                                "Kesimpulan dapat menjadi keliru",
+                                "Argumen otomatis menjadi benar",
+                                "Data menjadi lebih kredibel",
+                                "Pembaca tidak perlu melakukan verifikasi",
+                                "A"
+                        )
+                )
+        );
+    }
+
+    private Category getOrCreateCategory(String name) {
+        Optional<Category> existingCategory = categoryRepository.findAll()
+                .stream()
+                .filter(category -> category.getName().equalsIgnoreCase(name))
+                .findFirst();
+
+        if (existingCategory.isPresent()) {
+            return existingCategory.get();
+        }
+
+        Category category = new Category();
+        category.setName(name);
+        return categoryRepository.save(category);
+    }
+
+    private void seedTextIfMissing(String title, String content, Category category, List<QuizSeed> quizSeeds) {
+        Optional<Text> existingText = textRepository.findAll()
+            .stream()
+            .filter(text -> text.getTitle().equalsIgnoreCase(title))
+            .findFirst();
+
+        if (existingText.isPresent()) {
+            Text text = existingText.get();
+
+            if (!text.isPublished()) {
+                text.setPublished(true);
+                textRepository.save(text);
+            }
+
+            if (questionRepository.findByTextId(text.getId()).isEmpty()) {
+                quizSeeds.forEach(seed -> addQuestion(text, seed));
+            }
+
             return;
         }
 
-        Category tech = new Category();
-        tech.setName("Technology");
+        Text text = new Text();
+        text.setTitle(title);
+        text.setContent(content);
+        text.setCategory(category);
+        text.setPublished(true);
+        textRepository.save(text);
 
-        Category science = new Category();
-        science.setName("Science");
-
-        Category history = new Category();
-        history.setName("History");
-
-        categoryRepository.save(tech);
-        categoryRepository.save(science);
-        categoryRepository.save(history);
-
-        Text text1 = new Text();
-        text1.setTitle("The Rise of Artificial Intelligence");
-        text1.setContent("Artificial Intelligence is transforming industries...");
-        text1.setCategory(tech);
-
-        Text text2 = new Text();
-        text2.setTitle("The Solar System");
-        text2.setContent("The solar system consists of the Sun and planets...");
-        text2.setCategory(science);
-
-        Text text3 = new Text();
-        text3.setTitle("Ancient Civilizations");
-        text3.setContent("Ancient civilizations like Egypt and Mesopotamia...");
-        text3.setCategory(history);
-
-        textRepository.save(text1);
-        textRepository.save(text2);
-        textRepository.save(text3);
-
-        Question q1 = new Question();
-        q1.setText(text1);
-        q1.setQuestion("What is the main topic of the article?");
-        questionRepository.save(q1);
-
-        Option o1 = new Option();
-        o1.setQuestion(q1);
-        o1.setText("Artificial Intelligence");
-        o1.setCorrect(true);
-
-        Option o2 = new Option();
-        o2.setQuestion(q1);
-        o2.setText("Cooking Recipes");
-        o2.setCorrect(false);
-
-        Option o3 = new Option();
-        o3.setQuestion(q1);
-        o3.setText("Football History");
-        o3.setCorrect(false);
-
-        Option o4 = new Option();
-        o4.setQuestion(q1);
-        o4.setText("Travel Guide");
-        o4.setCorrect(false);
-
-        optionRepository.save(o1);
-        optionRepository.save(o2);
-        optionRepository.save(o3);
-        optionRepository.save(o4);
+        quizSeeds.forEach(seed -> addQuestion(text, seed));
     }
+
+    private void addQuestion(Text text, QuizSeed seed) {
+        Question question = new Question();
+        question.setText(text);
+        question.setQuestion(seed.questionText());
+        questionRepository.save(question);
+
+        Option optionA = new Option();
+        optionA.setQuestion(question);
+        optionA.setText(seed.optionA());
+        optionA.setCorrect("A".equals(seed.correctOption()));
+
+        Option optionB = new Option();
+        optionB.setQuestion(question);
+        optionB.setText(seed.optionB());
+        optionB.setCorrect("B".equals(seed.correctOption()));
+
+        Option optionC = new Option();
+        optionC.setQuestion(question);
+        optionC.setText(seed.optionC());
+        optionC.setCorrect("C".equals(seed.correctOption()));
+
+        Option optionD = new Option();
+        optionD.setQuestion(question);
+        optionD.setText(seed.optionD());
+        optionD.setCorrect("D".equals(seed.correctOption()));
+
+        optionRepository.saveAll(List.of(optionA, optionB, optionC, optionD));
+    }
+
+    private record QuizSeed(
+            String questionText,
+            String optionA,
+            String optionB,
+            String optionC,
+            String optionD,
+            String correctOption
+    ) {}
 }

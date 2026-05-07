@@ -9,7 +9,7 @@ public interface AuthService {
 
     record RegisterRequest(String email, String username, String password) {}
 
-    record LoginRequest(String email, String password) {}
+    record LoginRequest(String identifier, String password) {}
 
     record RegisteredUserSummary(String username, String email) {}
 

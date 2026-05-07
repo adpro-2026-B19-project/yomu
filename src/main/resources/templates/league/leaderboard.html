@@ -3,97 +3,111 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Yomu - Bronze Leaderboard</title>
-    <style>
-        :root{
-            --bg:#0F172A;
-            --panel:#020617;
-            --card:#1E293B;
-            --border:#334155;
-            --text:#E2E8F0;
-            --muted:#94A3B8;
-            --primary:#3B82F6;
-        }
-        *{box-sizing:border-box;}
-        body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
-        a{color:inherit;text-decoration:none;}
-        .container{width:min(1100px,92vw);margin:0 auto;}
-        header{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--border);}
-        .nav{display:flex;align-items:center;justify-content:space-between;padding:14px 0;gap:12px;flex-wrap:wrap;}
-        .brand{font-weight:800;}
-        .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-        .btn{
-            display:inline-flex;
-            padding:10px 14px;
-            border-radius:10px;
-            border:1px solid var(--border);
-            background:var(--card);
-            color:var(--text);
-            font-weight:700;
-            cursor:pointer;
-        }
-        .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff;}
-        .wrap{padding:28px 0 40px;display:grid;gap:18px;}
-        .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;}
-        .title{margin:0 0 8px;}
-        .muted{color:var(--muted);}
-        table{width:100%;border-collapse:collapse;}
-        th,td{padding:12px 10px;border-bottom:1px solid rgba(148,163,184,.18);text-align:left;}
-        th{font-size:13px;color:var(--muted);}
-        .rank{font-weight:800;width:50px;}
-        .score{font-weight:800;color:#93c5fd;}
-    </style>
+    <title>Yomu - Leaderboard</title>
+    <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header>
-    <div class="container nav">
-        <a class="brand" th:href="@{/}">Yomu</a>
-        <nav class="actions">
-            <span class="muted" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}"
-                  th:text="'Hello, ' + ${loggedInName}">Hello, user</span>
-            <a class="btn" th:href="@{/clans}">Clans</a>
-            <a class="btn" th:href="@{/profile}">Profile</a>
+<header class="site-header">
+    <div class="site-shell site-nav">
+        <a class="site-brand" th:href="@{/}">
+            <span class="site-brand-mark">Y</span>
+            <span>Yomu</span>
+        </a>
+        <nav class="nav-links">
+            <a class="nav-link" th:href="@{/texts}">Library</a>
+            <a class="nav-link" th:href="@{/clans}">Clans</a>
+            <a class="nav-link" th:href="@{/profile}">Profile</a>
+            <span class="user-pill" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}" th:text="${loggedInName}">reader</span>
             <form th:action="@{/auth/logout}" method="post" style="margin:0;">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <button type="submit" class="btn">Logout</button>
+                <button type="submit" class="button button-secondary">Log out</button>
             </form>
         </nav>
     </div>
 </header>
 
-<main class="container wrap">
-    <section class="card">
-        <h1 class="title">Bronze Clan Leaderboard</h1>
-        <p class="muted">Score formula (Milestone 50% Bronze): total sum of quiz score from clan members.</p>
+<main class="page-main">
+    <section class="panel surface-strong stack">
+        <div class="cluster" style="justify-content:space-between; align-items:start;">
+            <div class="stack" style="gap:10px;">
+                <span class="eyebrow">Season board</span>
+                <h1 class="page-title" th:text="${selectedTier} + ' leaderboard'">BRONZE leaderboard</h1>
+                <p class="page-lead" th:text="${tierFormula}">Bronze counts total quiz score from the active season.</p>
+            </div>
+            <form th:if="${adminCanEndSeason}" th:action="@{/admin/league/season/end}" method="post" style="margin:0;">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button class="button button-danger" type="submit">End current season</button>
+            </form>
+        </div>
 
-        <p class="muted" th:if="${#lists.isEmpty(entries)}">No clan data yet.</p>
-        <table th:unless="${#lists.isEmpty(entries)}">
-            <thead>
-            <tr>
-                <th class="rank">#</th>
-                <th>Clan</th>
-                <th>Tier</th>
-                <th>Members</th>
-                <th>Created By</th>
-                <th>Score</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr th:each="entry,iter : ${entries}">
-                <td class="rank" th:text="${iter.index + 1}">1</td>
-                <td>
-                    <a th:href="@{/clans/{id}(id=${entry.clanId})}" th:text="${entry.clanName}">Clan Name</a>
-                </td>
-                <td th:text="${entry.tier}">BRONZE</td>
-                <td th:text="${entry.memberCount}">0</td>
-                <td>
-                    <a th:href="@{/players/{userId}(userId=${entry.createdByUserId})}"
-                       th:text="${entry.createdByName}">creator</a>
-                </td>
-                <td class="score" th:text="${#numbers.formatDecimal(entry.score, 1, 2)}">0.00</td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="pill-nav">
+            <a th:each="tierOption : ${availableTiers}"
+               th:href="@{/leaderboard(tier=${tierOption.name()})}"
+               th:classappend="${tierOption.name() == selectedTier} ? ' active' : ''"
+               th:text="${tierOption.name()}">BRONZE</a>
+        </div>
+    </section>
+
+    <div class="alert success" th:if="${success != null}" style="margin-top:22px;">
+        <strong>Season updated.</strong>
+        <span th:text="${success}">Season updated.</span>
+    </div>
+    <div class="alert error" th:if="${error != null}" style="margin-top:22px;">
+        <strong>Action failed.</strong>
+        <span th:text="${error}">Something went wrong.</span>
+    </div>
+
+    <section class="section">
+        <div th:if="${#lists.isEmpty(entries)}" class="empty-state">
+            <strong>No clan data for this tier yet.</strong>
+            <p class="muted">Return after a few quizzes land in the current season.</p>
+        </div>
+
+        <div class="table-card" th:unless="${#lists.isEmpty(entries)}">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Clan</th>
+                        <th>Tier</th>
+                        <th>Members</th>
+                        <th>Created by</th>
+                        <th>Base score</th>
+                        <th>Final score</th>
+                        <th>Active modifiers</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="entry,iter : ${entries}">
+                        <td th:text="${iter.index + 1}">1</td>
+                        <td>
+                            <a th:href="@{/clans/{id}(id=${entry.clanId})}" th:text="${entry.clanName}">Clan name</a>
+                            <div class="caption" th:text="${entry.formulaDescription}">Tier formula</div>
+                        </td>
+                        <td><span class="chip primary" th:text="${entry.tier}">BRONZE</span></td>
+                        <td th:text="${entry.memberCount}">0</td>
+                        <td>
+                            <a th:href="@{/players/{userId}(userId=${entry.createdByUserId})}" th:text="${entry.createdByName}">creator</a>
+                        </td>
+                        <td th:text="${#numbers.formatDecimal(entry.baseScore, 1, 2)}">0.00</td>
+                        <td><strong style="color:var(--brand-teal);" th:text="${#numbers.formatDecimal(entry.score, 1, 2)}">0.00</strong></td>
+                        <td>
+                            <div class="tag-cloud" th:if="${!#lists.isEmpty(entry.activeModifiers)}">
+                                <span class="chip dark"
+                                      th:each="modifier : ${entry.activeModifiers}"
+                                      th:title="${modifier.description}"
+                                      th:text="${modifier.label + ' x' + #numbers.formatDecimal(modifier.multiplier, 1, 2)}">
+                                    Productivity Buff x1.20
+                                </span>
+                            </div>
+                            <span class="caption" th:if="${#lists.isEmpty(entry.activeModifiers)}">No modifier active</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </section>
 </main>
 </body>

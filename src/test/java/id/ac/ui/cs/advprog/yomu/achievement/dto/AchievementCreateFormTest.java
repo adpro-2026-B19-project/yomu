@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.yomu.achievement.dto;
 
+import id.ac.ui.cs.advprog.yomu.achievement.model.AchievementRequirementType;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -23,21 +24,36 @@ class AchievementCreateFormTest {
 
     @Test
     void validForm_noViolations() {
-        AchievementCreateForm form = new AchievementCreateForm("First Steps", "Complete your first reading");
+        AchievementCreateForm form = new AchievementCreateForm(
+                "First Steps",
+                "Complete your first reading",
+                AchievementRequirementType.READING_COUNT,
+                1
+        );
         Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
         assertThat(violations).isEmpty();
     }
 
     @Test
     void blankName_hasViolation() {
-        AchievementCreateForm form = new AchievementCreateForm("", "Complete your first reading");
+        AchievementCreateForm form = new AchievementCreateForm(
+                "",
+                "Complete your first reading",
+                AchievementRequirementType.READING_COUNT,
+                1
+        );
         Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("name"));
     }
 
     @Test
     void blankMilestone_hasViolation() {
-        AchievementCreateForm form = new AchievementCreateForm("First Steps", "");
+        AchievementCreateForm form = new AchievementCreateForm(
+                "First Steps",
+                "",
+                AchievementRequirementType.READING_COUNT,
+                1
+        );
         Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("milestone"));
     }
@@ -45,7 +61,12 @@ class AchievementCreateFormTest {
     @Test
     void nameTooLong_hasViolation() {
         String longName = "A".repeat(101);
-        AchievementCreateForm form = new AchievementCreateForm(longName, "Complete your first reading");
+        AchievementCreateForm form = new AchievementCreateForm(
+                longName,
+                "Complete your first reading",
+                AchievementRequirementType.READING_COUNT,
+                1
+        );
         Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("name"));
     }
@@ -53,8 +74,25 @@ class AchievementCreateFormTest {
     @Test
     void milestoneTooLong_hasViolation() {
         String longMilestone = "A".repeat(256);
-        AchievementCreateForm form = new AchievementCreateForm("First Steps", longMilestone);
+        AchievementCreateForm form = new AchievementCreateForm(
+                "First Steps",
+                longMilestone,
+                AchievementRequirementType.READING_COUNT,
+                1
+        );
         Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("milestone"));
+    }
+
+    @Test
+    void invalidTargetValue_hasViolation() {
+        AchievementCreateForm form = new AchievementCreateForm(
+                "First Steps",
+                "Complete your first reading",
+                AchievementRequirementType.READING_COUNT,
+                0
+        );
+        Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("targetValue"));
     }
 }

@@ -3,72 +3,68 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title th:text="${text.title}">Detail Bacaan</title>
-    <style>
-        :root{ --primary:#3B82F6; --accent:#F59E0B; --bg:#0F172A; --card:#1E293B; --border:#334155; --text:#E2E8F0; --muted:#94A3B8; --panel:#020617; --danger:#F87171; --success:#34D399; }
-        *{box-sizing:border-box;}
-        body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);color:var(--text);}
-        a{color:inherit;text-decoration:none;}
-
-        .container{width:min(800px,92vw);margin:0 auto;}
-        header{background:var(--panel);border-bottom:1px solid var(--border); padding: 14px 0;}
-        .nav{display:flex;align-items:center; gap: 14px;}
-
-        .btn{display:inline-flex;align-items:center;padding:8px 16px;border-radius:12px;border:1px solid var(--border);background:var(--card);color:var(--text);font-weight:700;font-size:14px;}
-        .btn:hover{background:var(--border);}
-
-        article { margin-top: 40px; }
-        .meta { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
-        .badge { padding: 4px 10px; background: rgba(245, 158, 11, 0.15); color: var(--accent); border-radius: 8px; font-size: 13px; font-weight: 700; }
-
-        h1 { font-size: 32px; line-height: 1.2; margin: 0 0 30px; }
-
-        .content-area { font-size: 18px; line-height: 1.8; color: #cbd5e1; white-space: pre-wrap; }
-
-        .quiz-lock { margin-top: 60px; padding: 30px; background: var(--card); border: 1px dashed var(--border); border-radius: 18px; text-align: center; }
-        .quiz-title { font-weight: 800; font-size: 18px; margin-bottom: 8px; display: block; }
-    </style>
+    <title th:text="${text.title}">Reading Detail</title>
+    <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-
-<header>
-    <div class="container nav">
-        <a class="btn" th:href="@{/texts}">&larr; Kembali</a>
-        <span style="font-weight: 700;">Yomu Reader</span>
+<header class="site-header">
+    <div class="site-shell site-nav">
+        <a class="site-brand" th:href="@{/}">
+            <span class="site-brand-mark">Y</span>
+            <span>Yomu</span>
+        </a>
+        <nav class="nav-links">
+            <a class="button button-secondary" th:href="@{/texts}">Back to library</a>
+            <a class="nav-link" th:href="@{/texts/history}">History</a>
+            <a class="nav-link" th:href="@{/leaderboard(tier='BRONZE')}">Leaderboard</a>
+        </nav>
     </div>
 </header>
 
-<main class="container">
-    <article>
-        <div class="meta">
-            <span class="badge" th:text="${text.category.name}">Teknologi</span>
-            <span style="color:var(--muted); font-size: 14px;">Oleh Admin</span>
+<main class="page-main">
+    <section class="panel surface-strong stack">
+        <div class="cluster">
+            <span class="chip primary" th:text="${text.category.name}">Category</span>
+            <span class="caption">Read fully before you open the quiz.</span>
         </div>
+        <h1 class="page-title" th:text="${text.title}">Reading title</h1>
+        <p class="page-lead">The quiz hides the text after it starts. Treat this page as your one clean read.</p>
+    </section>
 
-        <h1 th:text="${text.title}">Judul Artikel</h1>
-
-        <div class="content-area" th:text="${text.content}">
-            Isi konten akan muncul di sini...
-        </div>
-    </article>
-
-    <div th:if="${param.error != null}" style="margin-top: 20px; padding: 15px; background: rgba(248,113,113,0.15); color: var(--danger); border-radius: 12px; border: 1px solid var(--danger);">
-        <p style="margin:0;" th:text="${param.error}">Pesan error akan tampil di sini.</p>
+    <div th:if="${param.error != null}" class="alert error" style="margin-top:22px;">
+        <strong>Quiz unavailable.</strong>
+        <span th:text="${param.error}">Error message</span>
     </div>
 
-    <div class="quiz-lock" th:if="${not hasAttempted}">
-        <span class="quiz-title">Kuis Tersedia Setelah Membaca</span>
-        <p style="color: var(--muted); margin-bottom: 20px;">Teks akan disembunyikan saat kuis dimulai. Pastikan kamu sudah membaca dengan saksama.</p>
-        <a th:href="@{/texts/{id}/quiz(id=${text.id})}" class="btn" style="background:var(--primary);color:#fff;border:none;">Mulai Kuis Sekarang</a>
-    </div>
+    <section class="split-grid" style="grid-template-columns:1.45fr .75fr; margin-top:22px; align-items:start;">
+        <article class="panel">
+            <div style="white-space:pre-wrap; color:var(--body-strong); line-height:1.9; font-size:1.05rem;" th:text="${text.content}">
+                Text content...
+            </div>
+        </article>
 
-    <div class="quiz-lock" th:if="${hasAttempted}" style="border-color: var(--success); background: rgba(52, 211, 153, 0.05);">
-        <span class="quiz-title" style="color: var(--success);">Kuis Sudah Terselesaikan</span>
-        <span style="color: var(--muted);">Kamu sudah mengerjakan tes ini. Terus tingkatkan keahlianmu!</span>
-    </div>
-
-    <div style="height: 100px;"></div>
+        <aside class="stack">
+            <section class="panel">
+                <div class="section-head">
+                    <span class="eyebrow">Quiz</span>
+                    <h2 class="section-title" style="font-size:2rem;">Ready when you are.</h2>
+                </div>
+                <div class="stack" th:if="${not hasAttempted}">
+                    <p class="muted">Finish this read, then move straight to the quiz for the best result.</p>
+                    <a th:href="@{/texts/{id}/quiz(id=${text.id})}" class="button button-primary">Start quiz</a>
+                </div>
+                <div class="stack" th:if="${hasAttempted}">
+                    <span class="chip success">Quiz completed</span>
+                    <p class="muted">You have already finished this quiz. Check your history or continue with another text.</p>
+                    <a th:href="@{/texts/history}" class="button button-secondary">Open history</a>
+                </div>
+            </section>
+            <section class="panel surface-card">
+                <strong>Quick reminder</strong>
+                <p class="muted tiny" style="margin-top:10px;">Scores from the quiz affect achievement progress and your clan season.</p>
+            </section>
+        </aside>
+    </section>
 </main>
-
 </body>
 </html>

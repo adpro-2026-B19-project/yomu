@@ -10,7 +10,6 @@ import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,7 +22,6 @@ import java.util.UUID;
 
 @Controller
 @RequiredArgsConstructor
-@Slf4j
 @RequestMapping("/achievements")
 public class AchievementController {
 
@@ -31,7 +29,8 @@ public class AchievementController {
     private final DailyMissionService dailyMissionService;
     private final CurrentUserResolver currentUserResolver;
 
-    // Thymeleaf Page
+    // hymeleaf Page
+
     @GetMapping
     public String achievementListPage(Model model) {
         List<Achievement> achievements = achievementService.getAllAchievements();
@@ -43,12 +42,15 @@ public class AchievementController {
             currentUserResolver.resolveUser(auth).ifPresent(user -> {
                 model.addAttribute("todayMissions", dailyMissionService.getTodayMissions());
                 model.addAttribute("userProgress", dailyMissionService.getUserProgress(user.getId()));
+                model.addAttribute("userAchievements", achievementService.getAchievementsByUserId(user.getId()));
             });
         }
+
         return "achievement/ListAchievement";
     }
 
     // REST API
+
     @GetMapping("/api")
     @ResponseBody
     public ResponseEntity<List<Achievement>> getAllAchievements() {
@@ -63,36 +65,40 @@ public class AchievementController {
 
     @PostMapping("/api")
     @ResponseBody
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Achievement> createAchievement(@RequestBody @Valid AchievementCreateForm form) {
-        Achievement created = achievementService.createAchievement(form.getName(), form.getMilestone());
+        Achievement created = achievementService.createAchievement(
+                form.getName(),
+                form.getMilestone(),
+                form.getRequirementType(),
+                form.getTargetValue()
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    @PutMapping("/api/{id}")
+    @PutMapping("/api/{achievementId}")
     @ResponseBody
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<?> updateAchievement(@PathVariable Long id, @RequestBody AchievementCreateForm form) {
-        try {
-            Achievement updated = achievementService.updateAchievement(id, form.getName(), form.getMilestone());
-            return ResponseEntity.ok(updated);
-        } catch (IllegalArgumentException e) {
-            log.warn("Failed to update achievement id={}", id, e);
-            return ResponseEntity.badRequest().body("Input tidak valid");
-        }
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Achievement> updateAchievement(
+            @PathVariable Long achievementId,
+            @RequestBody @Valid AchievementCreateForm form
+    ) {
+        Achievement updated = achievementService.updateAchievement(
+                achievementId,
+                form.getName(),
+                form.getMilestone(),
+                form.getRequirementType(),
+                form.getTargetValue()
+        );
+        return ResponseEntity.ok(updated);
     }
 
-    @DeleteMapping("/api/{id}")
+    @DeleteMapping("/api/{achievementId}")
     @ResponseBody
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<?> deleteAchievement(@PathVariable Long id) {
-        try {
-            achievementService.deleteAchievement(id);
-            return ResponseEntity.ok().build();
-        } catch (IllegalArgumentException e) {
-            log.warn("Failed to delete achievement id={}", id, e);
-            return ResponseEntity.badRequest().body("Permintaan tidak valid");
-        }
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteAchievement(@PathVariable Long achievementId) {
+        achievementService.deleteAchievement(achievementId);
+        return ResponseEntity.ok("Achievement berhasil dihapus");
     }
 
     @PostMapping("/api/user/toggle-display/{achievementId}")
@@ -104,8 +110,7 @@ public class AchievementController {
                         achievementService.toggleDisplayAchievement(user.getId(), achievementId);
                         return ResponseEntity.ok("Status display berhasil diubah");
                     } catch (IllegalArgumentException e) {
-                        log.warn("Failed to toggle display for userId={} achievementId={}", user.getId(), achievementId, e);
-                        return ResponseEntity.badRequest().body("Permintaan tidak valid");
+                        return ResponseEntity.badRequest().body(e.getMessage());
                     }
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Harap login terlebih dahulu"));
@@ -113,9 +118,13 @@ public class AchievementController {
 
     @PostMapping("/api/daily-mission")
     @ResponseBody
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<String> createDailyMission(@RequestParam String title, @RequestParam int targetCount) {
-        dailyMissionService.createDailyMission(title, targetCount);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> createDailyMission(
+            @RequestParam String title,
+            @RequestParam int targetCount,
+            @RequestParam(defaultValue = "false") boolean primary
+    ) {
+        dailyMissionService.createDailyMission(title, targetCount, primary);
         return ResponseEntity.status(HttpStatus.CREATED).body("Misi Harian berhasil dibuat");
     }
 
@@ -123,38 +132,36 @@ public class AchievementController {
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseBody
     public ResponseEntity<String> handleDuplicate(IllegalArgumentException ex) {
-        log.warn("Illegal argument in achievement controller", ex);
-        return ResponseEntity.status(HttpStatus.CONFLICT).body("Permintaan tidak dapat diproses");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(ex.getMessage());
     }
 
     // EDIT MISI HARIAN
     @PutMapping("/api/daily-mission/{id}")
     @ResponseBody
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> updateDailyMission(
             @PathVariable Long id,
             @RequestParam String title,
-            @RequestParam int targetCount) {
+            @RequestParam int targetCount,
+            @RequestParam(defaultValue = "false") boolean primary) {
         try {
-            dailyMissionService.updateDailyMission(id, title, targetCount);
+            dailyMissionService.updateDailyMission(id, title, targetCount, primary);
             return ResponseEntity.ok("Misi Harian berhasil diperbarui");
         } catch (IllegalArgumentException e) {
-            log.warn("Failed to update daily mission id={}", id, e);
-            return ResponseEntity.badRequest().body("Input tidak valid.");
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
     // DELETE MISI HARIAN
     @DeleteMapping("/api/daily-mission/{id}")
     @ResponseBody
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteDailyMission(@PathVariable Long id) {
         try {
             dailyMissionService.deleteDailyMission(id);
             return ResponseEntity.ok("Misi Harian berhasil dihapus");
         } catch (IllegalArgumentException e) {
-            log.warn("Failed to delete daily mission id={}", id, e);
-            return ResponseEntity.badRequest().body("Permintaan tidak valid.");
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

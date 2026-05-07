@@ -1,29 +1,18 @@
 package id.ac.ui.cs.advprog.yomu.league.repository;
 
 import id.ac.ui.cs.advprog.yomu.league.model.ClanQuizScoreEvent;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
 public interface ClanQuizScoreEventRepository extends JpaRepository<ClanQuizScoreEvent, UUID> {
     boolean existsByEventId(UUID eventId);
 
-    @Query("""
-            select count(e) as completedQuizCount,
-                   coalesce(sum(e.score), 0) as totalScore,
-                   coalesce(avg(e.accuracy), 0) as averageAccuracy
-            from ClanQuizScoreEvent e
-            where e.userId = :userId
-            """)
-    Optional<UserQuizStats> summarizeByUserId(@Param("userId") UUID userId);
+    List<ClanQuizScoreEvent> findBySeasonIdAndClanIdIn(UUID seasonId, Collection<UUID> clanIds);
 
-    interface UserQuizStats {
-        long getCompletedQuizCount();
+    List<ClanQuizScoreEvent> findBySeasonIdAndClanId(UUID seasonId, UUID clanId);
 
-        double getTotalScore();
-
-        double getAverageAccuracy();
-    }
+    Optional<ClanQuizScoreEvent> findFirstBySeasonIdOrderByCompletedAtDesc(UUID seasonId);
 }

@@ -1,172 +1,319 @@
-<!-- templates/profile/index.html (Yomu dark theme, read-only, no appbar) -->
 <!doctype html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Yomu · Profile</title>
-
+    <title>Yomu - Profile</title>
+    <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
     <style>
-        :root{
-            --primary:#3B82F6;
-            --bg:#0F172A;
-            --card:#1E293B;
-            --border:#334155;
-            --text:#E2E8F0;
-            --muted:#94A3B8;
-            --panel:#020617;
+        .view-value {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            padding: 12px 14px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(229, 220, 200, 0.95);
+            background: rgba(255, 255, 255, 0.72);
+            color: var(--ink);
+            overflow-wrap: anywhere;
         }
 
-        *{ box-sizing:border-box; }
-
-        body{
-            margin:0;
-            font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-            background:var(--bg);
-            color:var(--text);
+        .edit-field {
+            display: none;
         }
 
-        .container{
-            width:min(900px,92vw);
-            margin:0 auto;
-            padding:40px 0;
+        .inline-phone {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: 190px 1fr;
         }
 
-        .card{
-            background:var(--card);
-            border:1px solid var(--border);
-            border-radius:16px;
-            padding:20px;
+        .inline-phone.edit-field {
+            display: none;
         }
 
-        .header{
-            display:flex;
-            align-items:center;
-            gap:16px;
-            margin-bottom:20px;
-            flex-wrap:wrap;
+        .edit-only {
+            display: none;
         }
 
-        .avatar{
-            width:80px;
-            height:80px;
-            border-radius:18px;
-            border:1px dashed var(--border);
-            background:var(--panel);
+        .profile-form.is-editing .view-only,
+        .profile-form.is-editing .view-value {
+            display: none;
         }
 
-        h1{
-            margin:0;
-            font-size:26px;
-            line-height:1.1;
+        .profile-form.is-editing .edit-field {
+            display: block;
         }
 
-        .muted{ color:var(--muted); }
-
-        table{
-            width:100%;
-            border-collapse:collapse;
-            margin-top:10px;
+        .profile-form.is-editing .inline-phone.edit-field {
+            display: grid;
         }
 
-        td{
-            padding:12px 0;
-            border-top:1px solid rgba(148,163,184,.15);
-            vertical-align:top;
+        .profile-form.is-editing .edit-only {
+            display: inline-flex;
         }
 
-        td:first-child{
-            color:var(--muted);
-            width:180px;
-            padding-right:14px;
+        .fade-out {
+            opacity: 0;
+            transform: translateY(-4px);
+            transition: opacity .25s ease, transform .25s ease;
         }
 
-        .footer{
-            margin-top:20px;
-            display:flex;
-            gap:10px;
-            flex-wrap:wrap;
-            align-items:center;
+        @media (max-width: 760px) {
+            .inline-phone,
+            .inline-phone.edit-field {
+                grid-template-columns: 1fr;
+            }
         }
-
-        .btn{
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            padding:10px 14px;
-            border-radius:12px;
-            border:1px solid var(--border);
-            background:var(--panel);
-            color:var(--text);
-            font-weight:800;
-            cursor:pointer;
-            text-decoration:none;
-        }
-
-        .btn.primary{
-            background:var(--primary);
-            border-color:var(--primary);
-            color:#fff;
-        }
-
-        .btn:hover{ filter:brightness(1.05); }
     </style>
 </head>
-
 <body>
-<main class="container">
-    <section class="card">
+<header class="site-header">
+    <div class="site-shell site-nav">
+        <a class="site-brand" th:href="@{/}">
+            <span class="site-brand-mark">Y</span>
+            <span>Yomu</span>
+        </a>
+        <nav class="nav-links">
+            <a class="nav-link" th:href="@{/texts}">Library</a>
+            <a class="nav-link" th:href="@{/achievements}">Achievements</a>
+            <a class="nav-link" th:href="@{/clans}">League</a>
+            <a class="nav-link" th:href="@{/leaderboard(tier='BRONZE')}">Leaderboard</a>
+            <span class="user-pill" th:if="${user != null}" th:text="${user.username}">username</span>
+            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button type="submit" class="button button-secondary">Log out</button>
+            </form>
+        </nav>
+    </div>
+</header>
 
-        <div class="header">
-            <div class="avatar" aria-label="Avatar placeholder"></div>
-
-            <div style="min-width:240px;">
-                <h1 th:text="${user?.displayName} ?: 'User'">User</h1>
-                <div class="muted">
-                    @<span th:text="${user?.username} ?: 'username'">username</span>
+<main class="page-main">
+    <section class="profile-layout">
+        <aside class="panel sidebar-card surface-strong">
+            <div class="profile-badge" aria-hidden="true" th:text="${user?.displayName != null and !#strings.isEmpty(user.displayName) ? #strings.substring(user.displayName, 0, 1) : 'Y'}">Y</div>
+            <div class="stack" style="gap:6px;">
+                <h1 class="section-title" style="font-size:2.4rem;" th:text="${user?.displayName} ?: 'User'">User</h1>
+                <p class="muted">@<span th:text="${user?.username} ?: 'username'">username</span></p>
+            </div>
+            <span class="chip primary" th:text="${user?.role} ?: 'USER'">USER</span>
+            <div class="info-list">
+                <div class="info-row">
+                    <strong>Public profile</strong>
+                    <p class="muted tiny">Displayed achievements and reading stats show up on your player page.</p>
+                </div>
+                <div class="info-row">
+                    <strong>Profile updates</strong>
+                    <p class="muted tiny">Edit your username, display name, and phone number from the form.</p>
                 </div>
             </div>
-
-            <div style="margin-left:auto; display:flex; gap:10px; flex-wrap:wrap;">
-                <span class="muted" style="align-self:center;">
-                    <strong th:text="${user?.role} ?: 'USER'">USER</strong>
-                </span>
+            <div class="form-actions">
+                <a class="button button-primary" th:href="@{/players/{userId}(userId=${user.id})}" th:if="${user != null}">Open public profile</a>
+                <a class="button button-secondary" th:href="@{/achievements}">View achievements</a>
             </div>
-        </div>
+        </aside>
 
-        <table>
-            <tr>
-                <td>Username</td>
-                <td th:text="${user?.username} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Display Name</td>
-                <td th:text="${user?.displayName} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Email</td>
-                <td th:text="${user?.email} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Phone Number</td>
-                <td th:text="${user?.phoneNumber} ?: '-'">-</td>
-            </tr>
-            <tr>
-                <td>Created At</td>
-                <td th:text="${user != null and user.createdAt != null ? #temporals.format(user.createdAt, 'dd-MM-yyyy') : '-'}">-</td>
-            </tr>
-        </table>
+        <section class="panel">
+            <div class="section-head">
+                <span class="eyebrow">Profile settings</span>
+                <h2 class="section-title">Keep your reader identity clear.</h2>
+                <p class="section-copy">This information is used across your account, public profile, and clan context.</p>
+            </div>
 
-        <div class="footer">
-            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
+            <div class="alert success" data-auto-dismiss="true" th:if="${success}">
+                <strong>Profile updated.</strong>
+                <span th:text="${success}">Profile updated successfully.</span>
+            </div>
+            <div class="alert error" data-auto-dismiss="true" th:if="${warning}">
+                <strong>Update failed.</strong>
+                <span th:text="${warning}">Error message.</span>
+            </div>
+
+            <form id="profile-form" class="profile-form stack" th:action="@{/profile}" method="post" th:object="${form}" th:attr="data-start-in-edit=${#fields.hasAnyErrors()}">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                <button class="btn" type="submit">Logout</button>
+
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="username">Username</label>
+                        <div class="view-value" th:text="*{username} ?: '-'">-</div>
+                        <input class="edit-field" id="username" type="text" autocomplete="username" th:field="*{username}" data-editable="true" />
+                        <div class="error-text" th:if="${#fields.hasErrors('username')}" th:errors="*{username}">Username error</div>
+                    </div>
+                    <div class="field">
+                        <label for="displayName">Display name</label>
+                        <div class="view-value" th:text="*{displayName} ?: '-'">-</div>
+                        <input class="edit-field" id="displayName" type="text" autocomplete="name" th:field="*{displayName}" data-editable="true" />
+                        <div class="error-text" th:if="${#fields.hasErrors('displayName')}" th:errors="*{displayName}">Display name error</div>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="email">Email</label>
+                        <div class="view-value" id="email-view" th:text="${user?.email} ?: '-'">-</div>
+                        <input class="edit-field" id="email" type="email" th:value="${user?.email}" readonly />
+                    </div>
+                    <div class="field">
+                        <label>Phone number</label>
+                        <div id="phone-view-value" class="view-value" th:text="${user?.phoneNumber} ?: '-'">-</div>
+                        <div class="inline-phone edit-field">
+                            <select id="phoneAreaCode" data-editable="true">
+                                <option value="1">+1</option>
+                                <option value="44">+44</option>
+                                <option value="62">+62</option>
+                                <option value="65">+65</option>
+                                <option value="81">+81</option>
+                                <option value="82">+82</option>
+                                <option value="86">+86</option>
+                                <option value="91">+91</option>
+                            </select>
+                            <input id="phoneLocalNumber" type="text" inputmode="numeric" autocomplete="tel-national" data-editable="true" />
+                        </div>
+                        <input id="phoneNumber" type="hidden" th:field="*{phoneNumber}" />
+                        <div class="error-text" th:if="${#fields.hasErrors('phoneNumber')}" th:errors="*{phoneNumber}">Phone number error</div>
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label>Created at</label>
+                    <div class="view-value" th:text="${user != null and user.createdAt != null ? #temporals.format(user.createdAt, 'dd-MM-yyyy') : '-'}">-</div>
+                </div>
+
+                <div class="form-actions">
+                    <button id="edit-profile-btn" class="button button-primary view-only" type="button">Edit Profile</button>
+                    <button id="save-profile-btn" class="button button-primary edit-only" type="submit">Save Profile</button>
+                    <button id="revert-profile-btn" class="button button-secondary edit-only" type="button">Revert Changes</button>
+                </div>
             </form>
-
-            <a class="btn primary" th:href="@{/}">Home</a>
-        </div>
-
+        </section>
     </section>
 </main>
+
+<script th:inline="javascript">
+    (function () {
+        const form = document.getElementById("profile-form");
+        if (!form) {
+            return;
+        }
+
+        const editButton = document.getElementById("edit-profile-btn");
+        const revertButton = document.getElementById("revert-profile-btn");
+        const editableFields = form.querySelectorAll("[data-editable='true']");
+        const areaCodeSelect = document.getElementById("phoneAreaCode");
+        const localPhoneInput = document.getElementById("phoneLocalNumber");
+        const fullPhoneInput = document.getElementById("phoneNumber");
+        const phoneDisplayValue = document.getElementById("phone-view-value");
+        const startInEditMode = form.dataset.startInEdit === "true";
+
+        const knownAreaCodes = ["1", "44", "62", "65", "81", "82", "86", "91"];
+
+        function setEditMode(enabled) {
+            form.classList.toggle("is-editing", enabled);
+            editableFields.forEach(function (field) {
+                field.disabled = !enabled;
+            });
+        }
+
+        function splitPhone(fullNumber) {
+            const digits = (fullNumber || "").replace(/\D/g, "");
+            if (!digits) {
+                return { areaCode: "62", localNumber: "" };
+            }
+
+            const sortedCodes = knownAreaCodes.slice().sort(function (a, b) {
+                return b.length - a.length;
+            });
+            const matchedCode = sortedCodes.find(function (code) {
+                return digits.startsWith(code);
+            });
+
+            if (!matchedCode) {
+                return { areaCode: "62", localNumber: digits };
+            }
+
+            return {
+                areaCode: matchedCode,
+                localNumber: digits.slice(matchedCode.length)
+            };
+        }
+
+        function syncCombinedPhoneValue() {
+            if (!fullPhoneInput) {
+                return;
+            }
+
+            const areaCode = areaCodeSelect ? areaCodeSelect.value.trim() : "";
+            const localNumber = localPhoneInput ? localPhoneInput.value.replace(/\D/g, "") : "";
+            fullPhoneInput.value = areaCode && localNumber ? areaCode + localNumber : "";
+            renderPhoneDisplayValue(areaCode, localNumber);
+        }
+
+        function renderPhoneDisplayValue(areaCode, localNumber) {
+            if (!phoneDisplayValue) {
+                return;
+            }
+
+            if (!areaCode || !localNumber) {
+                phoneDisplayValue.textContent = "-";
+                return;
+            }
+
+            phoneDisplayValue.textContent = "+" + areaCode + " " + localNumber;
+        }
+
+        const initialPhone = splitPhone(fullPhoneInput ? fullPhoneInput.value : "");
+        if (areaCodeSelect) {
+            areaCodeSelect.value = initialPhone.areaCode;
+            Array.from(areaCodeSelect.options).forEach(function (option) {
+                option.defaultSelected = option.value === initialPhone.areaCode;
+            });
+        }
+        if (localPhoneInput) {
+            localPhoneInput.value = initialPhone.localNumber;
+            localPhoneInput.defaultValue = initialPhone.localNumber;
+        }
+        syncCombinedPhoneValue();
+
+        setEditMode(startInEditMode);
+
+        if (editButton) {
+            editButton.addEventListener("click", function () {
+                setEditMode(true);
+            });
+        }
+
+        if (revertButton) {
+            revertButton.addEventListener("click", function () {
+                form.reset();
+                syncCombinedPhoneValue();
+                setEditMode(false);
+            });
+        }
+
+        if (areaCodeSelect) {
+            areaCodeSelect.addEventListener("change", syncCombinedPhoneValue);
+        }
+
+        if (localPhoneInput) {
+            localPhoneInput.addEventListener("input", function () {
+                localPhoneInput.value = localPhoneInput.value.replace(/\D/g, "");
+                syncCombinedPhoneValue();
+            });
+        }
+
+        form.addEventListener("submit", syncCombinedPhoneValue);
+
+        document.querySelectorAll("[data-auto-dismiss='true']").forEach(function (alertEl) {
+            setTimeout(function () {
+                alertEl.classList.add("fade-out");
+                setTimeout(function () {
+                    if (alertEl.parentNode) {
+                        alertEl.parentNode.removeChild(alertEl);
+                    }
+                }, 260);
+            }, 4200);
+        });
+    })();
+</script>
 </body>
 </html>

@@ -45,7 +45,8 @@ class AuthIntegrationTest {
         mockMvc.perform(get("/auth/register"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("auth/register"))
-                .andExpect(model().attributeExists("form"));
+                .andExpect(model().attributeExists("form"))
+                .andExpect(model().attributeExists("suggestedUsername"));
     }
 
     @Test
@@ -86,7 +87,7 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void registerShouldUseEmailLocalPartWhenUsernameBlank() throws Exception {
+    void registerShouldRejectBlankUsername() throws Exception {
         long before = authRepository.count();
 
         mockMvc.perform(post("/auth/register")
@@ -95,11 +96,11 @@ class AuthIntegrationTest {
                         .param("username", "   ")
                         .param("password", "NoraPassword1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/login"))
-                .andExpect(flash().attribute("registeredName", "nora"));
+                .andExpect(redirectedUrl("/auth/register"))
+                .andExpect(flash().attribute("warning", "Username is required"));
 
-        assertThat(authRepository.count()).isEqualTo(before + 1);
-        assertThat(authRepository.findByUsername("nora")).isPresent();
+        assertThat(authRepository.count()).isEqualTo(before);
+        assertThat(authRepository.findByUsername("nora")).isNotPresent();
     }
 
     @Test
@@ -113,7 +114,8 @@ class AuthIntegrationTest {
                         .param("username", "new-user")
                         .param("password", "ExistingPassword1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/register"));
+                .andExpect(redirectedUrl("/auth/register"))
+                .andExpect(flash().attribute("warning", "Email is already registered"));
 
         assertThat(authRepository.count()).isEqualTo(before);
     }
@@ -129,7 +131,8 @@ class AuthIntegrationTest {
                         .param("username", "existing-user")
                         .param("password", "NewPassword1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/register"));
+                .andExpect(redirectedUrl("/auth/register"))
+                .andExpect(flash().attribute("warning", "Username is already taken"));
 
         assertThat(authRepository.count()).isEqualTo(before);
     }
@@ -170,7 +173,7 @@ class AuthIntegrationTest {
     void loginShouldFailWhenEmailNotRegistered() throws Exception {
         mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", "ghost@example.com")
+                        .param("identifier", "ghost@example.com")
                         .param("password", "GhostPass1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login?error"));
@@ -183,7 +186,7 @@ class AuthIntegrationTest {
 
         mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", "alice@example.com")
+                        .param("identifier", "alice@example.com")
                         .param("password", "WrongPass1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/login?error"));
@@ -196,7 +199,7 @@ class AuthIntegrationTest {
 
         MvcResult loginResult = mockMvc.perform(post("/auth/login")
                         .with(csrf())
-                        .param("email", "alice@example.com")
+                        .param("identifier", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/profile"))
@@ -212,5 +215,31 @@ class AuthIntegrationTest {
                         org.hamcrest.Matchers.hasProperty("username", org.hamcrest.Matchers.is("alice"))))
                 .andExpect(model().attribute("user",
                         org.hamcrest.Matchers.hasProperty("email", org.hamcrest.Matchers.is("alice@example.com"))));
+    }
+
+    @Test
+    void loginShouldSucceedWithIdentifierFieldWhenIdentifierIsEmail() throws Exception {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword));
+
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("identifier", "alice@example.com")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"));
+    }
+
+    @Test
+    void loginShouldSucceedWithIdentifierFieldWhenIdentifierIsUsername() throws Exception {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        authRepository.save(new AuthUser("alice-user", "alice@example.com", null, "alice", hashedPassword));
+
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("identifier", "alice-user")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"));
     }
 }

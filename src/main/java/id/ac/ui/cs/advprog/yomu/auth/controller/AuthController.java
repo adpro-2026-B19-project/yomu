@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.yomu.auth.controller;
 import id.ac.ui.cs.advprog.yomu.auth.dto.LoginForm;
 import id.ac.ui.cs.advprog.yomu.auth.dto.RegisterForm;
 import id.ac.ui.cs.advprog.yomu.auth.service.AuthService;
+import id.ac.ui.cs.advprog.yomu.auth.service.UsernameSuggestionGenerator;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -19,13 +20,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final RegistrationErrorFieldMapper registrationErrorFieldMapper;
+    private final UsernameSuggestionGenerator usernameSuggestionGenerator;
 
     public AuthController(
             AuthService authService,
-            RegistrationErrorFieldMapper registrationErrorFieldMapper
+            RegistrationErrorFieldMapper registrationErrorFieldMapper,
+            UsernameSuggestionGenerator usernameSuggestionGenerator
     ) {
         this.authService = authService;
         this.registrationErrorFieldMapper = registrationErrorFieldMapper;
+        this.usernameSuggestionGenerator = usernameSuggestionGenerator;
     }
 
     @GetMapping
@@ -37,6 +41,9 @@ public class AuthController {
     public String registerPage(Model model) {
         if (!model.containsAttribute("form")) {
             model.addAttribute("form", new RegisterForm("", "", ""));
+        }
+        if (!model.containsAttribute("suggestedUsername")) {
+            model.addAttribute("suggestedUsername", usernameSuggestionGenerator.generateSuggestion());
         }
         return "auth/register";
     }

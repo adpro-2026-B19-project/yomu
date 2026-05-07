@@ -13,20 +13,25 @@ import org.springframework.stereotype.Service;
 public class AuthUserDetailsService implements UserDetailsService {
 
     private final AuthRepository authRepository;
+    private final AuthIdentifierValidator authIdentifierValidator;
 
-    public AuthUserDetailsService(AuthRepository authRepository) {
+    public AuthUserDetailsService(
+            AuthRepository authRepository,
+            AuthIdentifierValidator authIdentifierValidator
+    ) {
         this.authRepository = authRepository;
+        this.authIdentifierValidator = authIdentifierValidator;
     }
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        String normalizedEmail = email == null ? "" : email.trim();
-        AuthUser user = authRepository.findByEmail(normalizedEmail)
-                .orElseThrow(() -> new UsernameNotFoundException("Invalid email or password"));
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        String normalizedIdentifier = authIdentifierValidator.normalize(identifier);
+        AuthUser user = loadUserByIdentifier(normalizedIdentifier)
+                .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
 
         String password = user.getPassword();
         if (password == null || password.isBlank()) {
-            throw new UsernameNotFoundException("Invalid email or password");
+            throw new UsernameNotFoundException("Invalid credentials");
         }
 
         return new AuthenticatedUserPrincipal(
@@ -35,5 +40,16 @@ public class AuthUserDetailsService implements UserDetailsService {
                 password,
                 List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
         );
+    }
+
+    private java.util.Optional<AuthUser> loadUserByIdentifier(String normalizedIdentifier) {
+        AuthIdentifierValidator.IdentifierType identifierType = authIdentifierValidator.classify(normalizedIdentifier);
+        if (identifierType == AuthIdentifierValidator.IdentifierType.EMAIL) {
+            return authRepository.findByEmail(normalizedIdentifier);
+        }
+        if (identifierType == AuthIdentifierValidator.IdentifierType.USERNAME) {
+            return authRepository.findByUsername(normalizedIdentifier);
+        }
+        return java.util.Optional.empty();
     }
 }
