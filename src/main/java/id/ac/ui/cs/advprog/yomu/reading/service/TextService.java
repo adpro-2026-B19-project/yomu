@@ -115,6 +115,7 @@ public class TextService {
                 UUID.randomUUID(),
                 UUID.fromString(userId),
                 mapTextIdToEventId(textId),
+                textId,
                 score,
                 accuracy,
                 LocalDateTime.ofInstant(attempt.getTimestamp(), java.time.ZoneOffset.UTC)

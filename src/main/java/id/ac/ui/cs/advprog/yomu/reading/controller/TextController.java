@@ -1,5 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.reading.controller;
 
+import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
+import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import id.ac.ui.cs.advprog.yomu.reading.model.Question;
@@ -15,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/texts")
@@ -23,13 +27,16 @@ public class TextController {
     private final QuestionRepository questionRepository;
     private final TextService textService;
     private final CurrentUserResolver currentUserResolver;
+    private final AchievementService achievementService;
 
     public TextController(QuestionRepository questionRepository,
             TextService textService,
-            CurrentUserResolver currentUserResolver) {
+            CurrentUserResolver currentUserResolver,
+            AchievementService achievementService) {
         this.questionRepository = questionRepository;
         this.textService = textService;
         this.currentUserResolver = currentUserResolver;
+        this.achievementService = achievementService;
     }
 
     @GetMapping
@@ -103,13 +110,40 @@ public class TextController {
         AuthUser authUser = currentUserResolver.resolveUser(authentication).orElseThrow();
 
         try {
+            List<UserAchievement> achievementsBeforeQuiz = achievementService.getAchievementsByUserId(authUser.getId());
             QuizAttempt attempt = textService.submitQuiz(id, authUser.getId().toString(), formData);
+            List<UserAchievement> unlockedAchievements = achievementService.getAchievementsByUserId(authUser.getId());
+            Set<Long> unlockedBeforeIds = achievementsBeforeQuiz.stream()
+                    .map(userAchievement -> userAchievement.getAchievement().getId())
+                    .collect(Collectors.toSet());
+            List<UnlockedAchievementView> newlyUnlockedAchievements = unlockedAchievements.stream()
+                    .filter(userAchievement -> !unlockedBeforeIds.contains(userAchievement.getAchievement().getId()))
+                    .map(userAchievement -> new UnlockedAchievementView(
+                            userAchievement.getAchievement().getId(),
+                            userAchievement.getAchievement().getName(),
+                            userAchievement.getAchievement().getMilestone()
+                    ))
+                    .toList();
             model.addAttribute("attempt", attempt);
             model.addAttribute("textId", id);
+            model.addAttribute("newlyUnlockedAchievements", newlyUnlockedAchievements);
+            model.addAttribute(
+                    "newlyUnlockedAchievementNames",
+                    newlyUnlockedAchievements.stream()
+                            .map(UnlockedAchievementView::name)
+                            .collect(Collectors.joining(", "))
+            );
             return "reading/quiz-result";
         } catch (IllegalStateException e) {
             return "redirect:/texts/" + id + "?error=" + e.getMessage();
         }
+    }
+
+    private record UnlockedAchievementView(
+            Long id,
+            String name,
+            String milestone
+    ) {
     }
 
 }

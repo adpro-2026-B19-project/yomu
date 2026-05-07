@@ -7,6 +7,7 @@ public record QuizCompletedEvent(
         UUID eventId,
         UUID userId,
         UUID textId,
+        Long readingTextId,
         double score,
         double accuracy,
         LocalDateTime completedAt

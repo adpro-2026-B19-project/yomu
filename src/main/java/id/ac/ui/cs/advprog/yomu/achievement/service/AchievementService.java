@@ -11,9 +11,32 @@ import java.util.UUID;
 public interface AchievementService {
     List<Achievement> getAllAchievements();
     List<UserAchievement> getAchievementsByUserId(UUID userId);
+    List<AchievementDistribution> getAchievementDistribution();
+    List<AchievementProgress> getAchievementProgress(UUID userId);
     Achievement createAchievement(String name, String milestone, AchievementRequirementType requirementType, int targetValue);
     Achievement updateAchievement(Long id, String name, String milestone, AchievementRequirementType requirementType, int targetValue);
     void deleteAchievement(Long id);
     void toggleDisplayAchievement(UUID userId, Long achievementId);
-    void processQuizCompletion(UUID userId, LocalDateTime completedAt);
+    void processQuizCompletion(UUID userId, double score, LocalDateTime completedAt);
+
+    record AchievementDistribution(
+            Long achievementId,
+            String achievementName,
+            String milestone,
+            long unlockedUserCount
+    ) {
+    }
+
+    record AchievementProgress(
+            Long achievementId,
+            String achievementName,
+            String milestone,
+            AchievementRequirementType requirementType,
+            int targetValue,
+            double currentValue,
+            int progressPercent,
+            boolean unlocked,
+            boolean displayed
+    ) {
+    }
 }
