@@ -14,4 +14,4 @@ COPY --from=build /workspace/build/libs/*.jar /app/app.jar
 RUN mkdir -p /app/data
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -Dserver.port=${PORT:-8080} -jar /app/app.jar"]

@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.yomu.achievement.service;
 
+import id.ac.ui.cs.advprog.yomu.achievement.model.AchievementRequirementType;
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
 
@@ -9,7 +10,10 @@ import java.util.UUID;
 
 public interface AchievementService {
     List<Achievement> getAllAchievements();
-    Achievement createAchievement(String name, String milestone);
     List<UserAchievement> getAchievementsByUserId(UUID userId);
+    Achievement createAchievement(String name, String milestone, AchievementRequirementType requirementType, int targetValue);
+    Achievement updateAchievement(Long id, String name, String milestone, AchievementRequirementType requirementType, int targetValue);
+    void deleteAchievement(Long id);
+    void toggleDisplayAchievement(UUID userId, Long achievementId);
     void processQuizCompletion(UUID userId, LocalDateTime completedAt);
 }

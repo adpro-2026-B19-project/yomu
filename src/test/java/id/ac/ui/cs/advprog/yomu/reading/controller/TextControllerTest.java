@@ -8,8 +8,6 @@ import static org.mockito.Mockito.when;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
-import id.ac.ui.cs.advprog.yomu.reading.dto.CreateTextRequest;
-import id.ac.ui.cs.advprog.yomu.reading.model.Category;
 import id.ac.ui.cs.advprog.yomu.reading.model.Question;
 import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
@@ -86,59 +84,65 @@ class TextControllerTest {
     }
 
     @Test
-    void createTextFormShouldPopulateCategoriesAndFormObject() {
-        Category c = new Category();
-        c.setName("Science");
-        when(categoryRepository.findAll()).thenReturn(List.of(c));
-
-        ExtendedModelMap model = new ExtendedModelMap();
-        String view = textController.createTextForm(model);
-
-        assertThat(view).isEqualTo("reading/create-text");
-        assertThat(model.getAttribute("categories")).isEqualTo(List.of(c));
-        assertThat(model.getAttribute("createTextRequest")).isNotNull();
-    }
-
-    @Test
-    void createTextShouldThrowWhenCategoryNotFound() {
-        CreateTextRequest request = new CreateTextRequest();
-        request.setTitle("Title");
-        request.setContent("Content");
-        request.setCategoryId(10L);
-        when(categoryRepository.findById(10L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> textController.createText(request, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Kategori tidak ditemukan");
-    }
-
-    @Test
-    void createTextShouldDelegateToServiceAndRedirect() {
-        Category category = new Category();
-        category.setName("Tech");
-        setCategoryId(category, 1L);
-        CreateTextRequest request = new CreateTextRequest();
-        request.setTitle("Title");
-        request.setContent("Content");
-        request.setCategoryId(1L);
-
-        AuthUser authUser = new AuthUser("creator");
+    void getTextDetailShouldMarkAttemptedWhenAuthenticatedUserAlreadyAttempted() {
+        Text text = new Text();
+        AuthUser authUser = new AuthUser("reader");
         setUserId(authUser);
 
-        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(textService.getPublishedTextById(1L)).thenReturn(text);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 1L)).thenReturn(true);
 
-        String view = textController.createText(request, authentication);
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = textController.getTextDetail(1L, model, authentication);
 
-        assertThat(view).isEqualTo("redirect:/texts");
-        verify(textService).createText("Title", "Content", 1L, authUser.getId().toString());
+        assertThat(view).isEqualTo("reading/text-detail");
+        assertThat(model.getAttribute("hasAttempted")).isEqualTo(true);
+    }
+
+    @Test
+    void getTextDetailShouldNotMarkAttemptedWhenResolverReturnsEmpty() {
+        Text text = new Text();
+
+        when(textService.getPublishedTextById(1L)).thenReturn(text);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.empty());
+
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = textController.getTextDetail(1L, model, authentication);
+
+        assertThat(view).isEqualTo("reading/text-detail");
+        assertThat(model.getAttribute("hasAttempted")).isEqualTo(false);
     }
 
     @Test
     void startQuizShouldRedirectAnonymousUserToLogin() {
         String view = textController.startQuiz(1L, new ExtendedModelMap(), null);
         assertThat(view).isEqualTo("redirect:/auth/login");
+    }
+
+    @Test
+    void startQuizShouldRedirectUnauthenticatedUserToLogin() {
+        when(authentication.isAuthenticated()).thenReturn(false);
+
+        String view = textController.startQuiz(1L, new ExtendedModelMap(), authentication);
+
+        assertThat(view).isEqualTo("redirect:/auth/login");
+    }
+
+    @Test
+    void startQuizShouldRedirectWhenUserAlreadyAttempted() {
+        AuthUser authUser = new AuthUser("reader");
+        setUserId(authUser);
+
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 5L)).thenReturn(true);
+
+        String view = textController.startQuiz(5L, new ExtendedModelMap(), authentication);
+
+        assertThat(view).isEqualTo("redirect:/texts/5?error=already_attempted");
     }
 
     @Test
@@ -167,16 +171,6 @@ class TextControllerTest {
             java.lang.reflect.Field idField = AuthUser.class.getDeclaredField("id");
             idField.setAccessible(true);
             idField.set(authUser, UUID.randomUUID());
-        } catch (ReflectiveOperationException e) {
-            throw new AssertionError(e);
-        }
-    }
-
-    private void setCategoryId(Category category, Long id) {
-        try {
-            java.lang.reflect.Field idField = Category.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(category, id);
         } catch (ReflectiveOperationException e) {
             throw new AssertionError(e);
         }

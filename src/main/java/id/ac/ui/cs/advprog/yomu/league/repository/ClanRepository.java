@@ -32,13 +32,22 @@ public interface ClanRepository extends JpaRepository<Clan, UUID> {
     Optional<Clan> findByIdForDetail(UUID clanId);
 
     @Query("""
-            select c
+            select distinct c
             from Clan c
             join fetch c.tier
+            left join fetch c.members
             where c.tier.code = :tierCode
-            order by c.bronzeScore desc, c.createdAt asc
+            order by c.createdAt asc
             """)
-    List<Clan> findLeaderboardByTierCode(@Param("tierCode") TierCode tierCode);
+    List<Clan> findAllByTierCodeForLeaderboard(@Param("tierCode") TierCode tierCode);
+
+    @Query("""
+            select distinct c
+            from Clan c
+            join fetch c.tier
+            left join fetch c.members
+            """)
+    List<Clan> findAllWithTierAndMembers();
 
     @Modifying
     @Query("""
