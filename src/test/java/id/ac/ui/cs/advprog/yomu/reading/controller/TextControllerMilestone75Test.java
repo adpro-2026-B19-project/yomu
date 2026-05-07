@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.yomu.reading.controller;
 
+import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt;
@@ -34,6 +35,9 @@ class TextControllerMilestone75Test {
 
     @Mock
     private CurrentUserResolver currentUserResolver;
+
+    @Mock
+    private AchievementService achievementService;
 
     @Mock
     private Authentication authentication;
@@ -114,6 +118,7 @@ class TextControllerMilestone75Test {
 
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(achievementService.getAchievementsByUserId(authUser.getId())).thenReturn(List.of(), List.of());
         when(textService.submitQuiz(5L, authUser.getId().toString(), Map.of("question_1", "2")))
                 .thenReturn(attempt);
 
@@ -137,6 +142,7 @@ class TextControllerMilestone75Test {
 
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(achievementService.getAchievementsByUserId(authUser.getId())).thenReturn(List.of());
         when(textService.submitQuiz(5L, authUser.getId().toString(), Map.of("question_1", "2")))
                 .thenThrow(new IllegalStateException("User has already attempted this quiz."));
 
