@@ -84,9 +84,65 @@ class TextControllerTest {
     }
 
     @Test
+    void getTextDetailShouldMarkAttemptedWhenAuthenticatedUserAlreadyAttempted() {
+        Text text = new Text();
+        AuthUser authUser = new AuthUser("reader");
+        setUserId(authUser);
+
+        when(textService.getPublishedTextById(1L)).thenReturn(text);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 1L)).thenReturn(true);
+
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = textController.getTextDetail(1L, model, authentication);
+
+        assertThat(view).isEqualTo("reading/text-detail");
+        assertThat(model.getAttribute("hasAttempted")).isEqualTo(true);
+    }
+
+    @Test
+    void getTextDetailShouldNotMarkAttemptedWhenResolverReturnsEmpty() {
+        Text text = new Text();
+
+        when(textService.getPublishedTextById(1L)).thenReturn(text);
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.empty());
+
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = textController.getTextDetail(1L, model, authentication);
+
+        assertThat(view).isEqualTo("reading/text-detail");
+        assertThat(model.getAttribute("hasAttempted")).isEqualTo(false);
+    }
+
+    @Test
     void startQuizShouldRedirectAnonymousUserToLogin() {
         String view = textController.startQuiz(1L, new ExtendedModelMap(), null);
         assertThat(view).isEqualTo("redirect:/auth/login");
+    }
+
+    @Test
+    void startQuizShouldRedirectUnauthenticatedUserToLogin() {
+        when(authentication.isAuthenticated()).thenReturn(false);
+
+        String view = textController.startQuiz(1L, new ExtendedModelMap(), authentication);
+
+        assertThat(view).isEqualTo("redirect:/auth/login");
+    }
+
+    @Test
+    void startQuizShouldRedirectWhenUserAlreadyAttempted() {
+        AuthUser authUser = new AuthUser("reader");
+        setUserId(authUser);
+
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 5L)).thenReturn(true);
+
+        String view = textController.startQuiz(5L, new ExtendedModelMap(), authentication);
+
+        assertThat(view).isEqualTo("redirect:/texts/5?error=already_attempted");
     }
 
     @Test
