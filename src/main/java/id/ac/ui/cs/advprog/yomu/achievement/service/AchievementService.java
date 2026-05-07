@@ -13,4 +13,6 @@ public interface AchievementService {
     Achievement createAchievement(String name, String milestone);
     void toggleDisplayAchievement(UUID userId, Long achievementId);
     void processQuizCompletion(UUID userId, LocalDateTime completedAt);
+    Achievement updateAchievement(Long id, String name, String milestone);
+    void deleteAchievement(Long id);
 }

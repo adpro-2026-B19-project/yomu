@@ -96,4 +96,31 @@ public class AchievementServiceImpl implements AchievementService {
             } catch (NumberFormatException e) {}
         }
     }
+
+    @Override
+    @Transactional
+    public Achievement updateAchievement(Long id, String name, String milestone) {
+        Achievement achievement = achievementRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Achievement tidak ditemukan"));
+
+        if (!achievement.getName().equals(name) && achievementRepository.existsByName(name)) {
+            throw new IllegalArgumentException("Achievement dengan nama tersebut sudah ada");
+        }
+
+        achievement.setName(name);
+        achievement.setMilestone(milestone);
+        return achievementRepository.save(achievement);
+    }
+
+    @Override
+    @Transactional
+    public void deleteAchievement(Long id) {
+        Achievement achievement = achievementRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Achievement tidak ditemukan"));
+        List<UserAchievement> relatedUserAchievements = userAchievementRepository.findAll().stream()
+                .filter(ua -> ua.getAchievement().getId().equals(id))
+                .toList();
+        userAchievementRepository.deleteAll(relatedUserAchievements);
+        achievementRepository.delete(achievement);
+    }
 }

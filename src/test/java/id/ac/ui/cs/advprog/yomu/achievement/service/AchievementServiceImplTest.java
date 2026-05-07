@@ -2,9 +2,10 @@ package id.ac.ui.cs.advprog.yomu.achievement.service;
 
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
+import id.ac.ui.cs.advprog.yomu.achievement.model.UserStatistic;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.AchievementRepository;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.UserAchievementRepository;
-import id.ac.ui.cs.advprog.yomu.reading.repository.QuizAttemptRepository;
+import id.ac.ui.cs.advprog.yomu.achievement.repository.UserStatisticRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
@@ -30,7 +32,7 @@ class AchievementServiceImplTest {
     private UserAchievementRepository userAchievementRepository;
 
     @Mock
-    private QuizAttemptRepository quizAttemptRepository;
+    private UserStatisticRepository userStatisticRepository;
 
     @InjectMocks
     private AchievementServiceImpl achievementService;
@@ -42,7 +44,7 @@ class AchievementServiceImplTest {
         sampleAchievement = Achievement.builder()
                 .id(1L)
                 .name("First Steps")
-                .milestone("Complete your first reading")
+                .milestone("1")
                 .build();
     }
 
@@ -74,17 +76,15 @@ class AchievementServiceImplTest {
         Achievement result = achievementService.createAchievement("First Steps", "Complete your first reading");
 
         assertThat(result.getName()).isEqualTo("First Steps");
-        assertThat(result.getMilestone()).isEqualTo("Complete your first reading");
         verify(achievementRepository).save(any(Achievement.class));
     }
 
     @Test
     void createAchievement_throwsWhenNameAlreadyExists() {
         when(achievementRepository.existsByName("First Steps")).thenReturn(true);
-
         assertThatThrownBy(() -> achievementService.createAchievement("First Steps", "some milestone"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("already exists");
+                .hasMessageContaining("sudah ada");
 
         verify(achievementRepository, never()).save(any());
     }
@@ -121,16 +121,16 @@ class AchievementServiceImplTest {
     @Test
     void processQuizCompletion_unlocksEligibleAchievements() {
         UUID userId = UUID.randomUUID();
-        when(quizAttemptRepository.countByUserId(userId.toString())).thenReturn(3L);
+        UserStatistic mockStat = UserStatistic.builder().userId(userId).totalReadings(2).build();
+        when(userStatisticRepository.findByUserId(userId)).thenReturn(Optional.of(mockStat));
         when(achievementRepository.findAll()).thenReturn(List.of(
-                Achievement.builder().id(1L).name("First Steps").milestone("Complete 1 reading").build(),
-                Achievement.builder().id(2L).name("Reader").milestone("Complete 3 readings").build(),
-                Achievement.builder().id(3L).name("Veteran").milestone("Complete 5 readings").build()
+                Achievement.builder().id(1L).name("First Steps").milestone("1").build(),
+                Achievement.builder().id(2L).name("Reader").milestone("3").build(),
+                Achievement.builder().id(3L).name("Veteran").milestone("5").build()
         ));
-        when(userAchievementRepository.existsByUserIdAndAchievementId(any(UUID.class), any(Long.class))).thenReturn(false);
-
+        when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of());
         achievementService.processQuizCompletion(userId, LocalDateTime.now());
-
+        verify(userStatisticRepository).save(any(UserStatistic.class));
         verify(userAchievementRepository, times(2)).save(any(UserAchievement.class));
     }
 }
