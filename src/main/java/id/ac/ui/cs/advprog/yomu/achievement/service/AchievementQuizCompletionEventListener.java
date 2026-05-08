@@ -15,7 +15,7 @@ public class AchievementQuizCompletionEventListener {
 
     @EventListener
     public void handleQuizCompleted(QuizCompletedEvent event) {
-        dailyMissionService.incrementProgress(event.userId());
-        achievementService.processQuizCompletion(event.userId(), event.completedAt());
+        dailyMissionService.incrementProgress(event.userId(), event.readingTextId());
+        achievementService.processQuizCompletion(event.userId(), event.score(), event.completedAt());
     }
 }

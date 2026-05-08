@@ -5,8 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Yomu - Quiz Result</title>
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
+    <style>
+        .achievement-toast-wrap {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 999;
+            pointer-events: none;
+        }
+
+        .achievement-toast {
+            width: min(560px, calc(100vw - 32px));
+            display: grid;
+            grid-template-columns: 64px 1fr auto;
+            gap: 16px;
+            align-items: center;
+            padding: 18px 20px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+            border: 1px solid rgba(249, 115, 22, 0.25);
+            box-shadow: 0 22px 60px rgba(120, 53, 15, 0.18);
+            transform: translateY(-140%);
+            opacity: 0;
+            transition: transform 280ms ease, opacity 280ms ease;
+            pointer-events: auto;
+        }
+
+        .achievement-toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .achievement-toast.hide {
+            transform: translateY(-140%);
+            opacity: 0;
+        }
+
+        .achievement-toast-badge {
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            display: grid;
+            place-items: center;
+            background: radial-gradient(circle at top, #fbbf24, #f97316);
+            color: white;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.35);
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+        }
+
+        .achievement-toast-copy {
+            min-width: 0;
+        }
+
+        .achievement-toast-copy strong,
+        .achievement-toast-copy p {
+            display: block;
+        }
+
+        .achievement-toast-copy p {
+            margin: 4px 0 0;
+        }
+
+        .achievement-toast-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        @media (max-width: 640px) {
+            .achievement-toast {
+                grid-template-columns: 52px 1fr;
+            }
+
+            .achievement-toast-actions {
+                grid-column: 1 / -1;
+                justify-content: flex-end;
+            }
+
+            .achievement-toast-badge {
+                width: 52px;
+                height: 52px;
+                font-size: 24px;
+                border-radius: 16px;
+            }
+        }
+    </style>
 </head>
 <body>
+<div class="achievement-toast-wrap" th:if="${newlyUnlockedAchievements != null and !#lists.isEmpty(newlyUnlockedAchievements)}">
+    <section id="achievementToast" class="achievement-toast" aria-live="polite">
+        <div class="achievement-toast-badge">BADGE</div>
+        <div class="achievement-toast-copy">
+            <span class="eyebrow" style="margin-bottom:4px;">Achievement unlocked</span>
+            <strong th:if="${#lists.size(newlyUnlockedAchievements) == 1}">
+                Selamat! <span th:text="${newlyUnlockedAchievements[0].name}">First Steps</span> berhasil dibuka.
+            </strong>
+            <strong th:unless="${#lists.size(newlyUnlockedAchievements) == 1}">
+                Selamat! Kamu membuka <span th:text="${#lists.size(newlyUnlockedAchievements)}">2</span> achievement baru.
+            </strong>
+            <p class="muted" th:if="${#lists.size(newlyUnlockedAchievements) == 1}" th:text="${newlyUnlockedAchievements[0].milestone}">
+                Complete your first reading
+            </p>
+            <p class="muted" th:unless="${#lists.size(newlyUnlockedAchievements) == 1}" th:text="${newlyUnlockedAchievementNames}">
+                First Steps, Score Hunter
+            </p>
+        </div>
+        <div class="achievement-toast-actions">
+            <a th:href="@{/achievements}" class="button button-primary">Lihat</a>
+        </div>
+    </section>
+</div>
+
 <main class="result-shell">
     <section class="result-card">
         <span class="eyebrow" style="justify-self:center;">Quiz result</span>
@@ -25,5 +137,20 @@
         </div>
     </section>
 </main>
+<script>
+    (function () {
+        const toast = document.getElementById('achievementToast');
+        if (!toast) return;
+
+        window.requestAnimationFrame(() => {
+            toast.classList.add('show');
+        });
+
+        window.setTimeout(() => {
+            toast.classList.remove('show');
+            toast.classList.add('hide');
+        }, 5500);
+    })();
+</script>
 </body>
 </html>

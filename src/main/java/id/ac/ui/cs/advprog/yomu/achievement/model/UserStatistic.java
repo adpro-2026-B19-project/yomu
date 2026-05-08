@@ -23,4 +23,8 @@ public class UserStatistic {
     @Column(nullable = false)
     @Builder.Default
     private int totalReadings = 0;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private double totalScore = 0.0d;
 }

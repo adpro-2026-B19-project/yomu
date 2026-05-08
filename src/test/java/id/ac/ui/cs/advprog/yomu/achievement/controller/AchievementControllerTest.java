@@ -11,6 +11,7 @@ import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
 import id.ac.ui.cs.advprog.yomu.achievement.service.DailyMissionService;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
+import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +40,9 @@ class AchievementControllerTest {
     @Mock
     private CurrentUserResolver currentUserResolver;
 
+    @Mock
+    private CategoryRepository categoryRepository;
+
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
@@ -46,7 +50,7 @@ class AchievementControllerTest {
 
     @Test
     void achievementListPageShouldSetAchievementsAndLoggedInNameWhenAuthenticated() {
-        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver, categoryRepository);
         Achievement achievement = Achievement.builder()
                 .name("First Win")
                 .milestone("M1")
@@ -54,13 +58,14 @@ class AchievementControllerTest {
                 .targetValue(1)
                 .build();
         when(achievementService.getAllAchievements()).thenReturn(List.of(achievement));
+        when(categoryRepository.findAll()).thenReturn(List.of());
         AuthUser authUser = new AuthUser("user1");
         setUserId(authUser);
 
         Authentication auth = new TestingAuthenticationToken("user1", "pass", "ROLE_USER");
         SecurityContextHolder.getContext().setAuthentication(auth);
         when(currentUserResolver.resolveUser(auth)).thenReturn(Optional.of(authUser));
-        when(achievementService.getAchievementsByUserId(authUser.getId())).thenReturn(List.of());
+        when(achievementService.getAchievementProgress(authUser.getId())).thenReturn(List.of());
         when(dailyMissionService.getTodayMissions()).thenReturn(List.of());
         when(dailyMissionService.getUserProgress(authUser.getId())).thenReturn(List.of());
 
@@ -74,8 +79,9 @@ class AchievementControllerTest {
 
     @Test
     void achievementListPageShouldNotSetLoggedInNameWhenNotAuthenticated() {
-        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver, categoryRepository);
         when(achievementService.getAllAchievements()).thenReturn(List.of());
+        when(categoryRepository.findAll()).thenReturn(List.of());
         SecurityContextHolder.getContext().setAuthentication(null);
 
         ExtendedModelMap model = new ExtendedModelMap();
@@ -86,8 +92,9 @@ class AchievementControllerTest {
 
     @Test
     void achievementListPageShouldNotSetLoggedInNameForAnonymousUser() {
-        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver, categoryRepository);
         when(achievementService.getAllAchievements()).thenReturn(List.of());
+        when(categoryRepository.findAll()).thenReturn(List.of());
 
         SecurityContextHolder.getContext().setAuthentication(
                 new AnonymousAuthenticationToken("key", "anonymousUser", List.of(
@@ -103,7 +110,7 @@ class AchievementControllerTest {
 
     @Test
     void restEndpointsShouldReturnExpectedResponse() {
-        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver);
+        AchievementController controller = new AchievementController(achievementService, dailyMissionService, currentUserResolver, categoryRepository);
         UUID userId = UUID.randomUUID();
         Achievement achievement = Achievement.builder()
                 .name("A")
