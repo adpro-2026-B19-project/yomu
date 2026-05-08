@@ -173,6 +173,10 @@ public class AuthServiceImpl implements AuthService {
         }
 
         AuthUser user = userOptional.get();
+        if (!user.isActive()) {
+            return LoginResult.failureResult("invalid_credentials", "Invalid email/username or password");
+        }
+
         String storedPassword = user.getPassword();
         if (storedPassword == null || storedPassword.isBlank()) {
             return LoginResult.failureResult("invalid_credentials", "Invalid email/username or password");
@@ -188,10 +192,10 @@ public class AuthServiceImpl implements AuthService {
     private Optional<AuthUser> resolveLoginUser(String normalizedIdentifier) {
         AuthIdentifierValidator.IdentifierType identifierType = authIdentifierValidator.classify(normalizedIdentifier);
         if (identifierType == AuthIdentifierValidator.IdentifierType.EMAIL) {
-            return authRepository.findByEmail(normalizedIdentifier);
+            return authRepository.findByEmailAndActiveTrue(normalizedIdentifier);
         }
         if (identifierType == AuthIdentifierValidator.IdentifierType.USERNAME) {
-            return authRepository.findByUsername(normalizedIdentifier);
+            return authRepository.findByUsernameAndActiveTrue(normalizedIdentifier);
         }
         return Optional.empty();
     }

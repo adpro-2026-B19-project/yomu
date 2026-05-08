@@ -10,6 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -108,6 +109,122 @@ class ProfileIntegrationTest {
 
         AuthUser originalUser = authRepository.findByEmail("alice@example.com").orElseThrow();
         assertThat(originalUser.getUsername()).isEqualTo("alice");
+    }
+
+    @Test
+    void pelajarCanAccessDeleteConfirmationPage() throws Exception {
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        MvcResult loginResult = loginAs("alice@example.com", "CorrectPass1!");
+
+        mockMvc.perform(get("/profile/delete").session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false)))
+                .andExpect(status().isOk())
+                .andExpect(view().name("profile/delete"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Enter your password")));
+    }
+
+    @Test
+    void nonPelajarCannotAccessDeleteAction() throws Exception {
+        authRepository.save(new AuthUser("admin", "admin@example.com", null, "admin", passwordEncoder.encode("AdminPass1!"), AuthRole.ADMIN));
+        MvcResult loginResult = loginAs("admin@example.com", "AdminPass1!");
+
+        mockMvc.perform(get("/profile/delete")
+                        .session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false)))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/profile/delete")
+                        .session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("password", "AdminPass1!"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void wrongPasswordDoesNotDeleteAccount() throws Exception {
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        MvcResult loginResult = loginAs("alice@example.com", "CorrectPass1!");
+
+        mockMvc.perform(post("/profile/delete")
+                        .session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("password", "WrongPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile/delete"))
+                .andExpect(flash().attribute("warning", "Unable to delete account. Please check your password and try again."));
+
+        AuthUser user = authRepository.findByEmail("alice@example.com").orElseThrow();
+        assertThat(user.isActive()).isTrue();
+        assertThat(user.getDeletedAt()).isNull();
+    }
+
+    @Test
+    void correctPasswordDeletesAccountAndInvalidatesSession() throws Exception {
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        org.springframework.mock.web.MockHttpSession session =
+                (org.springframework.mock.web.MockHttpSession) loginAs("alice@example.com", "CorrectPass1!").getRequest().getSession(false);
+
+        mockMvc.perform(post("/profile/delete")
+                        .session(session)
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login?deleted"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Set-Cookie", org.hamcrest.Matchers.containsString("JSESSIONID")));
+
+        AuthUser user = authRepository.findByEmail("alice@example.com").orElseThrow();
+        assertThat(user.isActive()).isFalse();
+        assertThat(user.getDeletedAt()).isNotNull();
+
+        mockMvc.perform(get("/profile").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login"));
+    }
+
+    @Test
+    void deletedAccountCannotLogIn() throws Exception {
+        AuthUser user = new AuthUser("alice", "alice@example.com", null, "alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER);
+        user.deactivate();
+        authRepository.save(user);
+
+        mockMvc.perform(post("/auth/login")
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("identifier", "alice@example.com")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login?error"));
+    }
+
+    @Test
+    void postingProfileUpdateCannotModifyAnotherUserAccount() throws Exception {
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        authRepository.save(new AuthUser("bob", "bob@example.com", null, "bob", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        MvcResult aliceLogin = loginAs("alice@example.com", "CorrectPass1!");
+
+        mockMvc.perform(post("/profile")
+                        .session((org.springframework.mock.web.MockHttpSession) aliceLogin.getRequest().getSession(false))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("username", "alice-updated")
+                        .param("displayName", "Alice Updated")
+                        .param("phoneNumber", "628123456789"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"));
+
+        AuthUser bob = authRepository.findByEmail("bob@example.com").orElseThrow();
+        assertThat(bob.getUsername()).isEqualTo("bob");
+        assertThat(bob.getDisplayName()).isEqualTo("bob");
+        assertThat(bob.getPhoneNumber()).isNull();
+    }
+
+    @Test
+    void profileViewEscapesXssPayloadInDisplayName() throws Exception {
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "<script>alert(1)</script>", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        MvcResult loginResult = loginAs("alice@example.com", "CorrectPass1!");
+
+        mockMvc.perform(get("/profile")
+                        .session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("&lt;script&gt;alert(1)&lt;/script&gt;")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("<script>alert(1)</script>"))));
     }
 
     private MvcResult loginAs(String email, String password) throws Exception {

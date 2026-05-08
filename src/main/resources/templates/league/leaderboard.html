@@ -88,7 +88,7 @@
                         <td><span class="chip primary" th:text="${entry.tier}">BRONZE</span></td>
                         <td th:text="${entry.memberCount}">0</td>
                         <td>
-                            <a th:href="@{/players/{userId}(userId=${entry.createdByUserId})}" th:text="${entry.createdByName}">creator</a>
+                            <a th:href="@{/users/{userId}(userId=${entry.createdByUserId})}" th:text="${entry.createdByName}">creator</a>
                         </td>
                         <td th:text="${#numbers.formatDecimal(entry.baseScore, 1, 2)}">0.00</td>
                         <td><strong style="color:var(--brand-teal);" th:text="${#numbers.formatDecimal(entry.score, 1, 2)}">0.00</strong></td>

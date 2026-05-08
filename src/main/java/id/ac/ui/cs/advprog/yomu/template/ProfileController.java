@@ -3,10 +3,16 @@ package id.ac.ui.cs.advprog.yomu.template;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import id.ac.ui.cs.advprog.yomu.auth.service.ProfileService;
+import id.ac.ui.cs.advprog.yomu.template.dto.ProfileDeleteForm;
 import id.ac.ui.cs.advprog.yomu.template.dto.ProfileUpdateForm;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.Optional;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -53,6 +59,22 @@ public class ProfileController {
         return "profile/index";
     }
 
+    @PreAuthorize("hasRole('USER')")
+    @GetMapping("/profile/delete")
+    public String deleteAccountConfirmation(Model model, Authentication authentication) {
+        Optional<AuthUser> userOptional = currentUserResolver.resolveUser(authentication);
+        AuthUser user = userOptional.orElse(null);
+        if (user == null) {
+            return "redirect:/auth/login";
+        }
+        model.addAttribute("user", user);
+
+        if (!model.containsAttribute("form")) {
+            model.addAttribute("form", new ProfileDeleteForm(""));
+        }
+        return "profile/delete";
+    }
+
     @PostMapping("/profile")
     public String updateProfile(
             @Valid @ModelAttribute("form") ProfileUpdateForm form,
@@ -94,5 +116,49 @@ public class ProfileController {
         }
 
         return "redirect:/profile";
+    }
+
+    @PreAuthorize("hasRole('USER')")
+    @PostMapping("/profile/delete")
+    public String deleteOwnAccount(
+            @Valid @ModelAttribute("form") ProfileDeleteForm form,
+            BindingResult bindingResult,
+            Authentication authentication,
+            HttpServletRequest request,
+            HttpServletResponse response,
+            RedirectAttributes redirectAttributes
+    ) {
+        Optional<AuthUser> userOptional = currentUserResolver.resolveUser(authentication);
+        if (userOptional.isEmpty()) {
+            return "redirect:/auth/login";
+        }
+
+        if (bindingResult.hasErrors()) {
+            redirectAttributes.addFlashAttribute("org.springframework.validation.BindingResult.form", bindingResult);
+            redirectAttributes.addFlashAttribute("form", new ProfileDeleteForm(""));
+            redirectAttributes.addFlashAttribute("warning", "Unable to delete account. Please check your password and try again.");
+            return "redirect:/profile/delete";
+        }
+
+        AuthUser user = userOptional.get();
+        ProfileService.DeleteAccountResult result = profileService.deleteOwnAccount(
+                new ProfileService.DeleteAccountRequest(user.getId(), form.getPassword())
+        );
+
+        if (!result.success()) {
+            redirectAttributes.addFlashAttribute("form", new ProfileDeleteForm(""));
+            redirectAttributes.addFlashAttribute("warning", "Unable to delete account. Please check your password and try again.");
+            return "redirect:/profile/delete";
+        }
+
+        new SecurityContextLogoutHandler().logout(request, response, authentication);
+        Cookie cookie = new Cookie("JSESSIONID", "");
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        response.addCookie(cookie);
+
+        return "redirect:/auth/login?deleted";
     }
 }

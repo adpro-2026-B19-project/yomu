@@ -41,3 +41,8 @@ data/
 *.mv.db
 *.trace.db
 *.lock.db
+
+### Local env ###
+.env
+.env.*
+!.env.example

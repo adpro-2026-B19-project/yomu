@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
+import id.ac.ui.cs.advprog.yomu.auth.service.InMemoryRequestRateLimiter;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,11 +34,15 @@ class AuthIntegrationTest {
     @Autowired
     private AuthRepository authRepository;
 
+    @Autowired
+    private InMemoryRequestRateLimiter requestRateLimiter;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @BeforeEach
     void cleanDatabase() {
         authRepository.deleteAll();
+        requestRateLimiter.clearAll();
     }
 
     @Test
@@ -202,7 +207,7 @@ class AuthIntegrationTest {
                         .param("identifier", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/profile"))
+                .andExpect(redirectedUrl("/"))
                 .andExpect(request().sessionAttribute("SPRING_SECURITY_CONTEXT", org.hamcrest.Matchers.notNullValue()))
                 .andReturn();
 
@@ -227,7 +232,7 @@ class AuthIntegrationTest {
                         .param("identifier", "alice@example.com")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/profile"));
+                .andExpect(redirectedUrl("/"));
     }
 
     @Test
@@ -240,6 +245,84 @@ class AuthIntegrationTest {
                         .param("identifier", "alice-user")
                         .param("password", "CorrectPass1!"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/profile"));
+                .andExpect(redirectedUrl("/"));
+    }
+
+    @Test
+    void loginPageShouldIncludeSecurityHeaders() throws Exception {
+        mockMvc.perform(get("/auth/login"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("X-Content-Type-Options", "nosniff"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Referrer-Policy", "no-referrer"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header()
+                        .string("Content-Security-Policy", org.hamcrest.Matchers.containsString("default-src 'self'")));
+    }
+
+    @Test
+    void loginShouldRejectPostWithoutCsrfToken() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .param("identifier", "alice@example.com")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void registerShouldRejectPostWithoutCsrfToken() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                        .param("email", "demo@example.com")
+                        .param("username", "demo-user")
+                        .param("password", "SafePassword1!"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void repeatedFailedLoginAttemptsAreRateLimited() throws Exception {
+        String hashedPassword = passwordEncoder.encode("CorrectPass1!");
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword));
+
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/auth/login").with(csrf())
+                            .param("identifier", "alice@example.com")
+                            .param("password", "WrongPass" + i + "!"))
+                    .andExpect(status().is3xxRedirection())
+                    .andExpect(redirectedUrl("/auth/login?error"));
+        }
+
+        mockMvc.perform(post("/auth/login").with(csrf())
+                        .param("identifier", "alice@example.com")
+                        .param("password", "CorrectPass1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login?error"));
+    }
+
+    @Test
+    void repeatedRegisterAttemptsAreRateLimited() throws Exception {
+        for (int i = 0; i < 5; i++) {
+            mockMvc.perform(post("/auth/register").with(csrf())
+                            .param("email", "register" + i + "@missing.invalid")
+                            .param("username", "reg-user-" + i)
+                            .param("password", "SafePassword1!"))
+                    .andExpect(status().is3xxRedirection());
+        }
+
+        mockMvc.perform(post("/auth/register").with(csrf())
+                        .param("email", "register-blocked@missing.invalid")
+                        .param("username", "reg-user-blocked")
+                        .param("password", "SafePassword1!"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/register"))
+                .andExpect(flash().attribute("warning", "Unable to process registration right now. Please try again later."));
+    }
+
+    @Test
+    void loginInjectionPayloadDoesNotBypassAuthentication() throws Exception {
+        mockMvc.perform(post("/auth/login")
+                        .with(csrf())
+                        .param("identifier", "' OR '1'='1")
+                        .param("password", "' OR '1'='1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login?error"));
     }
 }

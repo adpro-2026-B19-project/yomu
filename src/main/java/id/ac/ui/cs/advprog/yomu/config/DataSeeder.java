@@ -13,11 +13,13 @@ import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Arrays;
 
 @Component
 @RequiredArgsConstructor
@@ -29,6 +31,7 @@ public class DataSeeder implements CommandLineRunner {
     private final OptionRepository optionRepository;
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
 
     @Override
     public void run(String... args) {
@@ -37,17 +40,35 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedAdminUser() {
-        if (authRepository.findByUsername("admin").isEmpty()) {
-            AuthUser admin = new AuthUser(
-                    "admin",
-                    "admin@yomu.com",
-                    null,
-                    "Administrator",
-                    passwordEncoder.encode("admin"),
-                    AuthRole.ADMIN
-            );
-            authRepository.save(admin);
+        if (isDockerProfileActive()) {
+            return;
         }
+
+        String adminUsername = "cat";
+        String adminEmail = "hasanul.muttaqin@ui.ac.id";
+        String adminDisplayName = "Hasanul Muttaqin";
+        String encodedPassword = passwordEncoder.encode("pass123");
+
+        List<AuthUser> conflictingUsers = authRepository
+                .findAllByEmailIgnoreCaseOrUsernameIgnoreCase(adminEmail, adminUsername);
+        if (!conflictingUsers.isEmpty()) {
+            authRepository.deleteAll(conflictingUsers);
+        }
+
+        AuthUser admin = new AuthUser(
+                adminUsername,
+                adminEmail,
+                null,
+                adminDisplayName,
+                encodedPassword,
+                AuthRole.ADMIN
+        );
+        authRepository.save(admin);
+    }
+
+    private boolean isDockerProfileActive() {
+        return Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(profile -> "docker".equalsIgnoreCase(profile));
     }
 
     private void seedReadingModule() {

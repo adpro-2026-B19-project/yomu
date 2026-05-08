@@ -60,6 +60,11 @@
                 <span>You have left your session safely.</span>
             </div>
 
+            <div class="alert success" data-auto-dismiss="true" th:if="${param.deleted}">
+                <strong>Account deleted.</strong>
+                <span>Your account has been deactivated successfully.</span>
+            </div>
+
             <form th:action="@{/auth/login}" method="post" th:object="${loginForm}" class="stack">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
@@ -80,6 +85,20 @@
                     <a class="button button-secondary" th:href="@{/auth/register}">Need an account?</a>
                 </div>
             </form>
+
+            <div class="surface-card stack" style="gap:10px;" th:if="${oauthProviders != null and !oauthProviders.isEmpty()}">
+                <strong>Or continue with OAuth</strong>
+                <div class="form-actions">
+                    <a
+                            class="button button-secondary"
+                            th:each="provider : ${oauthProviders}"
+                            th:href="@{|/oauth2/authorization/${provider}|}"
+                            th:text="|Continue with ${#strings.capitalize(provider)}|"
+                    >
+                        Continue with OAuth
+                    </a>
+                </div>
+            </div>
         </section>
     </section>
 </main>

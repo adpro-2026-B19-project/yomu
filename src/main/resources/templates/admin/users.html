@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Yomu - Admin User Management</title>
+    <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
+</head>
+<body>
+<header class="site-header">
+    <div class="site-shell site-nav">
+        <a class="site-brand" th:href="@{/}">
+            <span class="site-brand-mark">Y</span>
+            <span>Yomu Admin</span>
+        </a>
+        <nav class="nav-links">
+            <a th:href="@{/admin/texts}" class="button button-secondary">Text dashboard</a>
+            <a th:href="@{/texts}" class="button button-secondary">Library</a>
+        </nav>
+    </div>
+</header>
+
+<main class="page-main">
+    <section class="panel surface-strong">
+        <div class="section-head">
+            <span class="eyebrow">Admin dashboard</span>
+            <h1 class="page-title">Manage user accounts.</h1>
+            <p class="page-lead">Review account identity, role, status, and activation state.</p>
+        </div>
+    </section>
+
+    <div th:if="${success}" class="alert success" style="margin-top:22px;">
+        <strong>Action completed.</strong>
+        <span th:text="${success}">Account status updated.</span>
+    </div>
+    <div th:if="${warning}" class="alert error" style="margin-top:22px;">
+        <strong>Action failed.</strong>
+        <span th:text="${warning}">Unable to update account status.</span>
+    </div>
+
+    <section class="panel" style="margin-top:22px;">
+        <form method="get" th:action="@{/admin/users}" style="display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="field">
+                <label for="keyword">Search</label>
+                <input id="keyword" name="keyword" type="text" placeholder="name, username, email" th:value="${selectedKeyword}"/>
+            </div>
+            <div class="field">
+                <label for="role">Role</label>
+                <select id="role" name="role">
+                    <option value="">All roles</option>
+                    <option th:each="roleOption : ${roleOptions}"
+                            th:value="${roleOption.name()}"
+                            th:text="${roleOption.name()}"
+                            th:selected="${selectedRole != null and selectedRole.name() == roleOption.name()}">USER
+                    </option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="active">Status</label>
+                <select id="active" name="active">
+                    <option value="">All statuses</option>
+                    <option value="true" th:selected="${selectedActive != null and selectedActive}">ACTIVE</option>
+                    <option value="false" th:selected="${selectedActive != null and !selectedActive}">INACTIVE</option>
+                </select>
+            </div>
+            <input type="hidden" name="size" th:value="${size}"/>
+            <div class="form-actions" style="align-items:end;">
+                <button type="submit" class="button button-secondary">Apply filter</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="section">
+        <div class="table-card" th:if="${usersPage != null and !usersPage.isEmpty()}">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Display name</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Created at</th>
+                        <th>Action</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="user : ${usersPage.content}">
+                        <td>
+                            <a class="nav-link" th:href="@{/users/{userId}(userId=${user.id})}" th:text="${user.displayName}">Display Name</a>
+                        </td>
+                        <td>
+                            <a class="nav-link" th:href="@{/users/{userId}(userId=${user.id})}" th:text="${user.username}">username</a>
+                        </td>
+                        <td th:text="${user.email}">user@example.com</td>
+                        <td>
+                            <span class="chip primary" th:text="${user.role}">USER</span>
+                        </td>
+                        <td>
+                            <span th:if="${user.active}" class="chip success">ACTIVE</span>
+                            <span th:if="${!user.active}" class="chip warning">INACTIVE</span>
+                        </td>
+                        <td th:text="${user.createdAt != null ? #temporals.format(user.createdAt, 'dd-MM-yyyy HH:mm') : '-'}">-</td>
+                        <td class="table-actions">
+                            <form th:if="${user.role != null and user.role.name() == 'ADMIN'}" style="margin:0;">
+                                <span class="chip primary">Protected</span>
+                            </form>
+
+                            <form th:if="${user.role == null or user.role.name() != 'ADMIN'}"
+                                  th:action="@{/admin/users/{userId}/status(userId=${user.id})}" method="post" style="margin:0; display:grid; gap:8px;">
+                                <input type="hidden" name="active" th:value="${!user.active}"/>
+                                <input type="hidden" name="confirmation" value=""/>
+                                <input type="hidden" name="keyword" th:value="${selectedKeyword}"/>
+                                <input type="hidden" name="role" th:value="${selectedRole != null ? selectedRole.name() : ''}"/>
+                                <input type="hidden" name="status" th:value="${selectedActive != null ? selectedActive : ''}"/>
+                                <input type="hidden" name="page" th:value="${usersPage.number}"/>
+                                <input type="hidden" name="size" th:value="${usersPage.size}"/>
+
+                                <button type="submit"
+                                        th:class="${user.active} ? 'button button-danger' : 'button button-primary'"
+                                        th:text="${user.active} ? 'Deactivate' : 'Activate'">
+                                    Deactivate
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div th:if="${usersPage == null or usersPage.isEmpty()}" class="empty-state">
+            <strong>No user found for this filter.</strong>
+            <p class="muted">Try another search keyword or filter combination.</p>
+        </div>
+
+        <div class="form-actions" style="margin-top:18px;" th:if="${usersPage != null and usersPage.totalPages > 1}">
+            <a class="button button-secondary"
+               th:if="${usersPage.hasPrevious()}"
+               th:href="@{/admin/users(page=${usersPage.number - 1},size=${usersPage.size},keyword=${selectedKeyword},role=${selectedRole},active=${selectedActive})}">
+                Previous
+            </a>
+            <span class="chip primary" th:text="'Page ' + ${usersPage.number + 1} + ' / ' + ${usersPage.totalPages}">Page 1 / 1</span>
+            <a class="button button-secondary"
+               th:if="${usersPage.hasNext()}"
+               th:href="@{/admin/users(page=${usersPage.number + 1},size=${usersPage.size},keyword=${selectedKeyword},role=${selectedRole},active=${selectedActive})}">
+                Next
+            </a>
+        </div>
+    </section>
+</main>
+<script>
+    (function () {
+        document.querySelectorAll("form[action*='/admin/users/']").forEach(function (form) {
+            form.addEventListener("submit", function (event) {
+                const activeInput = form.querySelector("input[name='active']");
+                const confirmationInput = form.querySelector("input[name='confirmation']");
+                if (!activeInput || !confirmationInput) {
+                    return;
+                }
+
+                if (activeInput.value !== "false") {
+                    return;
+                }
+
+                const typed = window.prompt("Are you sure? Type DEACTIVATE to continue.", "");
+                if (typed === null) {
+                    event.preventDefault();
+                    return;
+                }
+
+                confirmationInput.value = typed.trim();
+                if (confirmationInput.value !== "DEACTIVATE") {
+                    event.preventDefault();
+                    window.alert("Deactivation cancelled. You must type DEACTIVATE exactly.");
+                }
+            });
+        });
+    })();
+</script>
+</body>
+</html>

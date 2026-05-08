@@ -23,11 +23,11 @@ public class CurrentUserResolverImpl implements CurrentUserResolver {
         }
 
         Object principal = authentication.getPrincipal();
-        if (principal instanceof AuthenticatedUserPrincipal userPrincipal) {
-            return authRepository.findByEmail(userPrincipal.getEmail())
-                    .or(() -> authRepository.findByUsername(userPrincipal.getUsername()));
+        if (principal instanceof AuthPrincipalIdentity principalIdentity) {
+            return authRepository.findByEmailAndActiveTrue(principalIdentity.getEmail())
+                    .or(() -> authRepository.findByUsernameAndActiveTrue(principalIdentity.getUsername()));
         }
-        return authRepository.findByUsername(authentication.getName());
+        return authRepository.findByUsernameAndActiveTrue(authentication.getName());
     }
 
     @Override
@@ -37,8 +37,8 @@ public class CurrentUserResolverImpl implements CurrentUserResolver {
         }
 
         Object principal = authentication.getPrincipal();
-        if (principal instanceof AuthenticatedUserPrincipal userPrincipal) {
-            return Optional.of(userPrincipal.getUsername());
+        if (principal instanceof AuthPrincipalIdentity principalIdentity) {
+            return Optional.of(principalIdentity.getUsername());
         }
         return Optional.ofNullable(authentication.getName());
     }

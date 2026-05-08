@@ -1,9 +1,11 @@
 package id.ac.ui.cs.advprog.yomu.auth.service;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -11,13 +13,16 @@ public class ProfileServiceImpl implements ProfileService {
 
     private final AuthRepository authRepository;
     private final UsernameUniquenessService usernameUniquenessService;
+    private final PasswordEncoder passwordEncoder;
 
     public ProfileServiceImpl(
             AuthRepository authRepository,
-            UsernameUniquenessService usernameUniquenessService
+            UsernameUniquenessService usernameUniquenessService,
+            PasswordEncoder passwordEncoder
     ) {
         this.authRepository = authRepository;
         this.usernameUniquenessService = usernameUniquenessService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -38,6 +43,32 @@ public class ProfileServiceImpl implements ProfileService {
         applyProfileChanges(user, normalizedUsername, updatedDisplayName, request.phoneNumber());
 
         return buildSuccessResult(user);
+    }
+
+    @Override
+    public DeleteAccountResult deleteOwnAccount(DeleteAccountRequest request) {
+        AuthUser user = resolveUser(request.userId());
+        if (user == null || !user.isActive()) {
+            return DeleteAccountResult.failureResult("user_not_found", "Account could not be deleted");
+        }
+
+        if (user.getRole() != AuthRole.USER) {
+            return DeleteAccountResult.failureResult("forbidden", "Account could not be deleted");
+        }
+
+        String normalizedPassword = normalize(request.password());
+        String storedPassword = user.getPassword();
+        if (normalizedPassword.isBlank() || storedPassword == null || storedPassword.isBlank()) {
+            return DeleteAccountResult.failureResult("invalid_credentials", "Invalid credentials");
+        }
+
+        if (!passwordEncoder.matches(normalizedPassword, storedPassword)) {
+            return DeleteAccountResult.failureResult("invalid_credentials", "Invalid credentials");
+        }
+
+        user.deactivate();
+        authRepository.save(user);
+        return DeleteAccountResult.successResult();
     }
 
     private AuthUser resolveUser(UUID userId) {

@@ -35,7 +35,7 @@
         <h1 class="page-title" th:text="${clan.name}">Clan Name</h1>
         <p class="page-lead">
             Created by
-            <a th:href="@{/players/{userId}(userId=${clan.createdByUserId})}" th:text="${clan.createdByName}">user</a>.
+            <a th:href="@{/users/{userId}(userId=${clan.createdByUserId})}" th:text="${clan.createdByName}">user</a>.
             Use this page to join, manage members, or review pending requests.
         </p>
 
@@ -89,7 +89,7 @@
                     <tbody>
                     <tr th:each="member : ${clan.members}">
                         <td>
-                            <a th:href="@{/players/{userId}(userId=${member.userId})}" th:text="${member.displayName}">User</a>
+                            <a th:href="@{/users/{userId}(userId=${member.userId})}" th:text="${member.displayName}">User</a>
                         </td>
                         <td><span class="chip dark" th:text="${member.role}">LEADER</span></td>
                     </tr>
@@ -116,7 +116,7 @@
                     <tbody>
                     <tr th:each="joinRequest : ${clan.pendingJoinRequests}">
                         <td>
-                            <a th:href="@{/players/{userId}(userId=${joinRequest.requesterUserId})}" th:text="${joinRequest.requesterDisplayName}">Requester</a>
+                            <a th:href="@{/users/{userId}(userId=${joinRequest.requesterUserId})}" th:text="${joinRequest.requesterDisplayName}">Requester</a>
                         </td>
                         <td th:text="${joinRequest.requestedAt != null ? #temporals.format(joinRequest.requestedAt, 'dd-MM-yyyy HH:mm') : '-'}">-</td>
                         <td class="table-actions">

@@ -273,6 +273,7 @@ class ClanControllerTest {
     @Test
     void publicProfilePageShouldRedirectWhenServiceThrows() {
         UUID userId = UUID.randomUUID();
+        when(currentUserResolver.resolveUser(userAuthentication)).thenReturn(Optional.empty());
         when(clanService.getPublicProfile(userId)).thenThrow(new IllegalArgumentException("User was not found"));
 
         RedirectAttributesModelMap flash = new RedirectAttributesModelMap();
@@ -285,6 +286,7 @@ class ClanControllerTest {
     @Test
     void publicProfilePageShouldRender() {
         UUID userId = UUID.randomUUID();
+        when(currentUserResolver.resolveUser(userAuthentication)).thenReturn(Optional.empty());
         when(clanService.getPublicProfile(userId)).thenReturn(new ClanService.PublicProfile(
                 userId,
                 "player",
@@ -305,6 +307,18 @@ class ClanControllerTest {
 
         assertThat(view).isEqualTo("league/public-profile");
         assertThat(model.getAttribute("publicProfile")).isNotNull();
+    }
+
+    @Test
+    void publicProfilePageShouldRedirectToOwnProfileWhenViewerMatchesTarget() {
+        UUID userId = UUID.randomUUID();
+        AuthUser viewer = createUser(userId, "player", "Player", AuthRole.USER);
+        when(currentUserResolver.resolveUser(userAuthentication)).thenReturn(Optional.of(viewer));
+
+        String view = controller.publicProfilePage(userId, new ExtendedModelMap(), new RedirectAttributesModelMap(), userAuthentication);
+
+        assertThat(view).isEqualTo("redirect:/profile");
+        verify(clanService, never()).getPublicProfile(any());
     }
 
     @Test

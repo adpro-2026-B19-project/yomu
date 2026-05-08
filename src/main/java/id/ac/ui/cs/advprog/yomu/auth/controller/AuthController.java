@@ -3,9 +3,16 @@ package id.ac.ui.cs.advprog.yomu.auth.controller;
 import id.ac.ui.cs.advprog.yomu.auth.dto.LoginForm;
 import id.ac.ui.cs.advprog.yomu.auth.dto.RegisterForm;
 import id.ac.ui.cs.advprog.yomu.auth.service.AuthService;
+import id.ac.ui.cs.advprog.yomu.auth.service.RegisterAttemptService;
 import id.ac.ui.cs.advprog.yomu.auth.service.UsernameSuggestionGenerator;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.stereotype.Controller;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,15 +28,21 @@ public class AuthController {
     private final AuthService authService;
     private final RegistrationErrorFieldMapper registrationErrorFieldMapper;
     private final UsernameSuggestionGenerator usernameSuggestionGenerator;
+    private final RegisterAttemptService registerAttemptService;
+    private final ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositoryProvider;
 
     public AuthController(
             AuthService authService,
             RegistrationErrorFieldMapper registrationErrorFieldMapper,
-            UsernameSuggestionGenerator usernameSuggestionGenerator
+            UsernameSuggestionGenerator usernameSuggestionGenerator,
+            RegisterAttemptService registerAttemptService,
+            ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositoryProvider
     ) {
         this.authService = authService;
         this.registrationErrorFieldMapper = registrationErrorFieldMapper;
         this.usernameSuggestionGenerator = usernameSuggestionGenerator;
+        this.registerAttemptService = registerAttemptService;
+        this.clientRegistrationRepositoryProvider = clientRegistrationRepositoryProvider;
     }
 
     @GetMapping
@@ -59,6 +72,9 @@ public class AuthController {
         if (!model.containsAttribute("registeredEmail")) {
             model.addAttribute("registeredEmail", "");
         }
+        if (!model.containsAttribute("oauthProviders")) {
+            model.addAttribute("oauthProviders", resolveOAuthProviders());
+        }
         return "auth/login";
     }
 
@@ -66,8 +82,16 @@ public class AuthController {
     public String register(
             @Valid @ModelAttribute("form") RegisterForm form,
             BindingResult bindingResult,
+            HttpServletRequest request,
             RedirectAttributes redirectAttributes
     ) {
+        if (registerAttemptService.isLimited(request)) {
+            redirectAttributes.addFlashAttribute("warning", "Unable to process registration right now. Please try again later.");
+            redirectAttributes.addFlashAttribute("form", new RegisterForm(form.getEmail(), form.getUsername(), ""));
+            return "redirect:/auth/register";
+        }
+        registerAttemptService.recordAttempt(request);
+
         AuthService.RegistrationResult registrationResult = null;
         if (!bindingResult.hasErrors()) {
             registrationResult = authService.registerUser(
@@ -98,5 +122,20 @@ public class AuthController {
         redirectAttributes.addFlashAttribute("registeredName", registeredUser.username());
         redirectAttributes.addFlashAttribute("registeredEmail", registeredUser.email());
         return "redirect:/auth/login";
+    }
+
+    private List<String> resolveOAuthProviders() {
+        ClientRegistrationRepository clientRegistrationRepository = clientRegistrationRepositoryProvider.getIfAvailable();
+        if (!(clientRegistrationRepository instanceof Iterable<?> registrations)) {
+            return List.of();
+        }
+
+        List<String> providerIds = new ArrayList<>();
+        for (Object registration : registrations) {
+            if (registration instanceof ClientRegistration clientRegistration) {
+                providerIds.add(clientRegistration.getRegistrationId());
+            }
+        }
+        return providerIds;
     }
 }

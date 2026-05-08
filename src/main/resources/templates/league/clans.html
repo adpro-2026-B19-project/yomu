@@ -94,7 +94,7 @@
                         <td><span class="chip primary" th:text="${clan.tier}">BRONZE</span></td>
                         <td th:text="${clan.memberCount}">1</td>
                         <td>
-                            <a th:href="@{/players/{userId}(userId=${clan.createdByUserId})}" th:text="${clan.createdByName}">creator</a>
+                            <a th:href="@{/users/{userId}(userId=${clan.createdByUserId})}" th:text="${clan.createdByName}">creator</a>
                         </td>
                         <td class="table-actions">
                             <a class="button button-primary" th:href="@{/clans/{id}(id=${clan.id})}">Open detail</a>

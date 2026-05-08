@@ -14,20 +14,29 @@ public class AuthUserDetailsService implements UserDetailsService {
 
     private final AuthRepository authRepository;
     private final AuthIdentifierValidator authIdentifierValidator;
+    private final LoginAttemptService loginAttemptService;
 
     public AuthUserDetailsService(
             AuthRepository authRepository,
-            AuthIdentifierValidator authIdentifierValidator
+            AuthIdentifierValidator authIdentifierValidator,
+            LoginAttemptService loginAttemptService
     ) {
         this.authRepository = authRepository;
         this.authIdentifierValidator = authIdentifierValidator;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
         String normalizedIdentifier = authIdentifierValidator.normalize(identifier);
+        if (loginAttemptService.isLimitedByIdentifier(normalizedIdentifier)) {
+            throw new UsernameNotFoundException("Invalid credentials");
+        }
         AuthUser user = loadUserByIdentifier(normalizedIdentifier)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
+        if (!user.isActive()) {
+            throw new UsernameNotFoundException("Invalid credentials");
+        }
 
         String password = user.getPassword();
         if (password == null || password.isBlank()) {
@@ -45,10 +54,10 @@ public class AuthUserDetailsService implements UserDetailsService {
     private java.util.Optional<AuthUser> loadUserByIdentifier(String normalizedIdentifier) {
         AuthIdentifierValidator.IdentifierType identifierType = authIdentifierValidator.classify(normalizedIdentifier);
         if (identifierType == AuthIdentifierValidator.IdentifierType.EMAIL) {
-            return authRepository.findByEmail(normalizedIdentifier);
+            return authRepository.findByEmailAndActiveTrue(normalizedIdentifier);
         }
         if (identifierType == AuthIdentifierValidator.IdentifierType.USERNAME) {
-            return authRepository.findByUsername(normalizedIdentifier);
+            return authRepository.findByUsernameAndActiveTrue(normalizedIdentifier);
         }
         return java.util.Optional.empty();
     }

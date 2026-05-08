@@ -41,6 +41,12 @@ public class AuthUser {
     @Column
     private String password;
 
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
+
+    @Column
+    private LocalDateTime deletedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private AuthRole role;
@@ -52,6 +58,7 @@ public class AuthUser {
         this.username = username;
         this.displayName = username;
         this.role = AuthRole.USER;
+        this.active = true;
     }
 
     public AuthUser(String username, String email, Long phoneNumber, String displayName, String password) {
@@ -65,12 +72,23 @@ public class AuthUser {
         this.displayName = displayName;
         this.password = password;
         this.role = role;
+        this.active = true;
     }
 
     public void updateProfile(String username, String displayName, Long phoneNumber) {
         this.username = username;
         this.displayName = displayName;
         this.phoneNumber = phoneNumber;
+    }
+
+    public void deactivate() {
+        this.active = false;
+        this.deletedAt = LocalDateTime.now();
+    }
+
+    public void activate() {
+        this.active = true;
+        this.deletedAt = null;
     }
 
     @PrePersist
@@ -80,6 +98,9 @@ public class AuthUser {
         }
         if (role == null) {
             role = AuthRole.USER;
+        }
+        if (!active && deletedAt == null) {
+            deletedAt = LocalDateTime.now();
         }
     }
 }

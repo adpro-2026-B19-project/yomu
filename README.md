@@ -3,18 +3,20 @@
 ## Local Development Workflow
 
 1. Install JDK 25.
-2. Run tests:
+2. Set environment variables:
+   - Optional: set `DB_PASSWORD`, `SESSION_TIMEOUT`, `H2_WEB_ALLOW_OTHERS`
+   - OAuth is disabled for now and should stay unset
+3. Run tests:
    - `./gradlew test`
-3. Run application:
+4. Run application:
    - `./gradlew run`
-4. Open app:
+5. Open app:
    - `http://localhost:8080`
 
 ## Docker Workflow
 
 1. Build and start:
-   - Set a database password:
-     - PowerShell: `$env:DB_PASSWORD="replace-with-strong-password"`
+   - Set a database password in `.env` (`DB_PASSWORD=...`)
    - `docker compose -f compose.yml up --build -d`
 2. See logs:
    - `docker compose -f compose.yml logs -f app`
