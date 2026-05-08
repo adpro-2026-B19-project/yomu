@@ -86,6 +86,11 @@ public class AuthUser {
         this.deletedAt = LocalDateTime.now();
     }
 
+    public void activate() {
+        this.active = true;
+        this.deletedAt = null;
+    }
+
     @PrePersist
     void prePersist() {
         if (createdAt == null) {
