@@ -194,6 +194,27 @@ class ProfileIntegrationTest {
                 .andExpect(redirectedUrl("/auth/login?error"));
     }
 
+    @Test
+    void postingProfileUpdateCannotModifyAnotherUserAccount() throws Exception {
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        authRepository.save(new AuthUser("bob", "bob@example.com", null, "bob", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        MvcResult aliceLogin = loginAs("alice@example.com", "CorrectPass1!");
+
+        mockMvc.perform(post("/profile")
+                        .session((org.springframework.mock.web.MockHttpSession) aliceLogin.getRequest().getSession(false))
+                        .with(SecurityMockMvcRequestPostProcessors.csrf())
+                        .param("username", "alice-updated")
+                        .param("displayName", "Alice Updated")
+                        .param("phoneNumber", "628123456789"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/profile"));
+
+        AuthUser bob = authRepository.findByEmail("bob@example.com").orElseThrow();
+        assertThat(bob.getUsername()).isEqualTo("bob");
+        assertThat(bob.getDisplayName()).isEqualTo("bob");
+        assertThat(bob.getPhoneNumber()).isNull();
+    }
+
     private MvcResult loginAs(String email, String password) throws Exception {
         return mockMvc.perform(post("/auth/login")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())

@@ -257,14 +257,34 @@ class ClanIntegrationTest {
                         )))
                 .andExpect(status().isAccepted());
 
-        mockMvc.perform(get("/players/" + learnerUser.getId()).session(leaderSession))
+        mockMvc.perform(get("/users/" + learnerUser.getId()).session(leaderSession))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Public Reading Stats")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString(learnerUser.getUsername())))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Geometry Guild")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Edit Profile"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Delete account"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("action=\"/profile\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("type=\"password\""))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("learner-3@example.com")
                 )));
+    }
+
+    @Test
+    void unauthenticatedUserCannotViewPublicProfileRouteByPolicy() throws Exception {
+        AuthUser viewer = authRepository.save(new AuthUser(
+                "viewer",
+                "viewer@example.com",
+                null,
+                "viewer",
+                passwordEncoder.encode("ViewerPass1!"),
+                AuthRole.USER
+        ));
+
+        mockMvc.perform(get("/users/" + viewer.getId()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/auth/login"));
     }
 
     @Test

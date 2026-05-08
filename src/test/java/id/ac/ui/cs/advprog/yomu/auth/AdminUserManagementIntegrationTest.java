@@ -57,13 +57,15 @@ class AdminUserManagementIntegrationTest {
     @Test
     void adminCanAccessAdminUsersPage() throws Exception {
         authRepository.save(new AuthUser("admin", "admin@example.com", null, "Admin", passwordEncoder.encode("AdminPass1!"), AuthRole.ADMIN));
+        AuthUser user = authRepository.save(new AuthUser("alice", "alice@example.com", null, "Alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
         MvcResult loginResult = loginAs("admin@example.com", "AdminPass1!");
 
         mockMvc.perform(get("/admin/users")
                         .session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false)))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("Manage user accounts")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("admin@example.com")));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("admin@example.com")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/users/" + user.getId())));
     }
 
     @Test

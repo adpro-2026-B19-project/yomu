@@ -87,8 +87,12 @@
                     </thead>
                     <tbody>
                     <tr th:each="user : ${usersPage.content}">
-                        <td th:text="${user.displayName}">Display Name</td>
-                        <td th:text="${user.username}">username</td>
+                        <td>
+                            <a class="nav-link" th:href="@{/users/{userId}(userId=${user.id})}" th:text="${user.displayName}">Display Name</a>
+                        </td>
+                        <td>
+                            <a class="nav-link" th:href="@{/users/{userId}(userId=${user.id})}" th:text="${user.username}">username</a>
+                        </td>
                         <td th:text="${user.email}">user@example.com</td>
                         <td>
                             <span class="chip primary" th:text="${user.role}">USER</span>

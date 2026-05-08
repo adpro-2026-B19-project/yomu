@@ -108,7 +108,7 @@
                 </div>
             </div>
             <div class="form-actions">
-                <a class="button button-primary" th:href="@{/players/{userId}(userId=${user.id})}" th:if="${user != null}">Open public profile</a>
+                <a class="button button-primary" th:href="@{/users/{userId}(userId=${user.id})}" th:if="${user != null}">Open public profile</a>
                 <a class="button button-secondary" th:href="@{/achievements}">View achievements</a>
                 <a class="button button-danger"
                    th:if="${user != null and user.role != null and user.role.name() == 'USER'}"
