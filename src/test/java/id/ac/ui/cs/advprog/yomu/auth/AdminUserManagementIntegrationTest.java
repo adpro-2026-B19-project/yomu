@@ -165,6 +165,21 @@ class AdminUserManagementIntegrationTest {
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/admin/users/" + admin.getId() + "/status"))));
     }
 
+    @Test
+    void searchWithSqlInjectionPayloadDoesNotBypassFilters() throws Exception {
+        authRepository.save(new AuthUser("admin", "admin@example.com", null, "Admin", passwordEncoder.encode("AdminPass1!"), AuthRole.ADMIN));
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "Alice", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        authRepository.save(new AuthUser("bob", "bob@example.com", null, "Bob", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        MvcResult loginResult = loginAs("admin@example.com", "AdminPass1!");
+
+        mockMvc.perform(get("/admin/users")
+                        .session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false))
+                        .param("keyword", "' OR '1'='1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("alice@example.com"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("bob@example.com"))));
+    }
+
     private MvcResult loginAs(String email, String password) throws Exception {
         return mockMvc.perform(post("/auth/login")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())

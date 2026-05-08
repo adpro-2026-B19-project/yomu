@@ -29,6 +29,9 @@ class AuthUserDetailsServiceTest {
     @Spy
     private AuthIdentifierValidator authIdentifierValidator = new AuthIdentifierValidator();
 
+    @Mock
+    private LoginAttemptService loginAttemptService;
+
     @InjectMocks
     private AuthUserDetailsService authUserDetailsService;
 

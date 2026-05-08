@@ -215,6 +215,18 @@ class ProfileIntegrationTest {
         assertThat(bob.getPhoneNumber()).isNull();
     }
 
+    @Test
+    void profileViewEscapesXssPayloadInDisplayName() throws Exception {
+        authRepository.save(new AuthUser("alice", "alice@example.com", null, "<script>alert(1)</script>", passwordEncoder.encode("CorrectPass1!"), AuthRole.USER));
+        MvcResult loginResult = loginAs("alice@example.com", "CorrectPass1!");
+
+        mockMvc.perform(get("/profile")
+                        .session((org.springframework.mock.web.MockHttpSession) loginResult.getRequest().getSession(false)))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("&lt;script&gt;alert(1)&lt;/script&gt;")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("<script>alert(1)</script>"))));
+    }
+
     private MvcResult loginAs(String email, String password) throws Exception {
         return mockMvc.perform(post("/auth/login")
                         .with(SecurityMockMvcRequestPostProcessors.csrf())

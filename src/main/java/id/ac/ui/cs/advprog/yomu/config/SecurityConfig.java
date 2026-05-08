@@ -8,6 +8,8 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,7 +23,10 @@ public class SecurityConfig {
             HttpSecurity http,
             @Value("${spring.h2.console.enabled:false}") boolean h2ConsoleEnabled,
             ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositoryProvider,
-            ObjectProvider<OAuth2LoginUserService> oauth2LoginUserServiceProvider
+            ObjectProvider<OAuth2LoginUserService> oauth2LoginUserServiceProvider,
+            LoginRateLimitFilter loginRateLimitFilter,
+            RateLimitedAuthenticationFailureHandler authenticationFailureHandler,
+            RateLimitedAuthenticationSuccessHandler authenticationSuccessHandler
     ) {
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -43,8 +48,8 @@ public class SecurityConfig {
                 .loginProcessingUrl("/auth/login")
                 .usernameParameter("identifier")
                 .passwordParameter("password")
-                .defaultSuccessUrl("/", true)
-                .failureUrl("/auth/login?error")
+                .successHandler(authenticationSuccessHandler)
+                .failureHandler(authenticationFailureHandler)
                 .permitAll()
         );
 
@@ -70,6 +75,22 @@ public class SecurityConfig {
             http.csrf(csrf -> csrf.ignoringRequestMatchers("/h2-console/**"));
             http.headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin));
         }
+
+        http.headers(headers -> headers
+                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                        "default-src 'self'; " +
+                        "script-src 'self' 'unsafe-inline'; " +
+                        "style-src 'self' 'unsafe-inline'; " +
+                        "img-src 'self' data:; " +
+                        "font-src 'self' data:; " +
+                        "object-src 'none'; " +
+                        "base-uri 'self'; " +
+                        "form-action 'self'"
+                ))
+                .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+        );
+
+        http.addFilterBefore(loginRateLimitFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
