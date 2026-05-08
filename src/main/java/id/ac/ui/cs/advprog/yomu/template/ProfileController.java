@@ -156,6 +156,7 @@ public class ProfileController {
         cookie.setPath("/");
         cookie.setMaxAge(0);
         cookie.setHttpOnly(true);
+        cookie.setSecure(true);
         response.addCookie(cookie);
 
         return "redirect:/auth/login?deleted";
