@@ -6,7 +6,11 @@ public interface ProfileService {
 
     UpdateProfileResult updateProfile(UpdateProfileRequest request);
 
+    DeleteAccountResult deleteOwnAccount(DeleteAccountRequest request);
+
     record UpdateProfileRequest(UUID userId, String username, String displayName, Long phoneNumber) {}
+
+    record DeleteAccountRequest(UUID userId, String password) {}
 
     record UpdatedProfileSummary(String username, String email, String displayName, Long phoneNumber) {}
 
@@ -22,6 +26,16 @@ public interface ProfileService {
 
         public static UpdateProfileResult failureResult(String errorCode, String errorMessage) {
             return new UpdateProfileResult(false, errorCode, errorMessage, null);
+        }
+    }
+
+    record DeleteAccountResult(boolean success, String errorCode, String errorMessage) {
+        public static DeleteAccountResult successResult() {
+            return new DeleteAccountResult(true, null, null);
+        }
+
+        public static DeleteAccountResult failureResult(String errorCode, String errorMessage) {
+            return new DeleteAccountResult(false, errorCode, errorMessage);
         }
     }
 }

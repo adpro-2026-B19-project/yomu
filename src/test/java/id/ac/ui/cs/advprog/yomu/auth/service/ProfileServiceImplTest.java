@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +29,9 @@ class ProfileServiceImplTest {
 
     @Mock
     private UsernameUniquenessService usernameUniquenessService;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private ProfileServiceImpl profileService;
@@ -166,5 +170,62 @@ class ProfileServiceImplTest {
         assertThat(result.success()).isTrue();
         assertThat(result.updatedProfile().displayName()).isEqualTo("Alice Current");
         assertThat(user.getDisplayName()).isEqualTo("Alice Current");
+    }
+
+    @Test
+    void deleteOwnAccountShouldDeactivateUserWhenRoleUserAndPasswordMatches() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = new AuthUser("alice", "alice@example.com", null, "Alice", "hashed-password", AuthRole.USER);
+        ReflectionTestUtils.setField(user, "id", userId);
+
+        when(authRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("CorrectPass1!", "hashed-password")).thenReturn(true);
+
+        ProfileService.DeleteAccountResult result = profileService.deleteOwnAccount(
+                new ProfileService.DeleteAccountRequest(userId, "CorrectPass1!")
+        );
+
+        assertThat(result.success()).isTrue();
+        assertThat(user.isActive()).isFalse();
+        assertThat(user.getDeletedAt()).isNotNull();
+        verify(authRepository).save(user);
+    }
+
+    @Test
+    void deleteOwnAccountShouldFailWhenPasswordWrong() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = new AuthUser("alice", "alice@example.com", null, "Alice", "hashed-password", AuthRole.USER);
+        ReflectionTestUtils.setField(user, "id", userId);
+
+        when(authRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("WrongPass1!", "hashed-password")).thenReturn(false);
+
+        ProfileService.DeleteAccountResult result = profileService.deleteOwnAccount(
+                new ProfileService.DeleteAccountRequest(userId, "WrongPass1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_credentials");
+        assertThat(user.isActive()).isTrue();
+        assertThat(user.getDeletedAt()).isNull();
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteOwnAccountShouldFailWhenRoleNotUser() {
+        UUID userId = UUID.randomUUID();
+        AuthUser user = new AuthUser("admin", "admin@example.com", null, "Admin", "hashed-password", AuthRole.ADMIN);
+        ReflectionTestUtils.setField(user, "id", userId);
+
+        when(authRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        ProfileService.DeleteAccountResult result = profileService.deleteOwnAccount(
+                new ProfileService.DeleteAccountRequest(userId, "AnyPass1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("forbidden");
+        assertThat(user.isActive()).isTrue();
+        verify(authRepository, never()).save(any());
     }
 }

@@ -193,7 +193,7 @@ class AuthServiceImplTest {
 
     @Test
     void loginUserShouldFailWhenEmailIsNotRegistered() {
-        when(authRepository.findByEmail("ghost@example.com")).thenReturn(Optional.empty());
+        when(authRepository.findByEmailAndActiveTrue("ghost@example.com")).thenReturn(Optional.empty());
 
         AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("ghost@example.com", "SecretPass1!"));
 
@@ -205,7 +205,7 @@ class AuthServiceImplTest {
     @Test
     void loginUserShouldFailWhenPasswordDoesNotMatch() {
         String hashedPassword = passwordEncoder.encode("CorrectPass1!");
-        when(authRepository.findByEmail("alice@example.com"))
+        when(authRepository.findByEmailAndActiveTrue("alice@example.com"))
                 .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword)));
 
         AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice@example.com", "WrongPass1!"));
@@ -218,7 +218,7 @@ class AuthServiceImplTest {
     @Test
     void loginUserShouldSucceedWhenCredentialsAreValid() {
         String hashedPassword = passwordEncoder.encode("CorrectPass1!");
-        when(authRepository.findByEmail("alice@example.com"))
+        when(authRepository.findByEmailAndActiveTrue("alice@example.com"))
                 .thenReturn(Optional.of(new AuthUser("alice", "alice@example.com", null, "alice", hashedPassword)));
 
         AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice@example.com", "CorrectPass1!"));
@@ -234,7 +234,7 @@ class AuthServiceImplTest {
     @Test
     void loginUserShouldSucceedWhenUsernameAndPasswordAreValid() {
         String hashedPassword = passwordEncoder.encode("CorrectPass1!");
-        when(authRepository.findByUsername("alice-user"))
+        when(authRepository.findByUsernameAndActiveTrue("alice-user"))
                 .thenReturn(Optional.of(new AuthUser("alice-user", "alice@example.com", null, "alice", hashedPassword)));
 
         AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice-user", "CorrectPass1!"));
@@ -245,6 +245,17 @@ class AuthServiceImplTest {
         assertThat(result.loggedInUser()).isNotNull();
         assertThat(result.loggedInUser().username()).isEqualTo("alice-user");
         assertThat(result.loggedInUser().email()).isEqualTo("alice@example.com");
-        verify(authRepository).findByUsername("alice-user");
+        verify(authRepository).findByUsernameAndActiveTrue("alice-user");
+    }
+
+    @Test
+    void loginUserShouldFailWhenAccountIsInactive() {
+        when(authRepository.findByEmailAndActiveTrue("alice@example.com")).thenReturn(Optional.empty());
+
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("alice@example.com", "CorrectPass1!"));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_credentials");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email/username or password");
     }
 }

@@ -28,6 +28,9 @@ public class AuthUserDetailsService implements UserDetailsService {
         String normalizedIdentifier = authIdentifierValidator.normalize(identifier);
         AuthUser user = loadUserByIdentifier(normalizedIdentifier)
                 .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
+        if (!user.isActive()) {
+            throw new UsernameNotFoundException("Invalid credentials");
+        }
 
         String password = user.getPassword();
         if (password == null || password.isBlank()) {
@@ -45,10 +48,10 @@ public class AuthUserDetailsService implements UserDetailsService {
     private java.util.Optional<AuthUser> loadUserByIdentifier(String normalizedIdentifier) {
         AuthIdentifierValidator.IdentifierType identifierType = authIdentifierValidator.classify(normalizedIdentifier);
         if (identifierType == AuthIdentifierValidator.IdentifierType.EMAIL) {
-            return authRepository.findByEmail(normalizedIdentifier);
+            return authRepository.findByEmailAndActiveTrue(normalizedIdentifier);
         }
         if (identifierType == AuthIdentifierValidator.IdentifierType.USERNAME) {
-            return authRepository.findByUsername(normalizedIdentifier);
+            return authRepository.findByUsernameAndActiveTrue(normalizedIdentifier);
         }
         return java.util.Optional.empty();
     }

@@ -35,26 +35,26 @@ class AuthUserDetailsServiceTest {
     @Test
     void loadUserByUsernameShouldLookupByEmailWhenIdentifierIsEmail() {
         String hashedPassword = "$2a$10$testHash";
-        when(authRepository.findByEmail("reader@example.com"))
+        when(authRepository.findByEmailAndActiveTrue("reader@example.com"))
                 .thenReturn(Optional.of(new AuthUser("reader", "reader@example.com", null, "reader", hashedPassword)));
 
         UserDetails userDetails = authUserDetailsService.loadUserByUsername("reader@example.com");
 
         assertThat(userDetails.getUsername()).isEqualTo("reader");
-        verify(authRepository).findByEmail("reader@example.com");
+        verify(authRepository).findByEmailAndActiveTrue("reader@example.com");
         verify(authRepository, never()).findByUsername(anyString());
     }
 
     @Test
     void loadUserByUsernameShouldLookupByUsernameWhenIdentifierIsUsername() {
         String hashedPassword = "$2a$10$testHash";
-        when(authRepository.findByUsername("reader_name-01"))
+        when(authRepository.findByUsernameAndActiveTrue("reader_name-01"))
                 .thenReturn(Optional.of(new AuthUser("reader_name-01", "reader@example.com", null, "reader", hashedPassword)));
 
         UserDetails userDetails = authUserDetailsService.loadUserByUsername("reader_name-01");
 
         assertThat(userDetails.getUsername()).isEqualTo("reader_name-01");
-        verify(authRepository).findByUsername("reader_name-01");
+        verify(authRepository).findByUsernameAndActiveTrue("reader_name-01");
         verify(authRepository, never()).findByEmail(anyString());
     }
 

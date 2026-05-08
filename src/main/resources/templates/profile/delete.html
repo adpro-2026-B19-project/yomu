@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Yomu - Delete account</title>
+    <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
+</head>
+<body>
+<header class="site-header">
+    <div class="site-shell site-nav">
+        <a class="site-brand" th:href="@{/}">
+            <span class="site-brand-mark">Y</span>
+            <span>Yomu</span>
+        </a>
+        <nav class="nav-links">
+            <a class="nav-link" th:href="@{/profile}">Back to profile</a>
+            <span class="user-pill" th:if="${user != null}" th:text="${user.username}">username</span>
+            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+                <button type="submit" class="button button-secondary">Log out</button>
+            </form>
+        </nav>
+    </div>
+</header>
+
+<main class="page-main">
+    <section class="split-grid" style="align-items:start;">
+        <article class="panel surface-strong stack">
+            <span class="eyebrow">Account action</span>
+            <h1 class="section-title">Delete your account</h1>
+            <p class="section-copy">This action deactivates your account and signs you out immediately.</p>
+            <div class="surface-card stack" style="gap:10px;">
+                <strong>Before you continue</strong>
+                <p class="muted tiny">You will not be able to sign in again with this account after deletion.</p>
+            </div>
+        </article>
+
+        <section class="panel stack">
+            <div class="section-head">
+                <span class="eyebrow">Confirm deletion</span>
+                <h2 class="section-title">Enter your password</h2>
+                <p class="section-copy">For security, confirm your password to proceed.</p>
+            </div>
+
+            <div class="alert error" data-auto-dismiss="true" th:if="${warning}">
+                <strong>Deletion failed.</strong>
+                <span th:text="${warning}">Unable to delete account.</span>
+            </div>
+
+            <form class="stack" th:action="@{/profile/delete}" method="post" th:object="${form}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input id="password" type="password" autocomplete="current-password" th:field="*{password}" required />
+                    <div class="error-text" th:if="${#fields.hasErrors('password')}" th:errors="*{password}">Password error</div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="button button-danger">Delete account</button>
+                    <a class="button button-secondary" th:href="@{/profile}">Cancel</a>
+                </div>
+            </form>
+        </section>
+    </section>
+</main>
+
+<script>
+    document.querySelectorAll("[data-auto-dismiss='true']").forEach(function (alertEl) {
+        setTimeout(function () {
+            alertEl.style.transition = "opacity .25s ease";
+            alertEl.style.opacity = "0";
+            setTimeout(function () {
+                if (alertEl.parentNode) {
+                    alertEl.parentNode.removeChild(alertEl);
+                }
+            }, 260);
+        }, 4200);
+    });
+</script>
+</body>
+</html>

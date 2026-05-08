@@ -16,6 +16,7 @@ class AuthUserTest {
 
         assertThat(user.getCreatedAt()).isNotNull();
         assertThat(user.getRole()).isEqualTo(AuthRole.USER);
+        assertThat(user.isActive()).isTrue();
     }
 
     @Test
@@ -37,5 +38,15 @@ class AuthUserTest {
         user.prePersist();
 
         assertThat(user.getRole()).isEqualTo(AuthRole.USER);
+    }
+
+    @Test
+    void deactivateShouldSetUserInactiveAndDeletedAt() {
+        AuthUser user = new AuthUser("alice");
+
+        user.deactivate();
+
+        assertThat(user.isActive()).isFalse();
+        assertThat(user.getDeletedAt()).isNotNull();
     }
 }

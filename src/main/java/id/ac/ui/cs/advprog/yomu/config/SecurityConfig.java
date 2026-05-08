@@ -1,11 +1,14 @@
 package id.ac.ui.cs.advprog.yomu.config;
 
+import id.ac.ui.cs.advprog.yomu.auth.service.OAuth2LoginUserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -16,7 +19,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            @Value("${spring.h2.console.enabled:false}") boolean h2ConsoleEnabled
+            @Value("${spring.h2.console.enabled:false}") boolean h2ConsoleEnabled,
+            ObjectProvider<ClientRegistrationRepository> clientRegistrationRepositoryProvider,
+            ObjectProvider<OAuth2LoginUserService> oauth2LoginUserServiceProvider
     ) {
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -42,6 +47,17 @@ public class SecurityConfig {
                 .failureUrl("/auth/login?error")
                 .permitAll()
         );
+
+        OAuth2LoginUserService oauth2LoginUserService = oauth2LoginUserServiceProvider.getIfAvailable();
+        if (clientRegistrationRepositoryProvider.getIfAvailable() != null && oauth2LoginUserService != null) {
+            http.oauth2Login(oauth2 -> oauth2
+                    .loginPage("/auth/login")
+                    .userInfoEndpoint(userInfo -> userInfo.userService(oauth2LoginUserService))
+                    .defaultSuccessUrl("/", true)
+                    .failureUrl("/auth/login?error")
+            );
+        }
+
         http.logout(logout -> logout
                 .logoutUrl("/auth/logout")
                 .logoutSuccessUrl("/auth/login?logout")
