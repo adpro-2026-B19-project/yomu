@@ -35,6 +35,48 @@ public class AchievementServiceImpl implements AchievementService {
     }
 
     @Override
+    public List<AchievementDistribution> getAchievementDistribution() {
+        return achievementRepository.findAll().stream()
+                .map(achievement -> new AchievementDistribution(
+                        achievement.getId(),
+                        achievement.getName(),
+                        achievement.getMilestone(),
+                        userAchievementRepository.countByAchievement_Id(achievement.getId())
+                ))
+                .toList();
+    }
+
+    @Override
+    public List<AchievementProgress> getAchievementProgress(UUID userId) {
+        UserStatistic statistic = userStatisticRepository.findByUserId(userId)
+                .orElse(UserStatistic.builder().userId(userId).totalReadings(0).totalScore(0.0d).build());
+        List<UserAchievement> unlockedAchievements = userAchievementRepository.findByUserId(userId);
+
+        return achievementRepository.findAll().stream()
+                .map(achievement -> {
+                    Optional<UserAchievement> unlocked = unlockedAchievements.stream()
+                            .filter(userAchievement -> userAchievement.getAchievement().getId().equals(achievement.getId()))
+                            .findFirst();
+                    double currentValue = getCurrentValue(achievement.getRequirementType(), statistic);
+                    int progressPercent = achievement.getTargetValue() <= 0
+                            ? 0
+                            : (int) Math.min(100, Math.floor((currentValue / achievement.getTargetValue()) * 100));
+                    return new AchievementProgress(
+                            achievement.getId(),
+                            achievement.getName(),
+                            achievement.getMilestone(),
+                            achievement.getRequirementType(),
+                            achievement.getTargetValue(),
+                            currentValue,
+                            progressPercent,
+                            unlocked.isPresent(),
+                            unlocked.map(UserAchievement::isDisplayed).orElse(false)
+                    );
+                })
+                .toList();
+    }
+
+    @Override
     @Transactional
     public Achievement createAchievement(
             String name,
@@ -102,14 +144,16 @@ public class AchievementServiceImpl implements AchievementService {
 
     @Override
     @Transactional
-    public void processQuizCompletion(UUID userId, LocalDateTime completedAt) {
+    public void processQuizCompletion(UUID userId, double score, LocalDateTime completedAt) {
         UserStatistic stat = userStatisticRepository.findByUserId(userId)
-                .orElse(UserStatistic.builder().userId(userId).totalReadings(0).build());
+                .orElse(UserStatistic.builder().userId(userId).totalReadings(0).totalScore(0.0d).build());
 
         stat.setTotalReadings(stat.getTotalReadings() + 1);
+        stat.setTotalScore(stat.getTotalScore() + Math.max(0.0d, score));
         userStatisticRepository.save(stat);
 
         int totalUserReading = stat.getTotalReadings();
+        double totalUserScore = stat.getTotalScore();
 
         List<Achievement> allAchievements = achievementRepository.findAll();
         List<UserAchievement> userAchievements = userAchievementRepository.findByUserId(userId);
@@ -119,8 +163,12 @@ public class AchievementServiceImpl implements AchievementService {
                 .toList();
 
         for (Achievement ach : unobtainedAchievements) {
-            if (ach.getRequirementType() == AchievementRequirementType.READING_COUNT
-                    && totalUserReading >= ach.getTargetValue()) {
+            boolean unlockedByReading = ach.getRequirementType() == AchievementRequirementType.READING_COUNT
+                    && totalUserReading >= ach.getTargetValue();
+            boolean unlockedByScore = ach.getRequirementType() == AchievementRequirementType.TOTAL_SCORE
+                    && totalUserScore >= ach.getTargetValue();
+            if ((unlockedByReading || unlockedByScore)
+                    && !userAchievementRepository.existsByUserIdAndAchievementId(userId, ach.getId())) {
                 UserAchievement newUa = UserAchievement.builder()
                         .userId(userId)
                         .achievement(ach)
@@ -169,5 +217,12 @@ public class AchievementServiceImpl implements AchievementService {
             throw new IllegalArgumentException("Target achievement harus lebih besar dari nol");
         }
         return targetValue;
+    }
+
+    private double getCurrentValue(AchievementRequirementType requirementType, UserStatistic statistic) {
+        return switch (requirementType) {
+            case TOTAL_SCORE -> statistic.getTotalScore();
+            case READING_COUNT -> statistic.getTotalReadings();
+        };
     }
 }

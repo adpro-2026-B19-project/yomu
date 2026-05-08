@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.yomu.achievement.service;
 import id.ac.ui.cs.advprog.yomu.achievement.model.Achievement;
 import id.ac.ui.cs.advprog.yomu.achievement.model.AchievementRequirementType;
 import id.ac.ui.cs.advprog.yomu.achievement.model.UserAchievement;
+import id.ac.ui.cs.advprog.yomu.achievement.model.UserStatistic;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.AchievementRepository;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.UserAchievementRepository;
 import id.ac.ui.cs.advprog.yomu.achievement.repository.UserStatisticRepository;
@@ -134,18 +135,77 @@ class AchievementServiceImplTest {
     }
 
     @Test
+    void getAchievementDistribution_returnsUnlockCountsForEachAchievement() {
+        Achievement secondAchievement = Achievement.builder()
+                .id(2L)
+                .name("Reader")
+                .milestone("Complete 3 readings")
+                .requirementType(AchievementRequirementType.READING_COUNT)
+                .targetValue(3)
+                .build();
+        when(achievementRepository.findAll()).thenReturn(List.of(sampleAchievement, secondAchievement));
+        when(userAchievementRepository.countByAchievement_Id(1L)).thenReturn(5L);
+        when(userAchievementRepository.countByAchievement_Id(2L)).thenReturn(2L);
+
+        List<AchievementService.AchievementDistribution> result = achievementService.getAchievementDistribution();
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).achievementName()).isEqualTo("First Steps");
+        assertThat(result.get(0).unlockedUserCount()).isEqualTo(5L);
+        assertThat(result.get(1).achievementName()).isEqualTo("Reader");
+        assertThat(result.get(1).unlockedUserCount()).isEqualTo(2L);
+    }
+
+    @Test
+    void getAchievementProgress_returnsProgressForReadingAndScoreBasedAchievements() {
+        UUID userId = UUID.randomUUID();
+        UserStatistic statistic = UserStatistic.builder()
+                .userId(userId)
+                .totalReadings(2)
+                .totalScore(150.0d)
+                .build();
+        Achievement readingAchievement = Achievement.builder()
+                .id(1L)
+                .name("Reader")
+                .milestone("Complete 3 readings")
+                .requirementType(AchievementRequirementType.READING_COUNT)
+                .targetValue(3)
+                .build();
+        Achievement scoreAchievement = Achievement.builder()
+                .id(2L)
+                .name("Scorer")
+                .milestone("Reach 200 total score")
+                .requirementType(AchievementRequirementType.TOTAL_SCORE)
+                .targetValue(200)
+                .build();
+        when(userStatisticRepository.findByUserId(userId)).thenReturn(java.util.Optional.of(statistic));
+        when(achievementRepository.findAll()).thenReturn(List.of(readingAchievement, scoreAchievement));
+        when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of());
+
+        List<AchievementService.AchievementProgress> progress = achievementService.getAchievementProgress(userId);
+
+        assertThat(progress).hasSize(2);
+        assertThat(progress.get(0).currentValue()).isEqualTo(2.0d);
+        assertThat(progress.get(0).progressPercent()).isEqualTo(66);
+        assertThat(progress.get(1).currentValue()).isEqualTo(150.0d);
+        assertThat(progress.get(1).progressPercent()).isEqualTo(75);
+    }
+
+    @Test
     void processQuizCompletion_unlocksEligibleAchievements() {
         UUID userId = UUID.randomUUID();
         when(achievementRepository.findAll()).thenReturn(List.of(
                 Achievement.builder().id(1L).name("First Steps").milestone("Complete 1 reading").requirementType(AchievementRequirementType.READING_COUNT).targetValue(1).build(),
-                Achievement.builder().id(2L).name("Reader").milestone("Complete 3 readings").requirementType(AchievementRequirementType.READING_COUNT).targetValue(3).build(),
+                Achievement.builder().id(2L).name("Score Hunter").milestone("Reach 100 total score").requirementType(AchievementRequirementType.TOTAL_SCORE).targetValue(100).build(),
                 Achievement.builder().id(3L).name("Veteran").milestone("Complete 5 readings").requirementType(AchievementRequirementType.READING_COUNT).targetValue(5).build()
         ));
         when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of());
+        when(userAchievementRepository.existsByUserIdAndAchievementId(userId, 1L)).thenReturn(false);
+        when(userAchievementRepository.existsByUserIdAndAchievementId(userId, 2L)).thenReturn(false);
 
-        achievementService.processQuizCompletion(userId, LocalDateTime.now());
+        achievementService.processQuizCompletion(userId, 100.0d, LocalDateTime.now());
 
         verify(userStatisticRepository).save(any());
-        verify(userAchievementRepository, times(1)).save(any(UserAchievement.class));
+        verify(userAchievementRepository, times(2)).save(any(UserAchievement.class));
     }
 }

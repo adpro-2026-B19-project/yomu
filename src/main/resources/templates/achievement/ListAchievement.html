@@ -32,36 +32,60 @@
 </header>
 
 <main class="page-main">
-    <section class="panel surface-strong stack" th:if="${loggedInName != null and todayMissions != null}">
+    <section id="achievementUnlockBanner" class="panel surface-strong stack" style="display:none; margin-bottom:24px;">
+        <span class="eyebrow">New unlock</span>
+        <h1 class="page-title">A new achievement just opened.</h1>
+        <p id="achievementUnlockMessage" class="page-lead">Your latest reading progress unlocked something worth showing.</p>
+    </section>
+
+    <section class="panel surface-strong stack" th:if="${loggedInName != null and todayMissionCards != null}">
         <div class="section-head" style="margin-bottom:0;">
             <span class="eyebrow">Daily missions</span>
             <h1 class="page-title">Today has its own small target.</h1>
             <p class="page-lead">Primary daily missions can affect league scoring, so this panel shows what is active right now.</p>
         </div>
 
-        <div th:if="${#lists.isEmpty(todayMissions)}" class="empty-state">
+        <div th:if="${#lists.isEmpty(todayMissionCards)}" class="empty-state">
             <strong>No mission is active today.</strong>
             <p class="muted">Check back after the next schedule is published.</p>
         </div>
 
-        <div class="card-grid" th:unless="${#lists.isEmpty(todayMissions)}">
-            <article class="surface-card" th:each="mission : ${todayMissions}">
+        <div class="card-grid" th:unless="${#lists.isEmpty(todayMissionCards)}">
+            <article class="surface-card" th:each="mission : ${todayMissionCards}">
                 <div class="cluster" style="justify-content:space-between; align-items:start;">
-                    <strong th:text="${mission.title}">Mission title</strong>
+                    <div class="stack" style="gap:6px;">
+                        <strong th:text="${mission.title}">Mission title</strong>
+                        <p class="caption" th:text="'Category: ' + ${mission.categoryLabel}">Category: All categories</p>
+                    </div>
                     <span th:if="${mission.primary}" class="chip warning">Primary</span>
                 </div>
-                <div th:with="progList=${userProgress.?[mission.id == #root.mission.id]}" class="stack" style="margin-top:10px; gap:8px;">
-                    <p class="muted tiny" th:text="${#lists.isEmpty(progList)} ? 'Progress 0 / ' + ${mission.targetCount} : 'Progress ' + ${progList[0].currentProgress} + ' / ' + ${mission.targetCount}">
-                        Progress 0 / 3
-                    </p>
-                    <span class="chip success" th:if="${not #lists.isEmpty(progList) and progList[0].completed}">Completed</span>
-                    <span class="chip primary" th:unless="${not #lists.isEmpty(progList) and progList[0].completed}">In progress</span>
+                <div class="stack" style="margin-top:10px; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="flex:1; height:10px; border-radius:999px; background:#e5e7eb; overflow:hidden;">
+                            <div th:style="'width:' + ${mission.progressPercent} + '%; height:100%; background:' + (${mission.completed} ? '#16a34a' : '#2563eb') + '; border-radius:999px;'"></div>
+                        </div>
+                        <span class="caption" th:text="${mission.progressLabel}">2/9</span>
+                    </div>
+                    <div sec:authorize="hasRole('ADMIN')" class="inline-actions">
+                        <button class="button button-secondary"
+                                type="button"
+                                onclick="editDailyMission(this)"
+                                th:attr="data-id=${mission.id},data-title=${mission.title},data-target-count=${mission.targetCount},data-primary=${mission.primary},data-category-id=${mission.categoryId}">
+                            Edit mission
+                        </button>
+                        <button class="button button-danger"
+                                type="button"
+                                onclick="deleteDailyMission(this)"
+                                th:attr="data-id=${mission.id}">
+                            Delete mission
+                        </button>
+                    </div>
                 </div>
             </article>
         </div>
     </section>
 
-    <section class="panel surface-strong stack" th:unless="${loggedInName != null and todayMissions != null}">
+    <section class="panel surface-strong stack" th:unless="${loggedInName != null and todayMissionCards != null}">
         <span class="eyebrow">Achievements</span>
         <h1 class="page-title">Track the milestones behind your reading work.</h1>
         <p class="page-lead">Achievements are tied to real progress, not filler badges. Unlock them by reading and completing quizzes.</p>
@@ -86,6 +110,7 @@
                 <label for="achievementRequirementType">Requirement type</label>
                 <select id="achievementRequirementType">
                     <option value="READING_COUNT">READING_COUNT</option>
+                    <option value="TOTAL_SCORE">TOTAL_SCORE</option>
                 </select>
             </div>
             <div class="field">
@@ -99,26 +124,96 @@
         <p id="formMessage" class="caption"></p>
     </section>
 
+    <section class="panel stack" sec:authorize="hasRole('ADMIN')" style="margin-top:24px;">
+        <div class="section-head" style="margin-bottom:0;">
+            <span class="eyebrow">Mission control</span>
+            <h2 class="section-title">Publish daily missions for the current cycle.</h2>
+            <p class="section-copy">One mission can be marked as primary so league calculations can pick it up cleanly.</p>
+        </div>
+        <div style="display:grid; gap:16px; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));">
+            <div class="field">
+                <label for="missionTitle">Title</label>
+                <input type="text" id="missionTitle" placeholder="Complete 5 quizzes in Science" required/>
+            </div>
+            <div class="field">
+                <label for="missionTargetCount">Target count</label>
+                <input type="number" id="missionTargetCount" min="1" placeholder="3" required/>
+            </div>
+            <div class="field">
+                <label for="missionCategoryId">Category</label>
+                <select id="missionCategoryId">
+                    <option value="">All categories</option>
+                    <option th:each="category : ${categories}" th:value="${category.id}" th:text="${category.name}">Science</option>
+                </select>
+            </div>
+            <div class="field">
+                <label for="missionPrimary">Priority</label>
+                <select id="missionPrimary">
+                    <option value="false">Secondary</option>
+                    <option value="true">Primary</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-actions">
+            <button class="button button-primary" onclick="submitDailyMission()">Create daily mission</button>
+        </div>
+        <p id="missionFormMessage" class="caption"></p>
+    </section>
+
+    <section class="section" th:if="${adminView and achievementDistribution != null}">
+        <div class="panel-head">
+            <span class="eyebrow">Admin analytics</span>
+            <h2 class="section-title">Achievement unlock distribution.</h2>
+            <p class="section-copy">This helps verify whether the current milestone curve is too easy, too hard, or nicely staggered.</p>
+        </div>
+
+        <div th:if="${#lists.isEmpty(achievementDistribution)}" class="empty-state">
+            <strong>No achievement data available yet.</strong>
+            <p class="muted">Create achievements first and user unlock counts will appear here.</p>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(achievementDistribution)}" class="achievement-grid">
+            <article class="achievement-card" th:each="distribution : ${achievementDistribution}">
+                <div class="achievement-icon">#</div>
+                <span class="chip dark">Distribution</span>
+                <strong th:text="${distribution.achievementName}">Achievement name</strong>
+                <p class="muted" th:text="${distribution.milestone}">Milestone description</p>
+                <p class="caption" th:text="${distribution.unlockedUserCount} + ' learner(s) unlocked this achievement'">0 learner(s) unlocked this achievement</p>
+            </article>
+        </div>
+    </section>
+
     <section class="section" th:if="${loggedInName != null}">
         <div class="panel-head">
             <span class="eyebrow">My achievements</span>
-            <h2 class="section-title">What you already unlocked.</h2>
+            <h2 class="section-title">Track your progress toward every achievement.</h2>
         </div>
 
-        <div th:if="${#lists.isEmpty(userAchievements)}" class="empty-state">
-            <strong>No achievement unlocked yet.</strong>
-            <p class="muted">Finish a few quizzes and the first ones will appear here.</p>
+        <div th:if="${#lists.isEmpty(achievementProgressCards)}" class="empty-state">
+            <strong>No achievement configured yet.</strong>
+            <p class="muted">Once admin adds achievements, your progress will appear here.</p>
         </div>
 
-        <div th:unless="${#lists.isEmpty(userAchievements)}" class="achievement-grid">
-            <article class="achievement-card" th:each="ua : ${userAchievements}">
+        <div th:unless="${#lists.isEmpty(achievementProgressCards)}" class="achievement-grid">
+            <article class="achievement-card"
+                     th:each="achievement : ${achievementProgressCards}"
+                     th:attr="data-achievement-id=${achievement.id},data-achievement-name=${achievement.name}">
                 <div class="achievement-icon">A</div>
-                <span class="chip success">Unlocked</span>
-                <strong th:text="${ua.achievement.name}">Achievement name</strong>
-                <p class="muted" th:text="${ua.achievement.milestone}">Milestone description</p>
-                <p class="caption" th:text="'Rule: ' + ${ua.achievement.requirementType} + ' x ' + ${ua.achievement.targetValue}">Rule</p>
-                <button class="button button-secondary" th:onclick="'toggleDisplay(' + ${ua.achievement.id} + ')'" type="button">
-                    <span th:text="${ua.displayed ? 'Hide from profile' : 'Show on profile'}"></span>
+                <span class="chip success" th:if="${achievement.unlocked}">Unlocked</span>
+                <span class="chip dark" th:unless="${achievement.unlocked}">In progress</span>
+                <strong th:text="${achievement.name}">Achievement name</strong>
+                <p class="muted" th:text="${achievement.milestone}">Milestone description</p>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:4px;">
+                    <div style="flex:1; height:10px; border-radius:999px; background:#e5e7eb; overflow:hidden;">
+                        <div th:style="'width:' + ${achievement.progressPercent} + '%; height:100%; background:' + (${achievement.unlocked} ? '#16a34a' : '#2563eb') + '; border-radius:999px;'"></div>
+                    </div>
+                    <span class="caption" th:text="${achievement.progressLabel}">2/9</span>
+                </div>
+                <button class="button button-secondary"
+                        th:if="${achievement.unlocked}"
+                        th:onclick="'toggleDisplay(' + ${achievement.id} + ')'"
+                        type="button">
+                    <span th:text="${achievement.displayed ? 'Hide from profile' : 'Show on profile'}"></span>
                 </button>
             </article>
         </div>
@@ -142,7 +237,6 @@
                 <span class="chip dark">Catalog</span>
                 <strong th:text="${achievement.name}">Achievement name</strong>
                 <p class="muted" th:text="${achievement.milestone}">Milestone description</p>
-                <p class="caption" th:text="'Rule: ' + ${achievement.requirementType} + ' x ' + ${achievement.targetValue}">Rule</p>
                 <div sec:authorize="hasRole('ADMIN')" class="inline-actions">
                     <button class="button button-secondary"
                             type="button"
@@ -177,6 +271,13 @@
 </footer>
 
 <script>
+    function getCsrfConfig() {
+        return {
+            token: document.querySelector('meta[name="csrf-token"]').content,
+            header: document.querySelector('meta[name="csrf-header"]').content
+        };
+    }
+
     function submitAchievement() {
         const name = document.getElementById('achievementName').value.trim();
         const milestone = document.getElementById('achievementMilestone').value.trim();
@@ -190,14 +291,13 @@
             return;
         }
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const csrfHeader = document.querySelector('meta[name="csrf-header"]').content;
+        const csrf = getCsrfConfig();
 
         fetch('/achievements/api', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                [csrfHeader]: csrfToken
+                [csrf.header]: csrf.token
             },
             body: JSON.stringify({
                 name: name,
@@ -228,6 +328,52 @@
             });
     }
 
+    function submitDailyMission() {
+        const title = document.getElementById('missionTitle').value.trim();
+        const targetCount = Number.parseInt(document.getElementById('missionTargetCount').value, 10);
+        const categoryId = document.getElementById('missionCategoryId').value;
+        const primary = document.getElementById('missionPrimary').value === 'true';
+        const message = document.getElementById('missionFormMessage');
+
+        if (!title || !Number.isInteger(targetCount) || targetCount <= 0) {
+            message.style.color = '#991b1b';
+            message.textContent = 'Fill the title and target count first.';
+            return;
+        }
+
+        const csrf = getCsrfConfig();
+        const params = new URLSearchParams({
+            title: title,
+            targetCount: String(targetCount),
+            primary: String(primary)
+        });
+        if (categoryId) {
+            params.set('categoryId', categoryId);
+        }
+
+        fetch('/achievements/api/daily-mission', {
+            method: 'POST',
+            headers: {
+                [csrf.header]: csrf.token
+            },
+            body: params
+        }).then(res => {
+            if (res.status === 201) {
+                message.style.color = '#166534';
+                message.textContent = 'Daily mission saved. Reloading...';
+                setTimeout(() => location.reload(), 900);
+                return;
+            }
+            res.text().then(text => {
+                message.style.color = '#991b1b';
+                message.textContent = text || 'The server rejected this request.';
+            });
+        }).catch(() => {
+            message.style.color = '#991b1b';
+            message.textContent = 'Cannot reach the server right now.';
+        });
+    }
+
     function editAchievement(button) {
         const id = button.dataset.id;
         const currentName = button.dataset.name || '';
@@ -241,28 +387,35 @@
         const milestone = window.prompt('Milestone description:', currentMilestone);
         if (milestone === null) return;
 
+        const requirementType = window.prompt('Requirement type (READING_COUNT or TOTAL_SCORE):', currentRequirementType);
+        if (requirementType === null) return;
+
         const targetValue = window.prompt('Target value:', currentTargetValue);
         if (targetValue === null) return;
 
         const parsedTargetValue = Number.parseInt(targetValue, 10);
-        if (!name.trim() || !milestone.trim() || !Number.isInteger(parsedTargetValue) || parsedTargetValue <= 0) {
+        const normalizedRequirementType = requirementType.trim().toUpperCase();
+        if (!name.trim()
+            || !milestone.trim()
+            || !['READING_COUNT', 'TOTAL_SCORE'].includes(normalizedRequirementType)
+            || !Number.isInteger(parsedTargetValue)
+            || parsedTargetValue <= 0) {
             alert('The updated values are not valid.');
             return;
         }
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const csrfHeader = document.querySelector('meta[name="csrf-header"]').content;
+        const csrf = getCsrfConfig();
 
         fetch('/achievements/api/' + id, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
-                [csrfHeader]: csrfToken
+                [csrf.header]: csrf.token
             },
             body: JSON.stringify({
                 name: name.trim(),
                 milestone: milestone.trim(),
-                requirementType: currentRequirementType,
+                requirementType: normalizedRequirementType,
                 targetValue: parsedTargetValue
             })
         }).then(res => {
@@ -275,14 +428,13 @@
     }
 
     function toggleDisplay(achievementId) {
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const csrfHeader = document.querySelector('meta[name="csrf-header"]').content;
+        const csrf = getCsrfConfig();
 
         fetch('/achievements/api/user/toggle-display/' + achievementId, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                [csrfHeader]: csrfToken
+                [csrf.header]: csrf.token
             }
         })
             .then(res => {
@@ -303,12 +455,11 @@
         const id = button.dataset.id;
         if (!confirm('Delete this achievement?')) return;
 
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        const csrfHeader = document.querySelector('meta[name="csrf-header"]').content;
+        const csrf = getCsrfConfig();
 
         fetch('/achievements/api/' + id, {
             method: 'DELETE',
-            headers: { [csrfHeader]: csrfToken }
+            headers: { [csrf.header]: csrf.token }
         })
             .then(res => {
                 if (res.ok) {
@@ -318,6 +469,103 @@
                 }
             });
     }
+
+    function editDailyMission(button) {
+        const id = button.dataset.id;
+        const currentTitle = button.dataset.title || '';
+        const currentTargetCount = button.dataset.targetCount || '1';
+        const currentPrimary = button.dataset.primary === 'true';
+        const currentCategoryId = button.dataset.categoryId || '';
+
+        const title = window.prompt('Daily mission title:', currentTitle);
+        if (title === null) return;
+
+        const targetCount = window.prompt('Target count:', currentTargetCount);
+        if (targetCount === null) return;
+
+        const categoryIdInput = window.prompt('Category id (leave empty for ALL categories):', currentCategoryId);
+        if (categoryIdInput === null) return;
+
+        const primary = window.confirm('Should this mission be primary?\nOK = primary, Cancel = secondary');
+        const parsedTargetCount = Number.parseInt(targetCount, 10);
+        const normalizedCategoryId = categoryIdInput.trim();
+        if (!title.trim() || !Number.isInteger(parsedTargetCount) || parsedTargetCount <= 0) {
+            alert('The updated mission values are not valid.');
+            return;
+        }
+
+        if (currentPrimary && !primary) {
+            // no-op, just here to keep the prompt meaning explicit for current primary missions
+        }
+
+        const csrf = getCsrfConfig();
+        const params = new URLSearchParams({
+            title: title.trim(),
+            targetCount: String(parsedTargetCount),
+            primary: String(primary)
+        });
+        if (normalizedCategoryId) {
+            params.set('categoryId', normalizedCategoryId);
+        }
+
+        fetch('/achievements/api/daily-mission/' + id, {
+            method: 'PUT',
+            headers: {
+                [csrf.header]: csrf.token
+            },
+            body: params
+        }).then(res => {
+            if (res.ok) {
+                location.reload();
+                return;
+            }
+            res.text().then(text => alert('Update failed: ' + text));
+        }).catch(() => alert('Cannot reach the server.'));
+    }
+
+    function deleteDailyMission(button) {
+        const id = button.dataset.id;
+        if (!confirm('Delete this daily mission?')) return;
+
+        const csrf = getCsrfConfig();
+        fetch('/achievements/api/daily-mission/' + id, {
+            method: 'DELETE',
+            headers: {
+                [csrf.header]: csrf.token
+            }
+        }).then(res => {
+            if (res.ok) {
+                location.reload();
+                return;
+            }
+            res.text().then(text => alert('Delete failed: ' + text));
+        }).catch(() => alert('Cannot reach the server.'));
+    }
+
+    function showNewAchievementBanner() {
+        const cards = Array.from(document.querySelectorAll('[data-achievement-id]'));
+        if (cards.length === 0) return;
+
+        const storageKey = 'yomu_seen_achievement_ids';
+        const seenIds = new Set(JSON.parse(window.localStorage.getItem(storageKey) || '[]'));
+        const currentIds = cards.map(card => String(card.dataset.achievementId));
+        const newNames = cards
+            .filter(card => !seenIds.has(String(card.dataset.achievementId)))
+            .map(card => card.dataset.achievementName);
+
+        if (newNames.length > 0) {
+            const banner = document.getElementById('achievementUnlockBanner');
+            const message = document.getElementById('achievementUnlockMessage');
+            banner.style.display = 'block';
+            message.textContent = newNames.length === 1
+                ? newNames[0] + ' is now unlocked and ready to show on your public profile.'
+                : newNames.join(', ') + ' are now unlocked and ready to show on your public profile.';
+        }
+
+        window.localStorage.setItem(storageKey, JSON.stringify(currentIds));
+    }
+
+    showNewAchievementBanner();
 </script>
 </body>
 </html>

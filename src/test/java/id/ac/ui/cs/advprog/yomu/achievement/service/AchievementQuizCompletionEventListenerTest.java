@@ -29,11 +29,12 @@ class AchievementQuizCompletionEventListenerTest {
                 UUID.randomUUID(),
                 userId,
                 UUID.randomUUID(),
+                1L,
                 100.0d,
                 1.0d,
                 completedAt
         ));
-        verify(dailyMissionService).incrementProgress(userId);
-        verify(achievementService).processQuizCompletion(userId, completedAt);
+        verify(dailyMissionService).incrementProgress(userId, 1L);
+        verify(achievementService).processQuizCompletion(userId, 100.0d, completedAt);
     }
 }

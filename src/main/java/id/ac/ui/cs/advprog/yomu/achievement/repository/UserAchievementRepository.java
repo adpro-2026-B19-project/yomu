@@ -12,5 +12,6 @@ public interface UserAchievementRepository extends JpaRepository<UserAchievement
     List<UserAchievement> findByUserId(UUID userId);
     List<UserAchievement> findByUserIdAndDisplayedTrueOrderByUnlockedAtDesc(UUID userId);
     boolean existsByUserIdAndAchievementId(UUID userId, Long achievementId);
+    long countByAchievement_Id(Long achievementId);
     void deleteByAchievementId(Long achievementId);
 }

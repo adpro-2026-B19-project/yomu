@@ -29,6 +29,7 @@ class LeagueQuizCompletionEventListenerTest {
                 eventId,
                 userId,
                 textId,
+                12L,
                 8.5d,
                 0.85d,
                 completedAt

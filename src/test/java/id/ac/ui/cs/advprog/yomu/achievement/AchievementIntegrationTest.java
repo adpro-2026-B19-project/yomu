@@ -80,6 +80,7 @@ public class AchievementIntegrationTest {
                 UUID.randomUUID(), // eventId
                 testUserId,        // userId (yang ngerjain)
                 UUID.randomUUID(), // textId
+                1L,                // readingTextId
                 100.0,             // skor
                 1.0,               // akurasi
                 LocalDateTime.now()// waktu selesai

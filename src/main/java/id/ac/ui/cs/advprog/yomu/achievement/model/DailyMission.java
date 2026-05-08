@@ -29,4 +29,7 @@ public class DailyMission {
     @Column(name = "is_primary", nullable = false)
     @Builder.Default
     private boolean primary = false;
+
+    @Column(name = "category_id")
+    private Long categoryId;
 }

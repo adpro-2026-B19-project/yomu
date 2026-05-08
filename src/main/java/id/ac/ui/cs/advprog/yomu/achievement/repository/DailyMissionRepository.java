@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface DailyMissionRepository extends JpaRepository<DailyMission, Long> {
     List<DailyMission> findByActiveDate(LocalDate activeDate);
     Optional<DailyMission> findByActiveDateAndPrimaryTrue(LocalDate activeDate);
+    Optional<DailyMission> findFirstByActiveDateBeforeOrderByActiveDateDesc(LocalDate activeDate);
 }
