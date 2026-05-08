@@ -86,16 +86,12 @@
                 </div>
             </form>
 
-            <div class="surface-card stack" style="gap:10px;" th:if="${oauthProviders != null and !oauthProviders.isEmpty()}">
+            <div class="surface-card stack" style="gap:10px;"
+                 th:if="${oauthProviders != null and !#lists.isEmpty(oauthProviders)}">
                 <strong>Or continue with OAuth</strong>
-                <div class="form-actions">
-                    <a
-                            class="button button-secondary"
-                            th:each="provider : ${oauthProviders}"
-                            th:href="@{|/oauth2/authorization/${provider}|}"
-                            th:text="|Continue with ${#strings.capitalize(provider)}|"
-                    >
-                        Continue with OAuth
+                <div class="form-actions" th:each="provider : ${oauthProviders}">
+                    <a class="button button-secondary" th:href="@{/oauth2/authorization/{provider}(provider=${provider})}">
+                        Continue with <span th:text="${provider}">provider</span>
                     </a>
                 </div>
             </div>
