@@ -119,7 +119,7 @@ We applied the **Risk Storming** technique to collaboratively identify, assess, 
 2. **Assess**: Given that our platform anticipates a growing number of students taking reading quizzes simultaneously, the inability to scale horizontally (adding more instances) poses a critical risk to performance and availability.
 3. **Mitigate**: We decided to mitigate this by designing a **Future Architecture** that decouples the database from the application container. We will migrate from H2 to a standalone **PostgreSQL** database. This decoupling allows us to introduce a **Load Balancer** and spin up multiple instances of the Spring Boot application (horizontal scaling), thus eliminating the single point of failure and ensuring the system can handle increased traffic securely.
 
-## 4. Individual Work (Reading & Quiz Module - Nisrina Alya Nabilah 2406425924)
+## 4.1 Individual Work (Reading & Quiz Module - Nisrina Alya Nabilah 2406425924)
 
 ### Component Diagram (Reading Module)
 ```mermaid
@@ -204,4 +204,87 @@ classDiagram
     Text "1" o-- "many" QuizAttempt : attempted in
     TextService ..> Text : manages
     TextService ..> QuizAttempt : evaluates
+```
+
+## 4.2 Individual Work (Achievement Module - Naufal Fadli Rabbani 2406350785)
+
+### Component Diagram (Reading Module)
+```mermaid
+flowchart TD
+    %% External Modules
+    M2[Modul 2: Bacaan & Kuis]
+    M4[Modul 4: Interaksi Sosial & Liga]
+    
+    subgraph M3[Modul 3: Achievement]
+        direction TB
+        AC[AchievementController]
+        EL[AchievementQuizCompletionEventListener]
+        AS[AchievementServiceImpl]
+        MS[DailyMissionServiceImpl]
+        SCH[DailyMissionRotationScheduler]
+        APA[AchievementProfileAdapter]
+        DSA[DailyMissionStatusAdapter]
+        DB[(Achievement DB)]
+    end
+
+    %% Workflow Connections
+    M2 -- "Publish QuizCompletedEvent" --> EL
+    EL -->|"processQuizCompletion"| AS
+    EL -->|"incrementProgress"| MS
+    
+    AS --> DB
+    MS --> DB
+    SCH -->|"rotateDailyMissions()"| MS
+    
+    AC --> DB
+    
+    %% Output to Social/League Module
+    APA -- "displayed achievements" --> M4
+    DSA -- "primary mission status" --> M4
+```
+
+### Code Diagram (Class Diagram)
+```mermaid
+classDiagram
+    class Achievement {
+        +Long id
+        +String name
+        +String milestone
+        +AchievementRequirementType requirementType
+        +int targetValue
+    }
+
+    class DailyMission {
+        +Long id
+        +String title
+        +int targetCount
+        +LocalDate activeDate
+        +boolean primary
+        +Long categoryId
+    }
+
+    class UserAchievement {
+        +Long id
+        +UUID userId
+        +LocalDateTime unlockedAt
+        +boolean displayed
+    }
+
+    class UserMissionProgress {
+        +Long id
+        +UUID userId
+        +int currentProgress
+        +boolean completed
+    }
+
+    class UserStatistic {
+        +Long id
+        +UUID userId
+        +int totalReadings
+        +double totalScore
+    }
+
+    UserAchievement "*" --> "1" Achievement : achievement_ref
+    UserMissionProgress "*" --> "1" DailyMission : mission_ref
+    UserStatistic "1" -- "*" UserAchievement : tracks
 ```
