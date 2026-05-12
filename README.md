@@ -502,3 +502,353 @@ classDiagram
     ProfileService --> AuthUser : updates/deactivates
     AdminUserManagementService --> AuthUser : searches/activates/deactivates
 ```
+
+## 4.4 Individual Work (Interaksi Sosial & Liga Module - Kalfin Jefwin Setiawan Gultom 2406360256)
+
+### Container Diagram (Kalfin Module Scope)
+```mermaid
+C4Container
+title Container Diagram for Interaksi Sosial & Liga Scope
+
+Person(student, "Student User", "Creates and joins clans, views public profiles, and checks leaderboards.")
+Person(admin, "Admin User", "Triggers league season transitions.")
+
+System_Boundary(yomu_system, "Yomu Platform") {
+    Container(web_app, "Spring Boot Web Application", "Java 25, Spring MVC/REST, Thymeleaf", "Runs the Social Interaction & League module together with the other Yomu modules.")
+    ContainerDb(database, "Embedded Database", "H2", "Stores clans, members, join requests, score events, tiers, and seasons.")
+}
+
+Rel(student, web_app, "Uses clan, profile, and leaderboard pages", "HTTPS")
+Rel(admin, web_app, "Ends current league season", "HTTPS")
+Rel(web_app, database, "Reads/Writes league data", "JDBC")
+```
+
+### Component Diagram (Social Interaction & League Module)
+```mermaid
+C4Component
+title Component Diagram for Interaksi Sosial & Liga Module
+
+Person(student, "Student User", "Interacts with clan and leaderboard pages")
+Person(admin, "Admin User", "Manages league season transition")
+ContainerDb(database, "Database", "H2", "Stores league tables")
+
+Container_Boundary(league_module, "Interaksi Sosial & Liga Module") {
+    Component(clan_ctrl, "ClanController", "Spring MVC Controller", "Serves clan list, clan detail, leaderboard, public profile, join request, delete clan, and end season pages.")
+    Component(clan_api_ctrl, "ClanRestController", "Spring REST Controller", "Provides API endpoints to create and list clans.")
+    Component(league_api_ctrl, "LeagueIntegrationRestController", "Spring REST Controller", "Receives quiz completion events and exposes leaderboard APIs.")
+    Component(quiz_listener, "LeagueQuizCompletionEventListener", "Spring Event Listener", "Listens to in-process quiz completion events.")
+    Component(clan_service, "ClanService / ClanServiceImpl", "Spring Service", "Coordinates clan membership, score events, leaderboards, public profiles, and season transitions.")
+    Component(season_service, "LeagueSeasonService", "Spring Service", "Creates, ends, and starts active league seasons.")
+    Component(score_calculator, "ClanScoreCalculator", "Spring Service", "Applies tier score strategy and active buff/debuff modifiers.")
+    Component(league_repos, "League Repositories", "Spring Data JPA", "Accesses Clan, ClanMember, ClanJoinRequest, ClanQuizScoreEvent, Tier, and LeagueSeason data.")
+}
+
+Rel(student, clan_ctrl, "Uses pages")
+Rel(admin, clan_ctrl, "Triggers end season")
+Rel(clan_api_ctrl, clan_service, "Uses")
+Rel(league_api_ctrl, clan_service, "Records events and reads leaderboard")
+Rel(quiz_listener, clan_service, "Records quiz completion")
+Rel(clan_ctrl, clan_service, "Uses")
+Rel(clan_service, season_service, "Uses")
+Rel(clan_service, score_calculator, "Calculates leaderboard scores")
+Rel(clan_service, league_repos, "Reads/Writes")
+Rel(season_service, league_repos, "Reads/Writes seasons")
+Rel(league_repos, database, "JDBC")
+```
+
+### Code Diagram 1 (League Domain Model)
+```mermaid
+classDiagram
+    class Clan {
+        -UUID id
+        -String name
+        -Tier tier
+        -UUID createdByUserId
+        -LocalDateTime createdAt
+        -double bronzeScore
+        -List~ClanMember~ members
+        +addMember(ClanMember member)
+        +changeTier(Tier newTier)
+    }
+
+    class Tier {
+        -UUID id
+        -TierCode code
+        -String displayName
+    }
+
+    class LeagueSeason {
+        -UUID id
+        -int seasonNumber
+        -boolean active
+        -LocalDateTime startedAt
+        -LocalDateTime endedAt
+        +end()
+    }
+
+    class ClanMember {
+        -UUID id
+        -Clan clan
+        -UUID userId
+        -ClanMemberRole role
+        -LocalDateTime joinedAt
+    }
+
+    class ClanJoinRequest {
+        -UUID id
+        -Clan clan
+        -UUID requesterUserId
+        -ClanJoinRequestStatus status
+        -UUID reviewedByUserId
+        -LocalDateTime reviewedAt
+        +approve(UUID reviewerUserId)
+        +reject(UUID reviewerUserId)
+    }
+
+    class ClanQuizScoreEvent {
+        -UUID id
+        -UUID eventId
+        -UUID clanId
+        -UUID userId
+        -UUID textId
+        -UUID seasonId
+        -double score
+        -double accuracy
+        -LocalDateTime completedAt
+    }
+
+    class TierCode {
+        <<enumeration>>
+        BRONZE
+        SILVER
+        GOLD
+        DIAMOND
+    }
+
+    class ClanMemberRole {
+        <<enumeration>>
+        LEADER
+        MEMBER
+    }
+
+    class ClanJoinRequestStatus {
+        <<enumeration>>
+        PENDING
+        APPROVED
+        REJECTED
+    }
+
+    Clan "many" --> "1" Tier : assigned to
+    Clan "1" *-- "many" ClanMember : has
+    Clan "1" *-- "many" ClanJoinRequest : receives
+    ClanQuizScoreEvent ..> Clan : references clanId
+    ClanQuizScoreEvent ..> LeagueSeason : references seasonId
+    Tier --> TierCode : uses
+    ClanMember --> ClanMemberRole : uses
+    ClanJoinRequest --> ClanJoinRequestStatus : uses
+```
+
+### Code Diagram 2 (Clan Controller and Service Flow)
+```mermaid
+classDiagram
+    class ClanController {
+        +clanListPage(Model, Authentication) String
+        +leaderboardPage(String, Model, Authentication) String
+        +publicProfilePage(UUID, Model, RedirectAttributes, Authentication) String
+        +clanDetailPage(UUID, Model, RedirectAttributes, Authentication) String
+        +createClan(ClanCreateForm, BindingResult, RedirectAttributes, Authentication) String
+        +submitJoinRequest(UUID, RedirectAttributes, Authentication) String
+        +reviewJoinRequest(UUID, UUID, String, RedirectAttributes, Authentication) String
+        +deleteClan(UUID, RedirectAttributes, Authentication) String
+        +endSeason(RedirectAttributes) String
+    }
+
+    class ClanRestController {
+        +listClans() List~ClanSummary~
+        +createClan(CreateClanApiRequest, Authentication) ResponseEntity~ClanSummary~
+    }
+
+    class LeagueIntegrationRestController {
+        +ingestQuizCompletion(QuizCompletionApiEventRequest) ResponseEntity~Void~
+        +bronzeLeaderboard() List~LeaderboardEntry~
+        +leaderboardByTier(String) List~LeaderboardEntry~
+    }
+
+    class LeagueQuizCompletionEventListener {
+        +handleQuizCompleted(QuizCompletedEvent)
+    }
+
+    class ClanService {
+        <<interface>>
+        +createClan(CreateClanRequest, UUID) ClanSummary
+        +listClans() List~ClanSummary~
+        +getClanDetail(UUID, UUID) ClanDetail
+        +submitJoinRequest(UUID, UUID)
+        +reviewJoinRequest(UUID, UUID, UUID, JoinRequestDecision)
+        +recordQuizCompletion(QuizCompletionPayload)
+        +deleteClan(UUID, UUID)
+        +endCurrentSeason() SeasonTransitionResult
+        +getLeaderboard(TierCode) List~LeaderboardEntry~
+        +getPublicProfile(UUID) PublicProfile
+    }
+
+    class ClanServiceImpl
+    class CurrentUserResolver
+    class AuthRepository
+
+    ClanController ..> ClanService : uses
+    ClanController ..> CurrentUserResolver : resolves user
+    ClanController ..> AuthRepository : resolves display names
+    ClanRestController ..> ClanService : uses
+    LeagueIntegrationRestController ..> ClanService : uses
+    LeagueQuizCompletionEventListener ..> ClanService : forwards event
+    ClanServiceImpl ..|> ClanService
+```
+
+### Code Diagram 3 (Join Request and Membership Flow)
+```mermaid
+classDiagram
+    class ClanServiceImpl {
+        +createClan(CreateClanRequest, UUID) ClanSummary
+        +submitJoinRequest(UUID, UUID)
+        +reviewJoinRequest(UUID, UUID, UUID, JoinRequestDecision)
+        +deleteClan(UUID, UUID)
+    }
+
+    class ClanRepository {
+        +existsByNameIgnoreCase(String) boolean
+        +findAllForListing() List~Clan~
+        +findByIdForDetail(UUID) Optional~Clan~
+    }
+
+    class ClanMemberRepository {
+        +existsByUserId(UUID) boolean
+        +existsByClanIdAndUserId(UUID, UUID) boolean
+        +findByClanIdAndUserId(UUID, UUID) Optional~ClanMember~
+        +findByUserId(UUID) Optional~ClanMember~
+    }
+
+    class ClanJoinRequestRepository {
+        +existsByClanIdAndRequesterUserIdAndStatus(UUID, UUID, ClanJoinRequestStatus) boolean
+        +findByIdAndClanId(UUID, UUID) Optional~ClanJoinRequest~
+        +findByClanIdAndStatusOrderByCreatedAtAsc(UUID, ClanJoinRequestStatus) List~ClanJoinRequest~
+        +deleteByClanId(UUID)
+    }
+
+    class Clan
+    class ClanMember
+    class ClanJoinRequest {
+        +approve(UUID reviewerUserId)
+        +reject(UUID reviewerUserId)
+    }
+
+    ClanServiceImpl ..> ClanRepository : loads and saves clans
+    ClanServiceImpl ..> ClanMemberRepository : checks one-clan membership rule
+    ClanServiceImpl ..> ClanJoinRequestRepository : creates and reviews requests
+    ClanRepository ..> Clan : persists
+    ClanMemberRepository ..> ClanMember : persists
+    ClanJoinRequestRepository ..> ClanJoinRequest : persists
+    ClanJoinRequest ..> ClanMember : approved request creates member
+```
+
+### Component Diagram (Scoring and Season Submodule - Bonus)
+```mermaid
+C4Component
+title Component Diagram for League Scoring and Season Submodule
+
+ContainerDb(database, "Database", "H2", "Stores score events and season state")
+
+Container_Boundary(scoring_submodule, "Scoring and Season Submodule") {
+    Component(clan_service, "ClanServiceImpl", "Spring Service", "Builds leaderboard entries and processes season movement.")
+    Component(season_service, "LeagueSeasonService", "Spring Service", "Maintains the active season lifecycle.")
+    Component(score_calculator, "ClanScoreCalculator", "Spring Service", "Builds score snapshot, applies tier formula, and stacks active modifiers.")
+    Component(tier_strategies, "TierScoreStrategy Implementations", "Strategy Classes", "Bronze, Silver, Gold, and Diamond base score formulas.")
+    Component(daily_mission_port, "DailyMissionStatusPort", "Integration Port", "Checks whether at least 50% of clan members completed the primary mission today.")
+    Component(score_repo, "ClanQuizScoreEventRepository", "Spring Data JPA", "Reads score events for the active or ended season.")
+    Component(season_repo, "LeagueSeasonRepository", "Spring Data JPA", "Reads and writes active season rows.")
+}
+
+Rel(clan_service, season_service, "Uses active season")
+Rel(clan_service, score_repo, "Loads season score events")
+Rel(clan_service, score_calculator, "Calculates clan score")
+Rel(score_calculator, tier_strategies, "Selects strategy by tier")
+Rel(score_calculator, daily_mission_port, "Checks Productivity Buff")
+Rel(season_service, season_repo, "Reads/Writes")
+Rel(score_repo, database, "JDBC")
+Rel(season_repo, database, "JDBC")
+```
+
+### Code Diagram 4 (Scoring Strategy, Buff, and Debuff)
+```mermaid
+classDiagram
+    class ClanScoreCalculator {
+        -DailyMissionStatusPort dailyMissionStatusPort
+        -Map~TierCode,TierScoreStrategy~ strategiesByTier
+        +calculate(Clan, List~ClanQuizScoreEvent~) CalculatedClanScore
+    }
+
+    class TierScoreStrategy {
+        <<interface>>
+        +supportedTier() TierCode
+        +calculateBaseScore(ClanScoreSnapshot) double
+        +formulaDescription() String
+    }
+
+    class BronzeTierScoreStrategy {
+        +supportedTier() TierCode
+        +calculateBaseScore(ClanScoreSnapshot) double
+    }
+
+    class SilverTierScoreStrategy {
+        +supportedTier() TierCode
+        +calculateBaseScore(ClanScoreSnapshot) double
+    }
+
+    class GoldTierScoreStrategy {
+        +supportedTier() TierCode
+        +calculateBaseScore(ClanScoreSnapshot) double
+    }
+
+    class DiamondTierScoreStrategy {
+        +supportedTier() TierCode
+        +calculateBaseScore(ClanScoreSnapshot) double
+    }
+
+    class ClanScoreSnapshot {
+        +from(Clan, List~ClanQuizScoreEvent~) ClanScoreSnapshot
+        +hasSeasonActivity() boolean
+        +activeMemberCount() long
+        +averageWeeklyCompletionsPerActiveMember() double
+        +weightedAverage(double, double) double
+    }
+
+    class CalculatedClanScore {
+        +double baseScore
+        +double finalScore
+        +List~ActiveScoreModifier~ activeModifiers
+        +String formulaDescription
+    }
+
+    class ActiveScoreModifier {
+        +String code
+        +String label
+        +double multiplier
+        +String description
+    }
+
+    class DailyMissionStatusPort {
+        <<interface>>
+        +summarizePrimaryMissionCompletion(List~UUID~, LocalDate) PrimaryMissionCompletionSummary
+    }
+
+    ClanScoreCalculator ..> TierScoreStrategy : selects by tier
+    ClanScoreCalculator ..> ClanScoreSnapshot : builds snapshot
+    ClanScoreCalculator ..> DailyMissionStatusPort : evaluates Productivity Buff
+    ClanScoreCalculator ..> CalculatedClanScore : returns
+    CalculatedClanScore *-- ActiveScoreModifier : includes
+    BronzeTierScoreStrategy ..|> TierScoreStrategy
+    SilverTierScoreStrategy ..|> TierScoreStrategy
+    GoldTierScoreStrategy ..|> TierScoreStrategy
+    DiamondTierScoreStrategy ..|> TierScoreStrategy
+    TierScoreStrategy ..> ClanScoreSnapshot : reads
+```
