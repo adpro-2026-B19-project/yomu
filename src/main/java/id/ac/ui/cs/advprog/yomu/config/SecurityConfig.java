@@ -32,6 +32,8 @@ public class SecurityConfig {
                 .requestMatchers(
                         "/",
                         "/auth/**",
+                        "/oauth2/**",
+                        "/login/oauth2/**",
                         "/error",
                         "/css/**",
                         "/js/**",
@@ -85,7 +87,7 @@ public class SecurityConfig {
                         "font-src 'self' data:; " +
                         "object-src 'none'; " +
                         "base-uri 'self'; " +
-                        "form-action 'self'"
+                        "form-action 'self' https://accounts.google.com"
                 ))
                 .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
         );

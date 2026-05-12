@@ -5,7 +5,8 @@
 1. Install JDK 25.
 2. Set environment variables:
    - Optional: set `DB_PASSWORD`, `SESSION_TIMEOUT`, `H2_WEB_ALLOW_OTHERS`
-   - OAuth is disabled for now and should stay unset
+   - Optional Google OAuth: set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+   - Google redirect URI: `http://localhost:8080/login/oauth2/code/google`
 3. Run tests:
    - `./gradlew test`
 4. Run application:
