@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import id.ac.ui.cs.advprog.yomu.achievement.service.AchievementService;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import id.ac.ui.cs.advprog.yomu.reading.model.Question;
@@ -46,26 +47,41 @@ class TextControllerTest {
     @InjectMocks
     private TextController textController;
 
+    @Mock
+    private AchievementService achievementService;
+
     @Test
+    @SuppressWarnings("unchecked")
     void getAllTextsShouldRenderListPage() {
         Text t = new Text();
         t.setTitle("A");
-        when(textService.getAllTexts()).thenReturn(List.of(t));
+        org.springframework.data.domain.Page<Text> pagedTexts = org.mockito.Mockito.mock(org.springframework.data.domain.Page.class);
+        when(pagedTexts.getContent()).thenReturn(List.of(t));
+        when(pagedTexts.getTotalPages()).thenReturn(1);
+        when(pagedTexts.hasNext()).thenReturn(false);
+        when(pagedTexts.hasPrevious()).thenReturn(false);
+        when(textService.getAllTexts(0, 6)).thenReturn(pagedTexts);
 
         ExtendedModelMap model = new ExtendedModelMap();
-        String view = textController.getAllTexts(model);
+        String view = textController.getAllTexts(0, 6, model);
 
         assertThat(view).isEqualTo("reading/texts");
         assertThat(model.getAttribute("texts")).isEqualTo(List.of(t));
+        assertThat(model.getAttribute("currentPage")).isEqualTo(0);
+        assertThat(model.getAttribute("totalPages")).isEqualTo(1);
+        assertThat(model.getAttribute("hasNext")).isEqualTo(false);
+        assertThat(model.getAttribute("hasPrevious")).isEqualTo(false);
     }
 
     @Test
-    void getTextDetailShouldPropagateNotFoundForDraftOrMissingText() {
+    void getTextDetailShouldRedirectWhenTextNotFoundOrDeleted() {
         when(textService.getPublishedTextById(99L))
                 .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Text tidak ditemukan"));
 
-        assertThatThrownBy(() -> textController.getTextDetail(99L, new ExtendedModelMap(), null))
-                .isInstanceOf(ResponseStatusException.class);
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = textController.getTextDetail(99L, model, null);
+
+        assertThat(view).isEqualTo("redirect:/texts?error=Text tidak ditemukan");
     }
 
     @Test
@@ -164,6 +180,40 @@ class TextControllerTest {
         assertThat(view).isEqualTo("reading/quiz");
         assertThat(model.getAttribute("text")).isEqualTo(text);
         assertThat(model.getAttribute("questions")).isEqualTo(List.of(question));
+    }
+
+    @Test
+    void startQuizShouldRedirectWhenTextNotFoundOrDeleted() {
+        AuthUser authUser = new AuthUser("reader");
+        setUserId(authUser);
+
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 99L)).thenReturn(false);
+        when(textService.getPublishedTextById(99L))
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Text tidak ditemukan"));
+
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = textController.startQuiz(99L, model, authentication);
+
+        assertThat(view).isEqualTo("redirect:/texts?error=Text tidak ditemukan");
+    }
+
+    @Test
+    void submitQuizShouldRedirectWhenTextDeletedOrNotFound() {
+        AuthUser authUser = new AuthUser("reader");
+        setUserId(authUser);
+
+        when(authentication.isAuthenticated()).thenReturn(true);
+        when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
+        when(achievementService.getAchievementsByUserId(authUser.getId())).thenReturn(List.of());
+        when(textService.submitQuiz(org.mockito.ArgumentMatchers.eq(99L), org.mockito.ArgumentMatchers.eq(authUser.getId().toString()), org.mockito.ArgumentMatchers.anyMap()))
+                .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Text tidak ditemukan"));
+
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = textController.submitQuiz(99L, java.util.Map.of(), model, authentication);
+
+        assertThat(view).isEqualTo("redirect:/texts?error=Teks bacaan telah dihapus oleh admin.");
     }
 
     private void setUserId(AuthUser authUser) {

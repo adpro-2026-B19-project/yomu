@@ -58,6 +58,9 @@ class ReadingIntegrationTest {
     @Autowired
     private QuizAttemptRepository quizAttemptRepository;
 
+    @Autowired
+    private id.ac.ui.cs.advprog.yomu.reading.service.TextService textService;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @BeforeEach
@@ -153,7 +156,8 @@ class ReadingIntegrationTest {
         MockHttpSession session = loginAs("student@ui.ac.id", "Maba2025!", AuthRole.USER);
 
         mockMvc.perform(get("/texts/" + savedText.getId()).session(session))
-                .andExpect(status().isNotFound());
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/texts?error=Text tidak ditemukan"));
     }
 
     @Test
@@ -212,6 +216,64 @@ class ReadingIntegrationTest {
                 .toList();
         assertThat(options).extracting(Option::getText).containsExactlyInAnyOrder("A2", "B2", "C2", "D2");
         assertThat(options.stream().filter(Option::isCorrect)).singleElement().extracting(Option::getText).isEqualTo("C2");
+    }
+
+    @Test
+    void studentCanViewPaginatedPublishedTexts() throws Exception {
+        Category sportCat = categoryRepository.save(new Category("Sports"));
+        for (int i = 1; i <= 10; i++) {
+            Text text = new Text("Text " + i, "Content " + i, sportCat, "admin-id");
+            text.setPublished(true);
+            textRepository.save(text);
+        }
+
+        MockHttpSession session = loginAs("student-paged@ui.ac.id", "Maba2025!", AuthRole.USER);
+
+        mockMvc.perform(get("/texts").session(session).param("page", "0").param("size", "6"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("reading/texts"))
+                .andExpect(model().attributeExists("texts"))
+                .andExpect(model().attribute("currentPage", 0))
+                .andExpect(model().attribute("totalPages", 2))
+                .andExpect(model().attribute("hasNext", true))
+                .andExpect(model().attribute("hasPrevious", false));
+
+        mockMvc.perform(get("/texts").session(session).param("page", "1").param("size", "6"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("reading/texts"))
+                .andExpect(model().attributeExists("texts"))
+                .andExpect(model().attribute("currentPage", 1))
+                .andExpect(model().attribute("totalPages", 2))
+                .andExpect(model().attribute("hasNext", false))
+                .andExpect(model().attribute("hasPrevious", true));
+    }
+
+    @Test
+    void quizSubmissionShouldFailGracefullyIfTextDeleted() throws Exception {
+        Category techCat = categoryRepository.save(new Category("Technology"));
+        Text text = new Text("Java 25", "Java is fun.", techCat, "admin-id");
+        text.setPublished(true);
+        text = textRepository.save(text);
+
+        Question q = new Question();
+        q.setText(text);
+        q.setQuestion("Is Java fun?");
+        q = questionRepository.save(q);
+
+        Option opt = new Option("Yes", true);
+        opt.setQuestion(q);
+        optionRepository.save(opt);
+
+        MockHttpSession session = loginAs("student-submit@ui.ac.id", "Maba2025!", AuthRole.USER);
+
+        textService.deleteText(text.getId());
+
+        mockMvc.perform(post("/texts/" + text.getId() + "/quiz/submit")
+                        .session(session)
+                        .with(csrf())
+                        .param("question_" + q.getId(), opt.getId().toString()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/texts?error=Teks bacaan telah dihapus oleh admin."));
     }
 
     private MockHttpSession loginAs(String email, String rawPassword, AuthRole role) throws Exception {

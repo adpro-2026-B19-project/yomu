@@ -18,7 +18,7 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 public class OAuth2ClientConfig {
 
     private static final String DEFAULT_GOOGLE_REDIRECT_URI = "{baseUrl}/login/oauth2/code/{registrationId}";
-    private static final List<String> DEFAULT_GOOGLE_SCOPES = List.of("openid", "email", "profile");
+    private static final List<String> DEFAULT_GOOGLE_SCOPES = List.of("email", "profile");
 
     @Bean
     @Conditional(GoogleOAuth2CredentialsCondition.class)

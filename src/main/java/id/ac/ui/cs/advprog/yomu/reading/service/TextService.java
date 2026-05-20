@@ -11,6 +11,8 @@ import id.ac.ui.cs.advprog.yomu.reading.repository.OptionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuizAttemptRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,10 @@ public class TextService {
 
     public List<Text> getAllTexts(){
         return textRepository.findByPublishedTrue();
+    }
+
+    public Page<Text> getAllTexts(int page, int size){
+        return textRepository.findByPublishedTrue(PageRequest.of(page, size));
     }
 
     public Text getTextById(Long id){

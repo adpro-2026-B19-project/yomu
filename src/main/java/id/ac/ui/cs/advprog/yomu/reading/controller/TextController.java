@@ -10,6 +10,7 @@ import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
 
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -40,9 +41,16 @@ public class TextController {
     }
 
     @GetMapping
-    public String getAllTexts(Model model) {
-        List<Text> texts = textService.getAllTexts();
-        model.addAttribute("texts", texts);
+    public String getAllTexts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "6") int size,
+            Model model) {
+        org.springframework.data.domain.Page<Text> textPage = textService.getAllTexts(page, size);
+        model.addAttribute("texts", textPage.getContent());
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", textPage.getTotalPages());
+        model.addAttribute("hasNext", textPage.hasNext());
+        model.addAttribute("hasPrevious", textPage.hasPrevious());
         return "reading/texts";
     }
 
@@ -59,20 +67,26 @@ public class TextController {
 
     @GetMapping("/{id:\\d+}")
     public String getTextDetail(@PathVariable Long id, Model model, Authentication authentication) {
-        Text text = textService.getPublishedTextById(id);
+        try {
+            Text text = textService.getPublishedTextById(id);
 
-        boolean hasAttempted = false;
-        if (authentication != null && authentication.isAuthenticated()) {
-            AuthUser authUser = currentUserResolver.resolveUser(authentication).orElse(null);
-            if (authUser != null) {
-                hasAttempted = textService.hasUserAttemptedQuiz(authUser.getId().toString(), id);
+            boolean hasAttempted = false;
+            if (authentication != null && authentication.isAuthenticated()) {
+                AuthUser authUser = currentUserResolver.resolveUser(authentication).orElse(null);
+                if (authUser != null) {
+                    hasAttempted = textService.hasUserAttemptedQuiz(authUser.getId().toString(), id);
+                }
             }
+
+            model.addAttribute("text", text);
+            model.addAttribute("hasAttempted", hasAttempted);
+
+            return "reading/text-detail";
+        } catch (ResponseStatusException e) {
+            return "redirect:/texts?error=" + e.getReason();
+        } catch (Exception e) {
+            return "redirect:/texts?error=Terjadi kesalahan saat memuat detail bacaan.";
         }
-
-        model.addAttribute("text", text);
-        model.addAttribute("hasAttempted", hasAttempted);
-
-        return "reading/text-detail";
     }
 
     @GetMapping("/{id:\\d+}/quiz")
@@ -83,18 +97,24 @@ public class TextController {
 
         AuthUser authUser = currentUserResolver.resolveUser(authentication).orElseThrow();
 
-        if (textService.hasUserAttemptedQuiz(authUser.getId().toString(), id)) {
-            return "redirect:/texts/" + id + "?error=already_attempted";
+        try {
+            if (textService.hasUserAttemptedQuiz(authUser.getId().toString(), id)) {
+                return "redirect:/texts/" + id + "?error=already_attempted";
+            }
+
+            Text text = textService.getPublishedTextById(id);
+
+            List<Question> questions = questionRepository.findByTextId(id);
+
+            model.addAttribute("text", text);
+            model.addAttribute("questions", questions);
+
+            return "reading/quiz";
+        } catch (ResponseStatusException e) {
+            return "redirect:/texts?error=" + e.getReason();
+        } catch (Exception e) {
+            return "redirect:/texts?error=Terjadi kesalahan saat memuat kuis.";
         }
-
-        Text text = textService.getPublishedTextById(id);
-
-        List<Question> questions = questionRepository.findByTextId(id);
-
-        model.addAttribute("text", text);
-        model.addAttribute("questions", questions);
-
-        return "reading/quiz";
     }
 
     @PostMapping("/{id:\\d+}/quiz/submit")
@@ -134,10 +154,15 @@ public class TextController {
                             .collect(Collectors.joining(", "))
             );
             return "reading/quiz-result";
+        } catch (ResponseStatusException e) {
+            return "redirect:/texts?error=Teks bacaan telah dihapus oleh admin.";
         } catch (IllegalStateException e) {
             return "redirect:/texts/" + id + "?error=" + e.getMessage();
+        } catch (Exception e) {
+            return "redirect:/texts?error=Terjadi kesalahan saat mengumpulkan kuis.";
         }
     }
+
 
     private record UnlockedAchievementView(
             Long id,

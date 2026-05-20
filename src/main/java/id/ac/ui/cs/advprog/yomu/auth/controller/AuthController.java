@@ -58,6 +58,10 @@ public class AuthController {
         if (!model.containsAttribute("suggestedUsername")) {
             model.addAttribute("suggestedUsername", usernameSuggestionGenerator.generateSuggestion());
         }
+
+        if (!model.containsAttribute("oauthProviders")) {
+            model.addAttribute("oauthProviders", resolveOAuthProviders());
+        }
         return "auth/register";
     }
 
