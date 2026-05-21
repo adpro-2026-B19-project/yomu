@@ -397,6 +397,15 @@
             </div>
         </div>
 
+        <div th:if="${param.error != null}" class="alert error" style="margin-bottom: 22px; padding: 15px; background-color: #ffebd6; border-left: 5px solid #ff6b5a; color: #b22222; border-radius: 8px;">
+            <strong>Error:</strong>
+            <span th:text="${param.error}">Error message</span>
+        </div>
+
+        <div id="js-error-banner" class="alert error" style="display:none; margin-bottom: 22px; padding: 15px; background-color: #ffebd6; border-left: 5px solid #ff6b5a; color: #b22222; border-radius: 8px;">
+            <strong>Error:</strong> <span id="js-error-message"></span>
+        </div>
+
         <div id="quiz-root"></div>
 
         <div th:if="${#lists.isEmpty(questions)}" class="empty-state">
@@ -458,6 +467,31 @@
         const feedbackIcon = document.getElementById('feedback-icon');
         const feedbackTitle = document.getElementById('feedback-title');
         const feedbackDesc = document.getElementById('feedback-desc');
+
+        function showInformativeError(message) {
+            const banner = document.getElementById('js-error-banner');
+            const msgSpan = document.getElementById('js-error-message');
+            if (banner && msgSpan) {
+                msgSpan.textContent = message;
+                banner.style.display = 'block';
+                banner.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function hideInformativeError() {
+            const banner = document.getElementById('js-error-banner');
+            if (banner) {
+                banner.style.display = 'none';
+            }
+        }
+
+        window.addEventListener('offline', () => {
+            showInformativeError("Connection lost. Please check your internet connection.");
+        });
+
+        window.addEventListener('online', () => {
+            hideInformativeError();
+        });
 
         function init() {
             if (!questionsData || questionsData.length === 0) {
@@ -574,6 +608,11 @@
         }
 
         function submitQuiz() {
+            if (!navigator.onLine) {
+                showInformativeError("Cannot submit quiz. You are currently offline. Please check your network connection and try again.");
+                return;
+            }
+
             progressBar.style.width = '100%';
             actionBtn.disabled = true;
             actionBtn.textContent = 'Submitting...';

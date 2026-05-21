@@ -83,6 +83,21 @@ class TextServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void testGetAllTextsPaged() {
+        org.springframework.data.domain.Page<Text> pagedTexts = org.mockito.Mockito.mock(org.springframework.data.domain.Page.class);
+        when(pagedTexts.getContent()).thenReturn(List.of(text));
+        when(textRepository.findByPublishedTrue(any(org.springframework.data.domain.Pageable.class))).thenReturn(pagedTexts);
+
+        org.springframework.data.domain.Page<Text> result = textService.getAllTexts(0, 6);
+
+        assertFalse(result.getContent().isEmpty());
+        assertEquals(1, result.getContent().size());
+        assertEquals("Judul Test", result.getContent().get(0).getTitle());
+        verify(textRepository, times(1)).findByPublishedTrue(any(org.springframework.data.domain.Pageable.class));
+    }
+
+    @Test
     void testGetTextByIdFound() {
         when(textRepository.findById(1L)).thenReturn(Optional.of(text));
 

@@ -40,6 +40,11 @@
         </div>
     </section>
 
+    <div th:if="${param.error != null}" class="alert error" style="margin-top:22px; margin-bottom:22px; padding: 15px; background-color: #ffebd6; border-left: 5px solid #ff6b5a; color: #b22222; border-radius: 8px;">
+        <strong>Error:</strong>
+        <span th:text="${param.error}">Error message</span>
+    </div>
+
     <section class="section">
         <div th:if="${texts.empty}" class="empty-state">
             <strong>No published text yet.</strong>
@@ -67,6 +72,19 @@
                     <a th:href="@{/texts/{id}/quiz(id=${text.id})}" class="button button-on-color">Start quiz</a>
                 </div>
             </article>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div th:if="${totalPages > 1}" class="cluster" style="justify-content: center; gap: 0.5rem; margin-top: 32px; align-items: center;">
+            <a th:if="${hasPrevious}" class="button button-secondary" th:href="@{/texts(page=${currentPage - 1})}">&laquo; Previous</a>
+            
+            <th:block th:each="pageNum : ${#numbers.sequence(0, totalPages - 1)}">
+                <a th:class="${pageNum == currentPage ? 'button button-primary' : 'button button-secondary'}"
+                   th:href="@{/texts(page=${pageNum})}"
+                   th:text="${pageNum + 1}">1</a>
+            </th:block>
+            
+            <a th:if="${hasNext}" class="button button-secondary" th:href="@{/texts(page=${currentPage + 1})}">Next &raquo;</a>
         </div>
     </section>
 </main>
