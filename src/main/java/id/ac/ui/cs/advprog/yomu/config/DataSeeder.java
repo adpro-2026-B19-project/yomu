@@ -1,8 +1,18 @@
 package id.ac.ui.cs.advprog.yomu.config;
 
+import id.ac.ui.cs.advprog.yomu.achievement.model.DailyMission;
+import id.ac.ui.cs.advprog.yomu.achievement.repository.DailyMissionRepository;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
+import id.ac.ui.cs.advprog.yomu.league.model.Clan;
+import id.ac.ui.cs.advprog.yomu.league.model.ClanMember;
+import id.ac.ui.cs.advprog.yomu.league.model.ClanMemberRole;
+import id.ac.ui.cs.advprog.yomu.league.model.Tier;
+import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
+import id.ac.ui.cs.advprog.yomu.league.repository.ClanMemberRepository;
+import id.ac.ui.cs.advprog.yomu.league.repository.ClanRepository;
+import id.ac.ui.cs.advprog.yomu.league.repository.TierRepository;
 import id.ac.ui.cs.advprog.yomu.reading.model.Category;
 import id.ac.ui.cs.advprog.yomu.reading.model.Option;
 import id.ac.ui.cs.advprog.yomu.reading.model.Question;
@@ -20,6 +30,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Optional;
 import java.util.Arrays;
+import java.time.LocalDate;
 
 @Component
 @RequiredArgsConstructor
@@ -30,6 +41,10 @@ public class DataSeeder implements CommandLineRunner {
     private final QuestionRepository questionRepository;
     private final OptionRepository optionRepository;
     private final AuthRepository authRepository;
+    private final DailyMissionRepository dailyMissionRepository;
+    private final ClanRepository clanRepository;
+    private final ClanMemberRepository clanMemberRepository;
+    private final TierRepository tierRepository;
     private final PasswordEncoder passwordEncoder;
     private final Environment environment;
 
@@ -37,10 +52,11 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) {
         seedAdminUser();
         seedReadingModule();
+        seedOptInDemoData();
     }
 
     private void seedAdminUser() {
-        if (isDockerProfileActive()) {
+        if (isDockerProfileActive() && !isDemoSeedEnabled()) {
             return;
         }
 
@@ -66,9 +82,37 @@ public class DataSeeder implements CommandLineRunner {
         authRepository.save(admin);
     }
 
+    private void seedOptInDemoData() {
+        if (!isDemoSeedEnabled()) {
+            return;
+        }
+
+        AuthUser leader = ensureUser(
+                "kalfin-demo-leader",
+                "kalfin.demo.leader@yomu.test",
+                "Kalfin Demo Leader",
+                "KalfinDemo1!",
+                AuthRole.USER
+        );
+        AuthUser member = ensureUser(
+                "kalfin-demo-member",
+                "kalfin.demo.member@yomu.test",
+                "Kalfin Demo Member",
+                "KalfinDemo2!",
+                AuthRole.USER
+        );
+
+        seedPrimaryDailyMissionIfMissing();
+        seedDemoClanIfMissing(leader, member);
+    }
+
     private boolean isDockerProfileActive() {
         return Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(profile -> "docker".equalsIgnoreCase(profile));
+    }
+
+    private boolean isDemoSeedEnabled() {
+        return environment.getProperty("app.demo.seed.enabled", Boolean.class, false);
     }
 
     private void seedReadingModule() {
@@ -268,6 +312,61 @@ public class DataSeeder implements CommandLineRunner {
         optionD.setCorrect("D".equals(seed.correctOption()));
 
         optionRepository.saveAll(List.of(optionA, optionB, optionC, optionD));
+    }
+
+    private AuthUser ensureUser(
+            String username,
+            String email,
+            String displayName,
+            String rawPassword,
+            AuthRole role
+    ) {
+        return authRepository.findByEmail(email)
+                .filter(AuthUser::isActive)
+                .filter(user -> username.equals(user.getUsername()))
+                .filter(user -> role == user.getRole())
+                .orElseGet(() -> {
+                    List<AuthUser> conflictingUsers = authRepository.findAllByEmailIgnoreCaseOrUsernameIgnoreCase(email, username);
+                    if (!conflictingUsers.isEmpty()) {
+                        authRepository.deleteAll(conflictingUsers);
+                    }
+                    return authRepository.save(new AuthUser(
+                            username,
+                            email,
+                            null,
+                            displayName,
+                            passwordEncoder.encode(rawPassword),
+                            role
+                    ));
+                });
+    }
+
+    private void seedPrimaryDailyMissionIfMissing() {
+        LocalDate today = LocalDate.now();
+        dailyMissionRepository.findByActiveDateAndPrimaryTrue(today).orElseGet(() -> dailyMissionRepository.save(
+                DailyMission.builder()
+                        .title("Complete 1 reading today")
+                        .targetCount(1)
+                        .activeDate(today)
+                        .primary(true)
+                        .build()
+        ));
+    }
+
+    private void seedDemoClanIfMissing(AuthUser leader, AuthUser member) {
+        if (clanRepository.existsByNameIgnoreCase("Kalfin Demo Clan")) {
+            return;
+        }
+
+        Tier bronze = tierRepository.findByCode(TierCode.BRONZE)
+                .orElseGet(() -> tierRepository.save(new Tier(TierCode.BRONZE, "Bronze")));
+
+        Clan clan = clanRepository.save(new Clan("Kalfin Demo Clan", bronze, leader.getId()));
+        ClanMember leaderMember = clanMemberRepository.save(new ClanMember(clan, leader.getId(), ClanMemberRole.LEADER));
+        ClanMember memberEntry = clanMemberRepository.save(new ClanMember(clan, member.getId(), ClanMemberRole.MEMBER));
+        clan.addMember(leaderMember);
+        clan.addMember(memberEntry);
+        clanRepository.save(clan);
     }
 
     private record QuizSeed(

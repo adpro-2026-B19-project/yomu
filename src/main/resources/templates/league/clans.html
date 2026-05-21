@@ -49,7 +49,7 @@
             </div>
 
             <div class="alert success" th:if="${success != null}">
-                <strong>Clan created.</strong>
+                <strong>Update saved.</strong>
                 <span th:text="${success}">Clan created successfully.</span>
             </div>
             <div class="alert error" th:if="${error != null}">
@@ -91,7 +91,11 @@
                     <tbody>
                     <tr th:each="clan : ${clans}">
                         <td th:text="${clan.name}">Deep Readers</td>
-                        <td><span class="chip primary" th:text="${clan.tier}">BRONZE</span></td>
+                        <td>
+                            <span class="chip tier-badge"
+                                  th:classappend="' tier-' + ${clan.tierCssClass}"
+                                  th:text="${clan.tier}">BRONZE</span>
+                        </td>
                         <td th:text="${clan.memberCount}">1</td>
                         <td>
                             <a th:href="@{/users/{userId}(userId=${clan.createdByUserId})}" th:text="${clan.createdByName}">creator</a>

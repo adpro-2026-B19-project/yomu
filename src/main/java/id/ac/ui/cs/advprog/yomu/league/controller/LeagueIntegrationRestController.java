@@ -4,7 +4,6 @@ import id.ac.ui.cs.advprog.yomu.league.dto.QuizCompletionApiEventRequest;
 import id.ac.ui.cs.advprog.yomu.league.model.TierCode;
 import id.ac.ui.cs.advprog.yomu.league.service.ClanService;
 import jakarta.validation.Valid;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,14 +41,21 @@ public class LeagueIntegrationRestController {
     }
 
     @GetMapping("/leaderboard/bronze")
-    public List<ClanService.LeaderboardEntry> bronzeLeaderboard() {
-        return clanService.getLeaderboard(TierCode.BRONZE);
+    public ClanService.LeaderboardPage bronzeLeaderboard(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size
+    ) {
+        return clanService.getLeaderboardPage(TierCode.BRONZE, page, size);
     }
 
     @GetMapping("/leaderboard/{tierCode}")
-    public List<ClanService.LeaderboardEntry> leaderboardByTier(@org.springframework.web.bind.annotation.PathVariable String tierCode) {
+    public ClanService.LeaderboardPage leaderboardByTier(
+            @org.springframework.web.bind.annotation.PathVariable String tierCode,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int size
+    ) {
         try {
-            return clanService.getLeaderboard(TierCode.valueOf(tierCode.trim().toUpperCase()));
+            return clanService.getLeaderboardPage(TierCode.valueOf(tierCode.trim().toUpperCase()), page, size);
         } catch (IllegalArgumentException exception) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown tier code", exception);
         }

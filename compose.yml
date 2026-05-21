@@ -2,7 +2,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: DOCKERFILE
     container_name: yomu-app
     environment:
       SPRING_PROFILES_ACTIVE: docker

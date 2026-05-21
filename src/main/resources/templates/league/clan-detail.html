@@ -29,14 +29,18 @@
 <main class="page-main">
     <section class="panel surface-strong stack">
         <div class="cluster">
-            <span class="chip primary" th:text="'Tier ' + ${clan.tier}">Tier BRONZE</span>
-            <span class="chip dark" th:text="${clan.memberCount} + ' members'">2 members</span>
+            <span class="chip tier-badge"
+                  th:classappend="' tier-' + ${clan.tierCssClass}"
+                  th:text="'Tier ' + ${clan.tier}">Tier BRONZE</span>
+            <span class="chip dark" th:text="${clan.memberCount} + ' active members'">2 active members</span>
+            <span class="chip warning" th:if="${clan.archived}">Archived</span>
         </div>
         <h1 class="page-title" th:text="${clan.name}">Clan Name</h1>
         <p class="page-lead">
             Created by
             <a th:href="@{/users/{userId}(userId=${clan.createdByUserId})}" th:text="${clan.createdByName}">user</a>.
-            Use this page to join, manage members, or review pending requests.
+            <span th:if="${!clan.archived}">Use this page to join, manage members, or review pending requests.</span>
+            <span th:if="${clan.archived}">This clan has been archived, so new join requests and season participation are closed.</span>
         </p>
 
         <div class="alert success" th:if="${success != null}">
@@ -48,26 +52,33 @@
             <span th:text="${error}">Error message.</span>
         </div>
 
-        <div class="page-actions" th:if="${!clan.viewerIsMember and !clan.viewerHasPendingRequest}">
+        <div class="alert warning" th:if="${clan.archived}">
+            <strong>Clan archived.</strong>
+            <span th:text="${clan.archivedAt != null ? 'Archived on ' + #temporals.format(clan.archivedAt, 'dd-MM-yyyy HH:mm') + '. Historical scores stay recorded, but this clan no longer appears on active leaderboards.' : 'Historical scores stay recorded, but this clan no longer appears on active leaderboards.'}">
+                Historical scores stay recorded.
+            </span>
+        </div>
+
+        <div class="page-actions" th:if="${!clan.archived and !clan.viewerIsMember and !clan.viewerHasPendingRequest}">
             <form method="post" th:action="@{/clans/{id}/join(id=${clan.id})}" style="margin:0;">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
                 <button class="button button-primary" type="submit">Send join request</button>
             </form>
         </div>
 
-        <div class="alert warning" th:if="${clan.viewerHasPendingRequest}">
+        <div class="alert warning" th:if="${!clan.archived and clan.viewerHasPendingRequest}">
             <strong>Request pending.</strong>
             <span>Your join request is waiting for leader approval.</span>
         </div>
-        <div class="alert success" th:if="${clan.viewerIsMember}">
+        <div class="alert success" th:if="${!clan.archived and clan.viewerIsMember}">
             <strong>Member status active.</strong>
             <span>You are already part of this clan.</span>
         </div>
 
-        <div class="page-actions" th:if="${clan.viewerIsLeader}">
+        <div class="page-actions" th:if="${!clan.archived and clan.viewerIsLeader}">
             <form method="post" th:action="@{/clans/{id}/delete(id=${clan.id})}" style="margin:0;">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <button class="button button-danger" type="submit" onclick="return confirm('Delete this clan?');">Delete clan</button>
+                <button class="button button-danger" type="submit" onclick="return confirm('Archive this clan? Historical score data will stay preserved.');">Archive clan</button>
             </form>
         </div>
     </section>
@@ -98,7 +109,7 @@
             </div>
         </div>
 
-        <div class="table-card" th:if="${clan.viewerIsLeader}">
+        <div class="table-card" th:if="${!clan.archived and clan.viewerIsLeader}">
             <div class="panel-head">
                 <span class="eyebrow">Leader tools</span>
                 <h2 class="section-title">Pending join requests</h2>
