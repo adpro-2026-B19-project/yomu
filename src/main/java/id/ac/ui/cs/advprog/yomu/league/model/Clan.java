@@ -47,6 +47,15 @@ public class Clan {
     @Column(nullable = false)
     private double bronzeScore = 0.0d;
 
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    @Column
+    private LocalDateTime deletedAt;
+
+    @Column
+    private UUID deletedByUserId;
+
     @OneToMany(mappedBy = "clan", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<ClanMember> members = new ArrayList<>();
 
@@ -62,6 +71,16 @@ public class Clan {
 
     public void changeTier(Tier newTier) {
         this.tier = newTier;
+    }
+
+    public void archive(UUID deletedByUserId) {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
+        this.deletedByUserId = deletedByUserId;
+    }
+
+    public void removeAllMembers() {
+        members.clear();
     }
 
     @PrePersist

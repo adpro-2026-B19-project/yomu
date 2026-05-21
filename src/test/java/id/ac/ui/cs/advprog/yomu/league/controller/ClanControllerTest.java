@@ -78,28 +78,42 @@ class ClanControllerTest {
     void leaderboardPageShouldRenderSelectedTier() {
         UUID clanId = UUID.randomUUID();
         UUID creatorId = UUID.randomUUID();
-        when(clanService.getLeaderboard(id.ac.ui.cs.advprog.yomu.league.model.TierCode.SILVER)).thenReturn(List.of(
-                new ClanService.LeaderboardEntry(
-                        clanId,
-                        "Clan One",
+        when(clanService.getLeaderboardPage(id.ac.ui.cs.advprog.yomu.league.model.TierCode.SILVER, 0, 10))
+                .thenReturn(new ClanService.LeaderboardPage(
                         "SILVER",
-                        3L,
-                        10.0d,
-                        12.0d,
-                        List.of(new ClanService.ScoreModifier("PRODUCTIVITY_BUFF", "Productivity Buff", 1.2d, "desc")),
-                        "Silver formula"
-                )
-        ));
+                        List.of(new ClanService.LeaderboardEntry(
+                                clanId,
+                                "Clan One",
+                                "SILVER",
+                                3L,
+                                10.0d,
+                                12.0d,
+                                List.of(new ClanService.ScoreModifier(
+                                        "PRODUCTIVITY_BUFF",
+                                        "Productivity Buff",
+                                        1.2d,
+                                        "desc"
+                                )),
+                                "Silver formula"
+                        )),
+                        0,
+                        10,
+                        1,
+                        1,
+                        false,
+                        false
+                ));
         when(clanService.listClans()).thenReturn(List.of(
                 new ClanService.ClanSummary(clanId, "Clan One", "SILVER", 3L, creatorId)
         ));
         when(authRepository.findAllById(any())).thenReturn(List.of(createUser(creatorId, "creator", "Creator", AuthRole.USER)));
 
         ExtendedModelMap model = new ExtendedModelMap();
-        String view = controller.leaderboardPage("silver", model, adminAuthentication);
+        String view = controller.leaderboardPage("silver", 0, 10, model, adminAuthentication);
 
         assertThat(view).isEqualTo("league/leaderboard");
         assertThat(model.getAttribute("entries")).isNotNull();
+        assertThat(model.getAttribute("leaderboardPage")).isNotNull();
         assertThat(model.getAttribute("selectedTier")).isEqualTo("SILVER");
         assertThat(model.getAttribute("adminCanEndSeason")).isEqualTo(true);
     }
@@ -137,6 +151,8 @@ class ClanControllerTest {
                 "BRONZE",
                 2L,
                 creatorId,
+                false,
+                null,
                 true,
                 true,
                 false,
@@ -260,7 +276,7 @@ class ClanControllerTest {
         RedirectAttributesModelMap flash = new RedirectAttributesModelMap();
         String successView = controller.deleteClan(clanId, flash, userAuthentication);
         assertThat(successView).isEqualTo("redirect:/clans");
-        assertThat(flash.getFlashAttributes().get("success")).isEqualTo("Clan deleted successfully");
+        assertThat(flash.getFlashAttributes().get("success")).isEqualTo("Clan archived successfully");
 
         doThrow(new IllegalArgumentException("Only clan leader can delete this clan"))
                 .when(clanService).deleteClan(clanId, userId);

@@ -18,6 +18,7 @@ public interface ClanRepository extends JpaRepository<Clan, UUID> {
             from Clan c
             join fetch c.tier
             left join fetch c.members
+            where c.deleted = false
             order by c.createdAt desc
             """)
     List<Clan> findAllForListing();
@@ -28,6 +29,7 @@ public interface ClanRepository extends JpaRepository<Clan, UUID> {
             join fetch c.tier
             left join fetch c.members
             where c.id = :clanId
+              and c.deleted = false
             """)
     Optional<Clan> findByIdForDetail(UUID clanId);
 
@@ -36,7 +38,17 @@ public interface ClanRepository extends JpaRepository<Clan, UUID> {
             from Clan c
             join fetch c.tier
             left join fetch c.members
+            where c.id = :clanId
+            """)
+    Optional<Clan> findByIdForAnyStatus(UUID clanId);
+
+    @Query("""
+            select distinct c
+            from Clan c
+            join fetch c.tier
+            left join fetch c.members
             where c.tier.code = :tierCode
+              and c.deleted = false
             order by c.createdAt asc
             """)
     List<Clan> findAllByTierCodeForLeaderboard(@Param("tierCode") TierCode tierCode);
@@ -46,6 +58,7 @@ public interface ClanRepository extends JpaRepository<Clan, UUID> {
             from Clan c
             join fetch c.tier
             left join fetch c.members
+            where c.deleted = false
             """)
     List<Clan> findAllWithTierAndMembers();
 
