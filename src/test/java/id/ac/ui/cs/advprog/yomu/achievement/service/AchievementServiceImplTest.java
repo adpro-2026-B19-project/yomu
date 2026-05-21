@@ -208,4 +208,43 @@ class AchievementServiceImplTest {
         verify(userStatisticRepository).save(any());
         verify(userAchievementRepository, times(2)).save(any(UserAchievement.class));
     }
+
+    @Test
+    void processQuizCompletion_implementsIdempotency_achievementNotUnlockedTwice() {
+        // MILESTONE 100% DELIVERABLE: Idempotency
+        // Achievement tidak dapat terbuka dua kali untuk satu pelajar yang sama
+        UUID userId = UUID.randomUUID();
+        Achievement testAchievement = Achievement.builder()
+                .id(1L)
+                .name("First Reader")
+                .milestone("Complete 1 reading")
+                .requirementType(AchievementRequirementType.READING_COUNT)
+                .targetValue(1)
+                .build();
+
+        // Setup: Simulate achievement already unlocked
+        UserAchievement alreadyUnlockedAchievement = UserAchievement.builder()
+                .id(1L)
+                .userId(userId)
+                .achievement(testAchievement)
+                .displayed(false)
+                .unlockedAt(LocalDateTime.now().minusDays(1))
+                .build();
+
+        when(userStatisticRepository.findByUserId(userId))
+                .thenReturn(java.util.Optional.of(UserStatistic.builder()
+                        .userId(userId)
+                        .totalReadings(0)
+                        .totalScore(0.0d)
+                        .build()));
+        when(achievementRepository.findAll()).thenReturn(List.of(testAchievement));
+        when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of(alreadyUnlockedAchievement));
+
+        // Act: Process quiz completion again
+        achievementService.processQuizCompletion(userId, 100.0d, LocalDateTime.now());
+
+        // Assert: Verify save was NOT called for the already-unlocked achievement
+        // The unobtainedAchievements filter should exclude it, and existsByUserIdAndAchievementId check should prevent duplicate save
+        verify(userAchievementRepository, never()).save(argThat(ua -> ua.getAchievement().getId().equals(1L)));
+    }
 }
