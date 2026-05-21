@@ -156,6 +156,7 @@ public class AchievementIntegrationTest {
         dailyMissionRepository.save(existingMission);
         
         // User already made progress on existing mission
+        LocalDateTime morningCompletionTime = LocalDateTime.now().minusHours(2);
         QuizCompletedEvent morningEvent = new QuizCompletedEvent(
                 UUID.randomUUID(),
                 testUserId,
@@ -163,7 +164,7 @@ public class AchievementIntegrationTest {
                 1L,
                 100.0,
                 1.0,
-                LocalDateTime.now().withHour(10).withMinute(0)
+                morningCompletionTime
         );
         eventPublisher.publishEvent(morningEvent);
         
@@ -181,6 +182,7 @@ public class AchievementIntegrationTest {
         dailyMissionRepository.save(newMission);
         
         // User completes more quizzes (should affect both missions if applicable)
+        LocalDateTime afternoonCompletionTime = morningCompletionTime.plusMinutes(30);
         QuizCompletedEvent afternoonEvent = new QuizCompletedEvent(
                 UUID.randomUUID(),
                 testUserId,
@@ -188,7 +190,7 @@ public class AchievementIntegrationTest {
                 2L,
                 95.0,
                 0.95,
-                LocalDateTime.now().withHour(14).withMinute(0)
+                afternoonCompletionTime
         );
         eventPublisher.publishEvent(afternoonEvent);
         

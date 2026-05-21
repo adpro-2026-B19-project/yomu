@@ -10,9 +10,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,12 +38,12 @@ class DailyMissionRotationSchedulerTest {
     @Test
     void testRotateDailyMissions_InvokesServiceMethod() {
         // Arrange
-        LocalDate testDate = LocalDate.of(2026, 5, 21);
+        LocalDate today = LocalDate.now();
         DailyMission primaryMission = DailyMission.builder()
                 .id(1L)
                 .title("Complete 3 readings")
                 .targetCount(3)
-                .activeDate(testDate)
+                .activeDate(today)
                 .primary(true)
                 .categoryId(null)
                 .build();
@@ -51,19 +51,19 @@ class DailyMissionRotationSchedulerTest {
                 .id(2L)
                 .title("Score 80 accuracy")
                 .targetCount(1)
-                .activeDate(testDate)
+                .activeDate(today)
                 .primary(false)
                 .categoryId(null)
                 .build();
 
-        when(dailyMissionService.rotateDailyMissions(testDate))
+        when(dailyMissionService.rotateDailyMissions(any(LocalDate.class)))
                 .thenReturn(List.of(primaryMission, secondaryMission));
 
         // Act
         scheduler.rotateDailyMissions();
 
         // Assert
-        verify(dailyMissionService).rotateDailyMissions(LocalDate.now());
+        verify(dailyMissionService).rotateDailyMissions(today);
     }
 
     @Test
