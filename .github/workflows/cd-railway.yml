@@ -87,6 +87,7 @@ jobs:
       - name: Sync production variables to Railway
         shell: bash
         run: |
+          public_url="${RAILWAY_PUBLIC_URL%/}"
           railway variables set \
             "SPRING_PROFILES_ACTIVE=docker" \
             "DB_USERNAME=yomu" \
@@ -95,6 +96,7 @@ jobs:
             "GOOGLE_OAUTH_ENABLED=true" \
             "GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}" \
             "GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
+            "APP_OAUTH2_GOOGLE_REDIRECT_URI=${public_url}/login/oauth2/code/google" \
             "SESSION_TIMEOUT=${SESSION_TIMEOUT}" \
             --service "$RAILWAY_SERVICE" \
             --environment "$RAILWAY_ENVIRONMENT" \

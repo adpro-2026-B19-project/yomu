@@ -66,6 +66,7 @@ public class OAuth2ClientConfig {
 
     private static String googleRedirectUri(Environment environment) {
         return firstNonBlank(
+                environment.getProperty("APP_OAUTH2_GOOGLE_REDIRECT_URI"),
                 environment.getProperty("app.oauth2.google.redirect-uri"),
                 environment.getProperty("spring.security.oauth2.client.registration.google.redirect-uri"),
                 DEFAULT_GOOGLE_REDIRECT_URI
