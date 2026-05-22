@@ -5,7 +5,6 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
@@ -44,10 +43,10 @@ class ActuatorSecurityIntegrationTest {
     }
 
     @Test
-    void actuatorEndpointsRequireAuthentication() throws Exception {
+    void healthEndpointIsPublic() throws Exception {
         mockMvc.perform(get("/actuator/health"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/auth/login"));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("UP")));
     }
 
     @Test
@@ -68,7 +67,7 @@ class ActuatorSecurityIntegrationTest {
                 .andReturn();
         HttpSession session = loginResult.getRequest().getSession(false);
 
-        mockMvc.perform(get("/actuator/health")
+        mockMvc.perform(get("/actuator/metrics")
                         .session((org.springframework.mock.web.MockHttpSession) session))
                 .andExpect(status().isForbidden());
     }

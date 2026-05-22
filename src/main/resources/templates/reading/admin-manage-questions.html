@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Yomu - Manage Questions</title>
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
+    <style>
+        .question-card-new {
+            animation: slideIn 0.35s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .btn-spinner {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid rgba(255,255,255,0.6);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
 <header th:replace="~{fragments/navigation :: siteNav}"></header>
@@ -26,73 +46,78 @@
                 <h2 class="section-title">Review and update what is already there.</h2>
             </div>
 
-            <div th:if="${#lists.isEmpty(questions)}" class="empty-state">
-                <strong>No question yet.</strong>
-                <p class="muted">Use the form below to add the first one.</p>
-            </div>
+            <div id="questions-container" class="stack">
+                <!-- Empty state (hidden when questions exist) -->
+                <div id="empty-state" class="empty-state" th:if="${#lists.isEmpty(questions)}">
+                    <strong>No question yet.</strong>
+                    <p class="muted">Use the form below to add the first one.</p>
+                </div>
 
-            <div class="stack" th:if="${not #lists.isEmpty(questions)}">
-                <article class="panel surface-card" th:each="question, iter : ${questions}">
-                    <form th:if="${question.options != null and question.options.size() == 4}"
-                          th:action="@{/admin/texts/questions/{qid}/edit(qid=${question.id})}" method="post" class="stack">
-                        <div class="field">
-                            <label th:text="'Question ' + ${iter.count}">Question 1</label>
-                            <textarea name="questionText" rows="2" class="input" th:text="${question.question}" required></textarea>
-                        </div>
-
-                        <div class="form-grid">
+                <!-- Existing question cards -->
+                <th:block th:if="${not #lists.isEmpty(questions)}">
+                    <article class="panel surface-card question-card" th:each="question, iter : ${questions}"
+                             th:id="'question-card-' + ${question.id}">
+                        <form th:if="${question.options != null and question.options.size() == 4}"
+                              th:action="@{/admin/texts/questions/{qid}/edit(qid=${question.id})}" method="post" class="stack">
                             <div class="field">
-                                <label>Option A</label>
-                                <input type="hidden" name="optionAId" th:value="${question.options[0].id}"/>
-                                <input name="optionA" class="input" th:value="${question.options[0].text}" required/>
+                                <label th:text="'Question ' + ${iter.count}">Question 1</label>
+                                <textarea name="questionText" rows="2" class="input" th:text="${question.question}" required></textarea>
                             </div>
-                            <div class="field">
-                                <label>Option B</label>
-                                <input type="hidden" name="optionBId" th:value="${question.options[1].id}"/>
-                                <input name="optionB" class="input" th:value="${question.options[1].text}" required/>
-                            </div>
-                            <div class="field">
-                                <label>Option C</label>
-                                <input type="hidden" name="optionCId" th:value="${question.options[2].id}"/>
-                                <input name="optionC" class="input" th:value="${question.options[2].text}" required/>
-                            </div>
-                            <div class="field">
-                                <label>Option D</label>
-                                <input type="hidden" name="optionDId" th:value="${question.options[3].id}"/>
-                                <input name="optionD" class="input" th:value="${question.options[3].text}" required/>
-                            </div>
-                        </div>
 
-                        <div class="field">
-                            <label>Correct option</label>
-                            <select name="correctOption" class="input" required>
-                                <option value="A" th:selected="${question.options[0].correct}">A</option>
-                                <option value="B" th:selected="${question.options[1].correct}">B</option>
-                                <option value="C" th:selected="${question.options[2].correct}">C</option>
-                                <option value="D" th:selected="${question.options[3].correct}">D</option>
-                            </select>
-                        </div>
+                            <div class="form-grid">
+                                <div class="field">
+                                    <label>Option A</label>
+                                    <input type="hidden" name="optionAId" th:value="${question.options[0].id}"/>
+                                    <input name="optionA" class="input" th:value="${question.options[0].text}" required/>
+                                </div>
+                                <div class="field">
+                                    <label>Option B</label>
+                                    <input type="hidden" name="optionBId" th:value="${question.options[1].id}"/>
+                                    <input name="optionB" class="input" th:value="${question.options[1].text}" required/>
+                                </div>
+                                <div class="field">
+                                    <label>Option C</label>
+                                    <input type="hidden" name="optionCId" th:value="${question.options[2].id}"/>
+                                    <input name="optionC" class="input" th:value="${question.options[2].text}" required/>
+                                </div>
+                                <div class="field">
+                                    <label>Option D</label>
+                                    <input type="hidden" name="optionDId" th:value="${question.options[3].id}"/>
+                                    <input name="optionD" class="input" th:value="${question.options[3].text}" required/>
+                                </div>
+                            </div>
 
-                        <div class="form-actions">
-                            <button type="submit" class="button button-primary">Save changes</button>
-                            <button type="submit"
-                                    class="button button-danger"
-                                    th:formaction="@{/admin/texts/questions/{qid}/delete(qid=${question.id})}"
-                                    formmethod="post"
-                                    onclick="return confirm('Delete this question?');">
-                                Delete question
-                            </button>
-                        </div>
-                    </form>
+                            <div class="field">
+                                <label>Correct option</label>
+                                <select name="correctOption" class="input" required>
+                                    <option value="A" th:selected="${question.options[0].correct}">A</option>
+                                    <option value="B" th:selected="${question.options[1].correct}">B</option>
+                                    <option value="C" th:selected="${question.options[2].correct}">C</option>
+                                    <option value="D" th:selected="${question.options[3].correct}">D</option>
+                                </select>
+                            </div>
 
-                    <div th:if="${question.options == null or question.options.size() != 4}" class="stack">
-                        <strong th:text="${iter.count + '. ' + question.question}">Question</strong>
-                        <p class="muted tiny">This question does not have four complete options yet, so it cannot be edited from this screen.</p>
-                        <form th:action="@{/admin/texts/questions/{qid}/delete(qid=${question.id})}" method="post" style="display:inline;">
-                            <button class="button button-danger" onclick="return confirm('Delete this question?');">Delete question</button>
+                            <div class="form-actions">
+                                <button type="submit" class="button button-primary">Save changes</button>
+                                <button type="submit"
+                                        class="button button-danger"
+                                        th:formaction="@{/admin/texts/questions/{qid}/delete(qid=${question.id})}"
+                                        formmethod="post"
+                                        onclick="return confirm('Delete this question?');">
+                                    Delete question
+                                </button>
+                            </div>
                         </form>
-                    </div>
-                </article>
+
+                        <div th:if="${question.options == null or question.options.size() != 4}" class="stack">
+                            <strong th:text="${iter.count + '. ' + question.question}">Question</strong>
+                            <p class="muted tiny">This question does not have four complete options yet, so it cannot be edited from this screen.</p>
+                            <form th:action="@{/admin/texts/questions/{qid}/delete(qid=${question.id})}" method="post" style="display:inline;">
+                                <button class="button button-danger" onclick="return confirm('Delete this question?');">Delete question</button>
+                            </form>
+                        </div>
+                    </article>
+                </th:block>
             </div>
         </article>
 
@@ -102,7 +127,21 @@
                 <h2 class="section-title">Create the next question.</h2>
             </div>
 
-            <form th:action="@{/admin/texts/{id}/questions(id=${text.id})}" method="post" class="stack">
+            <!-- Success toast -->
+            <div id="add-success-toast" class="alert success" style="display:none;">
+                <strong>Question added!</strong>
+                <span>The new question has been saved and appeared above.</span>
+            </div>
+            <div id="add-error-toast" class="alert error" style="display:none;">
+                <strong>Error.</strong>
+                <span id="add-error-msg">Something went wrong.</span>
+            </div>
+
+            <form id="add-question-form" class="stack"
+                  th:action="@{/admin/texts/{id}/questions(id=${text.id})}"
+                  th:data-text-id="${text.id}"
+                  method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" id="csrf-token-field"/>
                 <div class="field">
                     <label for="questionText">Question text</label>
                     <input id="questionText" name="questionText" class="input" required/>
@@ -135,11 +174,131 @@
                     </select>
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="button button-primary">Add question</button>
+                    <button type="submit" id="add-question-btn" class="button button-primary">Add question</button>
                 </div>
             </form>
         </article>
     </section>
 </main>
+
+<script>
+(function () {
+    const form = document.getElementById('add-question-form');
+    const container = document.getElementById('questions-container');
+    const emptyState = document.getElementById('empty-state');
+    const successToast = document.getElementById('add-success-toast');
+    const errorToast = document.getElementById('add-error-toast');
+    const errorMsg = document.getElementById('add-error-msg');
+    const addBtn = document.getElementById('add-question-btn');
+    const textId = form.dataset.textId;
+
+    let questionCount = document.querySelectorAll('.question-card').length;
+
+    function showToast(el, duration = 3500) {
+        el.style.display = '';
+        setTimeout(() => {
+            el.style.transition = 'opacity .25s ease';
+            el.style.opacity = '0';
+            setTimeout(() => { el.style.display = 'none'; el.style.opacity = ''; el.style.transition = ''; }, 260);
+        }, duration);
+    }
+
+    function buildQuestionCard(q) {
+        const optionLabels = ['A', 'B', 'C', 'D'];
+        const correctIdx = q.options.findIndex(o => o.correct);
+
+        const optionsHtml = q.options.map((o, i) => `
+            <div class="field">
+                <label>Option ${optionLabels[i]}</label>
+                <input type="hidden" name="option${optionLabels[i]}Id" value="${o.id}"/>
+                <input name="option${optionLabels[i]}" class="input" value="${escHtml(o.text)}" required/>
+            </div>`).join('');
+
+        const selectOptions = optionLabels.map((lbl, i) =>
+            `<option value="${lbl}"${i === correctIdx ? ' selected' : ''}>${lbl}</option>`).join('');
+
+        return `
+        <article class="panel surface-card question-card question-card-new" id="question-card-${q.id}">
+            <form action="/admin/texts/questions/${q.id}/edit" method="post" class="stack">
+                <input type="hidden" name="${getCsrfName()}" value="${getCsrfToken()}"/>
+                <div class="field">
+                    <label>Question ${questionCount}</label>
+                    <textarea name="questionText" rows="2" class="input" required>${escHtml(q.question)}</textarea>
+                </div>
+                <div class="form-grid">${optionsHtml}</div>
+                <div class="field">
+                    <label>Correct option</label>
+                    <select name="correctOption" class="input" required>${selectOptions}</select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="button button-primary">Save changes</button>
+                    <button type="submit" class="button button-danger"
+                        formaction="/admin/texts/questions/${q.id}/delete"
+                        formmethod="post"
+                        onclick="return confirm('Delete this question?');">Delete question</button>
+                </div>
+            </form>
+        </article>`;
+    }
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function getCsrfToken() {
+        return document.getElementById('csrf-token-field').value;
+    }
+    function getCsrfName() {
+        return document.getElementById('csrf-token-field').name;
+    }
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        // Show loading state
+        addBtn.disabled = true;
+        addBtn.innerHTML = '<span class="btn-spinner"></span>Saving…';
+
+        const data = new FormData(form);
+        // Append async flag as request param
+        const url = form.action + (form.action.includes('?') ? '&' : '?') + 'async=true';
+
+        try {
+            const res = await fetch(url, { method: 'POST', body: data });
+            const json = await res.json();
+
+            if (!res.ok || json.error) {
+                errorMsg.textContent = json.error || 'Something went wrong.';
+                showToast(errorToast);
+                return;
+            }
+
+            // Hide empty state if it's showing
+            if (emptyState) emptyState.style.display = 'none';
+
+            // Append new card
+            questionCount++;
+            const tmp = document.createElement('div');
+            tmp.innerHTML = buildQuestionCard(json);
+            container.appendChild(tmp.firstElementChild);
+
+            // Reset form
+            form.reset();
+
+            showToast(successToast);
+        } catch (err) {
+            errorMsg.textContent = 'Network error. Please try again.';
+            showToast(errorToast);
+        } finally {
+            addBtn.disabled = false;
+            addBtn.innerHTML = 'Add question';
+        }
+    });
+})();
+</script>
 </body>
 </html>

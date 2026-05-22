@@ -51,7 +51,8 @@
                 <p th:text="${#strings.abbreviate(text.content, 125)}">Preview content...</p>
                 <div class="page-actions" style="margin-top:auto;">
                     <a th:href="@{/texts/{id}(id=${text.id})}" class="button button-primary">Read now</a>
-                    <a th:href="@{/texts/{id}/quiz(id=${text.id})}" class="button button-on-color">Start quiz</a>
+                    <a th:if="${!attemptedTextIds.contains(text.id)}" th:href="@{/texts/{id}/quiz(id=${text.id})}" class="button button-on-color">Start quiz</a>
+                    <button th:if="${attemptedTextIds.contains(text.id)}" disabled class="button button-secondary" style="opacity: 0.6; cursor: not-allowed;">Quiz Completed</button>
                 </div>
             </article>
         </div>

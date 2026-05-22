@@ -59,7 +59,7 @@ class ReadingIntegrationTest {
     private QuizAttemptRepository quizAttemptRepository;
 
     @Autowired
-    private id.ac.ui.cs.advprog.yomu.reading.service.TextService textService;
+    private id.ac.ui.cs.advprog.yomu.reading.service.ITextService textService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 

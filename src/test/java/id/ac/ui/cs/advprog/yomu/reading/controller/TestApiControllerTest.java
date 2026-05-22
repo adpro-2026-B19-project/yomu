@@ -1,7 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.reading.controller;
 
 import id.ac.ui.cs.advprog.yomu.reading.dto.UserReadingStatResponse;
-import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.IQuizService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 class TextApiControllerTest {
 
     @Mock
-    private TextService textService;
+    private IQuizService quizService;
 
     @InjectMocks
     private TextApiController textApiController;
@@ -25,7 +25,7 @@ class TextApiControllerTest {
     @Test
     void getUserStatsShouldReturnOkResponseWithReadingStats() {
         UserReadingStatResponse response = new UserReadingStatResponse(3, 0.75, 225.0);
-        when(textService.getUserReadingStats("user-123")).thenReturn(response);
+        when(quizService.getUserReadingStats("user-123")).thenReturn(response);
 
         ResponseEntity<UserReadingStatResponse> result = textApiController.getUserStats("user-123");
 
@@ -35,6 +35,6 @@ class TextApiControllerTest {
         assertThat(result.getBody().getAverageAccuracy()).isEqualTo(0.75);
         assertThat(result.getBody().getTotalAccumulatedScore()).isEqualTo(225.0);
 
-        verify(textService).getUserReadingStats("user-123");
+        verify(quizService).getUserReadingStats("user-123");
     }
 }
