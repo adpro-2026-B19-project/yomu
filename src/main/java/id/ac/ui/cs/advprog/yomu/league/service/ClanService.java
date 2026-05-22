@@ -22,6 +22,8 @@ public interface ClanService {
 
     SeasonTransitionResult endCurrentSeason();
 
+    LeaderboardPage getLeaderboardPage(TierCode tierCode, int page, int size);
+
     List<LeaderboardEntry> getLeaderboard(TierCode tierCode);
 
     List<LeaderboardEntry> getBronzeLeaderboard();
@@ -40,6 +42,8 @@ public interface ClanService {
             String tier,
             long memberCount,
             UUID createdByUserId,
+            boolean archived,
+            LocalDateTime archivedAt,
             boolean viewerIsMember,
             boolean viewerIsLeader,
             boolean viewerHasPendingRequest,
@@ -78,6 +82,18 @@ public interface ClanService {
             double score,
             List<ScoreModifier> activeModifiers,
             String formulaDescription
+    ) {
+    }
+
+    record LeaderboardPage(
+            String tier,
+            List<LeaderboardEntry> entries,
+            int currentPage,
+            int pageSize,
+            int totalPages,
+            long totalEntries,
+            boolean hasNext,
+            boolean hasPrevious
     ) {
     }
 

@@ -3,17 +3,17 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Yomu - Clans</title>
+    <title>Yomu - League</title>
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header th:replace="~{fragments/navbar :: navbar}"></header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section class="split-grid" style="align-items:start;">
         <article class="panel surface-strong stack">
-            <span class="eyebrow">Clan hub</span>
-            <h1 class="page-title">Start a clan or join one that already fits.</h1>
+            <span class="eyebrow">League hub</span>
+            <h1 class="page-title">Start a league clan or join one that already fits.</h1>
             <p class="page-lead">Clans turn individual quiz results into a shared season score. Create a name you can keep, then invite people through the join flow.</p>
             <div class="surface-card">
                 <strong>What matters in league play</strong>
@@ -32,7 +32,7 @@
             </div>
 
             <div class="alert success" th:if="${success != null}">
-                <strong>Clan created.</strong>
+                <strong>Update saved.</strong>
                 <span th:text="${success}">Clan created successfully.</span>
             </div>
             <div class="alert error" th:if="${error != null}">
@@ -55,7 +55,7 @@
     <section class="section">
         <div class="panel-head">
             <span class="eyebrow">Clan list</span>
-            <h2 class="section-title">Browse the active clans.</h2>
+            <h2 class="section-title">Browse the active league clans.</h2>
             <p class="section-copy">Open a clan detail page to see its members, tier, join status, and pending requests if you lead it.</p>
         </div>
 
@@ -74,7 +74,11 @@
                     <tbody>
                     <tr th:each="clan : ${clans}">
                         <td th:text="${clan.name}">Deep Readers</td>
-                        <td><span class="chip primary" th:text="${clan.tier}">BRONZE</span></td>
+                        <td>
+                            <span class="chip tier-badge"
+                                  th:classappend="' tier-' + ${clan.tierCssClass}"
+                                  th:text="${clan.tier}">BRONZE</span>
+                        </td>
                         <td th:text="${clan.memberCount}">1</td>
                         <td>
                             <a th:href="@{/users/{userId}(userId=${clan.createdByUserId})}" th:text="${clan.createdByName}">creator</a>

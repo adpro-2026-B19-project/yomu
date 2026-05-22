@@ -10,7 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header th:replace="~{fragments/navbar :: navbar}"></header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section id="achievementUnlockBanner" class="panel surface-strong stack" style="display:none; margin-bottom:24px;">
@@ -245,7 +245,7 @@
         </div>
         <div class="cluster">
             <a class="nav-link" th:href="@{/texts}">Library</a>
-            <a class="nav-link" th:href="@{/profile}">Profile</a>
+            <a class="nav-link" th:href="${profileNavHref}">Profile</a>
             <a class="nav-link" th:href="@{/clans}">League</a>
         </div>
     </div>

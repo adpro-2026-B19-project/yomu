@@ -211,10 +211,11 @@ class Milestone75KalfinIntegrationTest {
 
         mockMvc.perform(get("/api/league/leaderboard/BRONZE").session(alphaLeaderSession))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].clanName").value("Alpha Clan"))
-                .andExpect(jsonPath("$[0].baseScore").value(200.0))
-                .andExpect(jsonPath("$[0].score").value(240.0))
-                .andExpect(jsonPath("$[0].activeModifiers[0].code").value("PRODUCTIVITY_BUFF"));
+                .andExpect(jsonPath("$.entries[0].clanName").value("Alpha Clan"))
+                .andExpect(jsonPath("$.entries[0].baseScore").value(200.0))
+                .andExpect(jsonPath("$.entries[0].score").value(240.0))
+                .andExpect(jsonPath("$.entries[0].activeModifiers[0].code").value("PRODUCTIVITY_BUFF"))
+                .andExpect(jsonPath("$.totalEntries").value(4));
 
         mockMvc.perform(get("/players/" + alphaMemberId).session(alphaLeaderSession))
                 .andExpect(status().isOk())

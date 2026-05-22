@@ -109,14 +109,18 @@ public class ClanServiceImpl implements ClanService {
     @Override
     @Transactional(readOnly = true)
     public ClanDetail getClanDetail(UUID clanId, UUID viewerUserId) {
-        Clan clan = getExistingClan(clanId);
-        boolean viewerIsMember = viewerUserId != null
+        Clan clan = getExistingClanForView(clanId);
+        boolean archived = clan.isDeleted();
+        boolean viewerIsMember = !archived
+                && viewerUserId != null
                 && clanMemberRepository.existsByClanIdAndUserId(clanId, viewerUserId);
-        boolean viewerIsLeader = viewerUserId != null
+        boolean viewerIsLeader = !archived
+                && viewerUserId != null
                 && clanMemberRepository.findByClanIdAndUserId(clanId, viewerUserId)
                 .map(member -> member.getRole() == ClanMemberRole.LEADER)
                 .orElse(false);
-        boolean viewerHasPendingRequest = viewerUserId != null
+        boolean viewerHasPendingRequest = !archived
+                && viewerUserId != null
                 && clanJoinRequestRepository.existsByClanIdAndRequesterUserIdAndStatus(
                 clanId,
                 viewerUserId,
@@ -131,7 +135,7 @@ public class ClanServiceImpl implements ClanService {
                 .toList();
 
         List<JoinRequestSummary> pendingJoinRequests = List.of();
-        if (viewerIsLeader) {
+        if (viewerIsLeader && !archived) {
             pendingJoinRequests = clanJoinRequestRepository
                     .findByClanIdAndStatusOrderByCreatedAtAsc(clanId, ClanJoinRequestStatus.PENDING)
                     .stream()
@@ -149,6 +153,8 @@ public class ClanServiceImpl implements ClanService {
                 clan.getTier().getCode().name(),
                 clan.getMembers().size(),
                 clan.getCreatedByUserId(),
+                archived,
+                clan.getDeletedAt(),
                 viewerIsMember,
                 viewerIsLeader,
                 viewerHasPendingRequest,
@@ -164,7 +170,7 @@ public class ClanServiceImpl implements ClanService {
             throw new IllegalArgumentException("Requester user id is required");
         }
 
-        Clan clan = getExistingClan(clanId);
+        Clan clan = getExistingActiveClan(clanId);
         if (clanMemberRepository.existsByUserId(requesterUserId)) {
             throw new IllegalArgumentException("User already belongs to a clan");
         }
@@ -189,7 +195,7 @@ public class ClanServiceImpl implements ClanService {
             throw new IllegalArgumentException("Decision is required");
         }
 
-        Clan clan = getExistingClan(clanId);
+        Clan clan = getExistingActiveClan(clanId);
         ClanMember reviewer = clanMemberRepository.findByClanIdAndUserId(clanId, reviewerUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Reviewer is not a clan member"));
         if (reviewer.getRole() != ClanMemberRole.LEADER) {
@@ -263,7 +269,7 @@ public class ClanServiceImpl implements ClanService {
             throw new IllegalArgumentException("Requester user id is required");
         }
 
-        Clan clan = getExistingClan(clanId);
+        Clan clan = getExistingActiveClan(clanId);
         ClanMember requesterMembership = clanMemberRepository.findByClanIdAndUserId(clanId, requesterUserId)
                 .orElseThrow(() -> new IllegalArgumentException("Only clan leader can delete this clan"));
         if (requesterMembership.getRole() != ClanMemberRole.LEADER) {
@@ -271,7 +277,9 @@ public class ClanServiceImpl implements ClanService {
         }
 
         clanJoinRequestRepository.deleteByClanId(clanId);
-        clanRepository.delete(clan);
+        clan.removeAllMembers();
+        clan.archive(requesterUserId);
+        clanRepository.save(clan);
     }
 
     @Override
@@ -320,42 +328,40 @@ public class ClanServiceImpl implements ClanService {
 
     @Override
     @Transactional(readOnly = true)
+    public LeaderboardPage getLeaderboardPage(TierCode tierCode, int page, int size) {
+        if (tierCode == null) {
+            throw new IllegalArgumentException("Tier code is required");
+        }
+
+        int sanitizedPage = Math.max(page, 0);
+        int sanitizedSize = Math.min(Math.max(size, 1), 50);
+        List<LeaderboardEntry> entries = buildLeaderboardEntries(tierCode, leagueSeasonService.findActiveSeason());
+        int totalEntries = entries.size();
+        int totalPages = totalEntries == 0 ? 0 : (int) Math.ceil((double) totalEntries / sanitizedSize);
+        int fromIndex = Math.min(sanitizedPage * sanitizedSize, totalEntries);
+        int toIndex = Math.min(fromIndex + sanitizedSize, totalEntries);
+        List<LeaderboardEntry> pagedEntries = fromIndex >= toIndex ? List.of() : entries.subList(fromIndex, toIndex);
+
+        return new LeaderboardPage(
+                tierCode.name(),
+                List.copyOf(pagedEntries),
+                sanitizedPage,
+                sanitizedSize,
+                totalPages,
+                totalEntries,
+                sanitizedPage + 1 < totalPages,
+                sanitizedPage > 0 && totalPages > 0
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LeaderboardEntry> getLeaderboard(TierCode tierCode) {
         if (tierCode == null) {
             throw new IllegalArgumentException("Tier code is required");
         }
 
-        List<Clan> clans = clanRepository.findAllByTierCodeForLeaderboard(tierCode);
-        if (clans.isEmpty()) {
-            return List.of();
-        }
-
-        LeagueSeason activeSeason = leagueSeasonService.findActiveSeason();
-        Map<UUID, List<ClanQuizScoreEvent>> seasonEventsByClanId = activeSeason == null
-                ? Map.of()
-                : clanQuizScoreEventRepository.findBySeasonIdAndClanIdIn(
-                        activeSeason.getId(),
-                        clans.stream().map(Clan::getId).toList()
-                )
-                .stream()
-                .collect(Collectors.groupingBy(ClanQuizScoreEvent::getClanId));
-
-        return clans.stream()
-                .map(clan -> new ScoredClan(
-                        clan,
-                        toLeaderboardEntry(
-                                clan,
-                                clanScoreCalculator.calculate(
-                                        clan,
-                                        seasonEventsByClanId.getOrDefault(clan.getId(), List.of())
-                                )
-                        )
-                ))
-                .sorted(Comparator
-                        .comparing((ScoredClan scoredClan) -> scoredClan.entry().score()).reversed()
-                        .thenComparing(scoredClan -> scoredClan.clan().getCreatedAt()))
-                .map(ScoredClan::entry)
-                .toList();
+        return buildLeaderboardEntries(tierCode, leagueSeasonService.findActiveSeason());
     }
 
     @Override
@@ -451,6 +457,23 @@ public class ClanServiceImpl implements ClanService {
                 .orElseGet(() -> tierRepository.save(new Tier(tierCode, formatTierDisplayName(tierCode))));
     }
 
+    private List<LeaderboardEntry> buildLeaderboardEntries(TierCode tierCode, LeagueSeason activeSeason) {
+        List<Clan> clans = clanRepository.findAllByTierCodeForLeaderboard(tierCode);
+        if (clans.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, List<ClanQuizScoreEvent>> seasonEventsByClanId = activeSeason == null
+                ? Map.of()
+                : clanQuizScoreEventRepository.findBySeasonIdAndClanIdIn(
+                        activeSeason.getId(),
+                        clans.stream().map(Clan::getId).toList()
+                )
+                .stream()
+                .collect(Collectors.groupingBy(ClanQuizScoreEvent::getClanId));
+        return sortLeaderboardEntries(clans, seasonEventsByClanId);
+    }
+
     private List<LeaderboardEntry> getLeaderboardForSeason(TierCode tierCode, UUID seasonId) {
         List<Clan> clans = clanRepository.findAllByTierCodeForLeaderboard(tierCode);
         if (clans.isEmpty()) {
@@ -462,6 +485,13 @@ public class ClanServiceImpl implements ClanService {
                 .stream()
                 .collect(Collectors.groupingBy(ClanQuizScoreEvent::getClanId));
 
+        return sortLeaderboardEntries(clans, seasonEventsByClanId);
+    }
+
+    private List<LeaderboardEntry> sortLeaderboardEntries(
+            List<Clan> clans,
+            Map<UUID, List<ClanQuizScoreEvent>> seasonEventsByClanId
+    ) {
         return clans.stream()
                 .map(clan -> new ScoredClan(
                         clan,
@@ -555,11 +585,19 @@ public class ClanServiceImpl implements ClanService {
         }
     }
 
-    private Clan getExistingClan(UUID clanId) {
+    private Clan getExistingActiveClan(UUID clanId) {
         if (clanId == null) {
             throw new IllegalArgumentException("Clan id is required");
         }
         return clanRepository.findByIdForDetail(clanId)
+                .orElseThrow(() -> new IllegalArgumentException("Clan was not found"));
+    }
+
+    private Clan getExistingClanForView(UUID clanId) {
+        if (clanId == null) {
+            throw new IllegalArgumentException("Clan id is required");
+        }
+        return clanRepository.findByIdForAnyStatus(clanId)
                 .orElseThrow(() -> new IllegalArgumentException("Clan was not found"));
     }
 

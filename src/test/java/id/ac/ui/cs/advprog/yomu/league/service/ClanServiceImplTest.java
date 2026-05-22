@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
@@ -134,6 +135,26 @@ class ClanServiceImplTest {
     }
 
     @Test
+    void getClanDetailShouldExposeArchivedStatusWithoutInteractiveFlags() {
+        UUID clanId = UUID.randomUUID();
+        UUID viewerUserId = UUID.randomUUID();
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Archived Squad", bronze, UUID.randomUUID());
+        ReflectionTestUtils.setField(clan, "id", clanId);
+        ReflectionTestUtils.setField(clan, "deleted", true);
+        ReflectionTestUtils.setField(clan, "deletedAt", LocalDateTime.now().minusMinutes(5));
+
+        when(clanRepository.findByIdForAnyStatus(clanId)).thenReturn(Optional.of(clan));
+
+        ClanService.ClanDetail detail = clanService.getClanDetail(clanId, viewerUserId);
+
+        assertThat(detail.archived()).isTrue();
+        assertThat(detail.viewerIsLeader()).isFalse();
+        assertThat(detail.viewerIsMember()).isFalse();
+        assertThat(detail.viewerHasPendingRequest()).isFalse();
+    }
+
+    @Test
     void reviewJoinRequestShouldFailWhenDatabaseDetectsUserAlreadyInAnotherClan() {
         UUID clanId = UUID.randomUUID();
         UUID leaderUserId = UUID.randomUUID();
@@ -215,6 +236,37 @@ class ClanServiceImplTest {
     }
 
     @Test
+    void recordQuizCompletionShouldRemainIdempotentWhenSaveCollides() {
+        UUID eventId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID clanId = UUID.randomUUID();
+        UUID seasonId = UUID.randomUUID();
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Bronze Squad", bronze, UUID.randomUUID());
+        ReflectionTestUtils.setField(clan, "id", clanId);
+        ClanMember member = new ClanMember(clan, userId, ClanMemberRole.MEMBER);
+        LeagueSeason season = new LeagueSeason(1);
+        ReflectionTestUtils.setField(season, "id", seasonId);
+
+        when(clanQuizScoreEventRepository.existsByEventId(eventId)).thenReturn(false);
+        when(clanMemberRepository.findByUserId(userId)).thenReturn(Optional.of(member));
+        when(leagueSeasonService.getOrCreateActiveSeason()).thenReturn(season);
+        when(clanQuizScoreEventRepository.save(any(ClanQuizScoreEvent.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate event"));
+
+        clanService.recordQuizCompletion(new ClanService.QuizCompletionPayload(
+                eventId,
+                userId,
+                UUID.randomUUID(),
+                12.0d,
+                0.9d,
+                LocalDateTime.now().minusMinutes(1)
+        ));
+
+        verify(clanQuizScoreEventRepository, times(1)).save(any(ClanQuizScoreEvent.class));
+    }
+
+    @Test
     void getLeaderboardShouldSortByCalculatedCurrentSeasonScore() {
         UUID seasonId = UUID.randomUUID();
         LeagueSeason activeSeason = new LeagueSeason(2);
@@ -253,6 +305,54 @@ class ClanServiceImplTest {
         assertThat(entries.getFirst().baseScore()).isEqualTo(15.0d);
         assertThat(entries.getFirst().score()).isEqualTo(18.0d);
         assertThat(entries.getFirst().activeModifiers()).hasSize(1);
+    }
+
+    @Test
+    void getLeaderboardPageShouldSliceSortedEntries() {
+        UUID seasonId = UUID.randomUUID();
+        LeagueSeason activeSeason = new LeagueSeason(2);
+        ReflectionTestUtils.setField(activeSeason, "id", seasonId);
+
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan first = createClanWithId("First", bronze);
+        Clan second = createClanWithId("Second", bronze);
+        Clan third = createClanWithId("Third", bronze);
+
+        when(clanRepository.findAllByTierCodeForLeaderboard(TierCode.BRONZE)).thenReturn(List.of(first, second, third));
+        when(leagueSeasonService.findActiveSeason()).thenReturn(activeSeason);
+        when(clanQuizScoreEventRepository.findBySeasonIdAndClanIdIn(eq(seasonId), anyList())).thenReturn(List.of());
+        when(clanScoreCalculator.calculate(eq(first), anyList())).thenReturn(score(90.0d));
+        when(clanScoreCalculator.calculate(eq(second), anyList())).thenReturn(score(70.0d));
+        when(clanScoreCalculator.calculate(eq(third), anyList())).thenReturn(score(50.0d));
+
+        ClanService.LeaderboardPage page = clanService.getLeaderboardPage(TierCode.BRONZE, 1, 2);
+
+        assertThat(page.totalEntries()).isEqualTo(3);
+        assertThat(page.totalPages()).isEqualTo(2);
+        assertThat(page.currentPage()).isEqualTo(1);
+        assertThat(page.entries()).extracting(ClanService.LeaderboardEntry::clanName).containsExactly("Third");
+    }
+
+    @Test
+    void deleteClanShouldArchiveClanAndRemoveMembers() {
+        UUID clanId = UUID.randomUUID();
+        UUID leaderUserId = UUID.randomUUID();
+        Tier bronze = new Tier(TierCode.BRONZE, "Bronze");
+        Clan clan = new Clan("Bronze Squad", bronze, leaderUserId);
+        ReflectionTestUtils.setField(clan, "id", clanId);
+        ClanMember leaderMember = new ClanMember(clan, leaderUserId, ClanMemberRole.LEADER);
+        clan.addMember(leaderMember);
+
+        when(clanRepository.findByIdForDetail(clanId)).thenReturn(Optional.of(clan));
+        when(clanMemberRepository.findByClanIdAndUserId(clanId, leaderUserId)).thenReturn(Optional.of(leaderMember));
+
+        clanService.deleteClan(clanId, leaderUserId);
+
+        verify(clanJoinRequestRepository).deleteByClanId(clanId);
+        verify(clanRepository).save(clan);
+        assertThat(clan.isDeleted()).isTrue();
+        assertThat(clan.getDeletedByUserId()).isEqualTo(leaderUserId);
+        assertThat(clan.getMembers()).isEmpty();
     }
 
     @Test

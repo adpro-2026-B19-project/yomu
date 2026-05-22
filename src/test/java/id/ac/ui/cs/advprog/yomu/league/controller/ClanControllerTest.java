@@ -78,28 +78,42 @@ class ClanControllerTest {
     void leaderboardPageShouldRenderSelectedTier() {
         UUID clanId = UUID.randomUUID();
         UUID creatorId = UUID.randomUUID();
-        when(clanService.getLeaderboard(id.ac.ui.cs.advprog.yomu.league.model.TierCode.SILVER)).thenReturn(List.of(
-                new ClanService.LeaderboardEntry(
-                        clanId,
-                        "Clan One",
+        when(clanService.getLeaderboardPage(id.ac.ui.cs.advprog.yomu.league.model.TierCode.SILVER, 0, 10))
+                .thenReturn(new ClanService.LeaderboardPage(
                         "SILVER",
-                        3L,
-                        10.0d,
-                        12.0d,
-                        List.of(new ClanService.ScoreModifier("PRODUCTIVITY_BUFF", "Productivity Buff", 1.2d, "desc")),
-                        "Silver formula"
-                )
-        ));
+                        List.of(new ClanService.LeaderboardEntry(
+                                clanId,
+                                "Clan One",
+                                "SILVER",
+                                3L,
+                                10.0d,
+                                12.0d,
+                                List.of(new ClanService.ScoreModifier(
+                                        "PRODUCTIVITY_BUFF",
+                                        "Productivity Buff",
+                                        1.2d,
+                                        "desc"
+                                )),
+                                "Silver formula"
+                        )),
+                        0,
+                        10,
+                        1,
+                        1,
+                        false,
+                        false
+                ));
         when(clanService.listClans()).thenReturn(List.of(
                 new ClanService.ClanSummary(clanId, "Clan One", "SILVER", 3L, creatorId)
         ));
         when(authRepository.findAllById(any())).thenReturn(List.of(createUser(creatorId, "creator", "Creator", AuthRole.USER)));
 
         ExtendedModelMap model = new ExtendedModelMap();
-        String view = controller.leaderboardPage("silver", model, adminAuthentication);
+        String view = controller.leaderboardPage("silver", 0, 10, model, adminAuthentication);
 
         assertThat(view).isEqualTo("league/leaderboard");
         assertThat(model.getAttribute("entries")).isNotNull();
+        assertThat(model.getAttribute("leaderboardPage")).isNotNull();
         assertThat(model.getAttribute("selectedTier")).isEqualTo("SILVER");
         assertThat(model.getAttribute("adminCanEndSeason")).isEqualTo(true);
     }
@@ -137,6 +151,8 @@ class ClanControllerTest {
                 "BRONZE",
                 2L,
                 creatorId,
+                false,
+                null,
                 true,
                 true,
                 false,
@@ -260,7 +276,7 @@ class ClanControllerTest {
         RedirectAttributesModelMap flash = new RedirectAttributesModelMap();
         String successView = controller.deleteClan(clanId, flash, userAuthentication);
         assertThat(successView).isEqualTo("redirect:/clans");
-        assertThat(flash.getFlashAttributes().get("success")).isEqualTo("Clan deleted successfully");
+        assertThat(flash.getFlashAttributes().get("success")).isEqualTo("Clan archived successfully");
 
         doThrow(new IllegalArgumentException("Only clan leader can delete this clan"))
                 .when(clanService).deleteClan(clanId, userId);
@@ -273,7 +289,6 @@ class ClanControllerTest {
     @Test
     void publicProfilePageShouldRedirectWhenServiceThrows() {
         UUID userId = UUID.randomUUID();
-        when(currentUserResolver.resolveUser(userAuthentication)).thenReturn(Optional.empty());
         when(clanService.getPublicProfile(userId)).thenThrow(new IllegalArgumentException("User was not found"));
 
         RedirectAttributesModelMap flash = new RedirectAttributesModelMap();
@@ -281,12 +296,12 @@ class ClanControllerTest {
 
         assertThat(view).isEqualTo("redirect:/clans");
         assertThat(flash.getFlashAttributes().get("error")).isEqualTo("User was not found");
+        verify(clanService).getPublicProfile(userId);
     }
 
     @Test
     void publicProfilePageShouldRender() {
         UUID userId = UUID.randomUUID();
-        when(currentUserResolver.resolveUser(userAuthentication)).thenReturn(Optional.empty());
         when(clanService.getPublicProfile(userId)).thenReturn(new ClanService.PublicProfile(
                 userId,
                 "player",
@@ -307,18 +322,33 @@ class ClanControllerTest {
 
         assertThat(view).isEqualTo("league/public-profile");
         assertThat(model.getAttribute("publicProfile")).isNotNull();
+        verify(clanService).getPublicProfile(userId);
     }
 
     @Test
-    void publicProfilePageShouldRedirectToOwnProfileWhenViewerMatchesTarget() {
+    void publicProfilePageShouldRenderOwnPublicProfileWhenViewerMatchesTarget() {
         UUID userId = UUID.randomUUID();
-        AuthUser viewer = createUser(userId, "player", "Player", AuthRole.USER);
-        when(currentUserResolver.resolveUser(userAuthentication)).thenReturn(Optional.of(viewer));
+        when(clanService.getPublicProfile(userId)).thenReturn(new ClanService.PublicProfile(
+                userId,
+                "player",
+                "Player",
+                "USER",
+                "Clan One",
+                "BRONZE",
+                "MEMBER",
+                12.0d,
+                2L,
+                8.0d,
+                0.8d,
+                List.of()
+        ));
 
-        String view = controller.publicProfilePage(userId, new ExtendedModelMap(), new RedirectAttributesModelMap(), userAuthentication);
+        ExtendedModelMap model = new ExtendedModelMap();
+        String view = controller.publicProfilePage(userId, model, new RedirectAttributesModelMap(), userAuthentication);
 
-        assertThat(view).isEqualTo("redirect:/profile");
-        verify(clanService, never()).getPublicProfile(any());
+        assertThat(view).isEqualTo("league/public-profile");
+        assertThat(model.getAttribute("publicProfile")).isNotNull();
+        verify(clanService).getPublicProfile(userId);
     }
 
     @Test

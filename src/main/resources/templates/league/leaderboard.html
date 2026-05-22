@@ -3,11 +3,11 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Yomu - Leaderboard</title>
+    <title>Yomu - League Leaderboard</title>
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header th:replace="~{fragments/navbar :: navbar}"></header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section class="panel surface-strong stack">
@@ -16,6 +16,10 @@
                 <span class="eyebrow">Season board</span>
                 <h1 class="page-title" th:text="${selectedTier} + ' leaderboard'">BRONZE leaderboard</h1>
                 <p class="page-lead" th:text="${tierFormula}">Bronze counts total quiz score from the active season.</p>
+                <p class="caption" th:if="${leaderboardPage != null and leaderboardPage.totalEntries > 0}"
+                   th:text="'Showing page ' + (${leaderboardPage.currentPage + 1}) + ' of ' + ${leaderboardPage.totalPages} + ' • ' + ${leaderboardPage.totalEntries} + ' active clan(s)'">
+                    Showing page 1 of 1.
+                </p>
             </div>
             <form th:if="${adminCanEndSeason}" th:action="@{/admin/league/season/end}" method="post" style="margin:0;">
                 <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
@@ -68,7 +72,11 @@
                             <a th:href="@{/clans/{id}(id=${entry.clanId})}" th:text="${entry.clanName}">Clan name</a>
                             <div class="caption" th:text="${entry.formulaDescription}">Tier formula</div>
                         </td>
-                        <td><span class="chip primary" th:text="${entry.tier}">BRONZE</span></td>
+                        <td>
+                            <span class="chip tier-badge"
+                                  th:classappend="' tier-' + ${entry.tierCssClass}"
+                                  th:text="${entry.tier}">BRONZE</span>
+                        </td>
                         <td th:text="${entry.memberCount}">0</td>
                         <td>
                             <a th:href="@{/users/{userId}(userId=${entry.createdByUserId})}" th:text="${entry.createdByName}">creator</a>
@@ -77,7 +85,8 @@
                         <td><strong style="color:var(--brand-teal);" th:text="${#numbers.formatDecimal(entry.score, 1, 2)}">0.00</strong></td>
                         <td>
                             <div class="tag-cloud" th:if="${!#lists.isEmpty(entry.activeModifiers)}">
-                                <span class="chip dark"
+                                <span class="chip modifier-chip"
+                                      th:classappend="' modifier-' + ${modifier.kind}"
                                       th:each="modifier : ${entry.activeModifiers}"
                                       th:title="${modifier.description}"
                                       th:text="${modifier.label + ' x' + #numbers.formatDecimal(modifier.multiplier, 1, 2)}">
@@ -90,6 +99,27 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <div class="pagination-bar" th:if="${leaderboardPage != null and leaderboardPage.totalPages > 1}">
+            <a class="button button-secondary"
+               th:if="${leaderboardPage.hasPrevious}"
+               th:href="@{/leaderboard(tier=${selectedTier},page=${leaderboardPage.currentPage - 1},size=${leaderboardPage.pageSize})}">
+                &laquo; Previous
+            </a>
+            <div class="pill-nav">
+                <a th:each="pageNumber : ${#numbers.sequence(0, leaderboardPage.totalPages - 1)}"
+                   th:href="@{/leaderboard(tier=${selectedTier},page=${pageNumber},size=${leaderboardPage.pageSize})}"
+                   th:classappend="${pageNumber == leaderboardPage.currentPage} ? ' active' : ''"
+                   th:text="${pageNumber + 1}">
+                    1
+                </a>
+            </div>
+            <a class="button button-secondary"
+               th:if="${leaderboardPage.hasNext}"
+               th:href="@{/leaderboard(tier=${selectedTier},page=${leaderboardPage.currentPage + 1},size=${leaderboardPage.pageSize})}">
+                Next &raquo;
+            </a>
         </div>
     </section>
 </main>

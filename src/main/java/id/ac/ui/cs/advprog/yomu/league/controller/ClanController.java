@@ -57,6 +57,7 @@ public class ClanController {
                         clan.id(),
                         clan.name(),
                         clan.tier(),
+                        tierCssClass(clan.tier()),
                         clan.memberCount(),
                         clan.createdByUserId(),
                         userNamesById.getOrDefault(clan.createdByUserId(), "Unknown user")
@@ -70,11 +71,14 @@ public class ClanController {
     @GetMapping("/leaderboard")
     public String leaderboardPage(
             @RequestParam(defaultValue = "BRONZE") String tier,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             Model model,
             Authentication authentication
     ) {
         TierCode selectedTier = parseTierCodeOrDefault(tier);
-        List<ClanService.LeaderboardEntry> entries = clanService.getLeaderboard(selectedTier);
+        ClanService.LeaderboardPage leaderboardPage = clanService.getLeaderboardPage(selectedTier, page, size);
+        List<ClanService.LeaderboardEntry> entries = leaderboardPage.entries();
         List<ClanService.ClanSummary> clans = clanService.listClans();
         Map<UUID, UUID> clanCreatorById = clans.stream().collect(Collectors.toMap(
                 ClanService.ClanSummary::id,
@@ -91,12 +95,14 @@ public class ClanController {
                         entry.memberCount(),
                         entry.baseScore(),
                         entry.score(),
+                        tierCssClass(entry.tier()),
                         entry.activeModifiers().stream()
                                 .map(modifier -> new ScoreModifierView(
                                         modifier.code(),
                                         modifier.label(),
                                         modifier.multiplier(),
-                                        modifier.description()
+                                        modifier.description(),
+                                        modifier.multiplier() < 1.0d ? "debuff" : "buff"
                                 ))
                                 .toList(),
                         entry.formulaDescription(),
@@ -104,6 +110,7 @@ public class ClanController {
                         userNamesById.getOrDefault(clanCreatorById.get(entry.clanId()), "Unknown user")
                 ))
                 .toList());
+        model.addAttribute("leaderboardPage", leaderboardPage);
         model.addAttribute("selectedTier", selectedTier.name());
         model.addAttribute("availableTiers", TierCode.values());
         model.addAttribute("tierFormula", describeTier(selectedTier));
@@ -120,11 +127,6 @@ public class ClanController {
             RedirectAttributes redirectAttributes,
             Authentication authentication
     ) {
-        Optional<AuthUser> currentUser = currentUserResolver.resolveUser(authentication);
-        if (currentUser.isPresent() && currentUser.get().getId().equals(userId)) {
-            return "redirect:/profile";
-        }
-
         try {
             ClanService.PublicProfile profile = clanService.getPublicProfile(userId);
             model.addAttribute("publicProfile", new PublicProfileView(
@@ -182,9 +184,12 @@ public class ClanController {
                     detail.id(),
                     detail.name(),
                     detail.tier(),
+                    tierCssClass(detail.tier()),
                     detail.memberCount(),
                     detail.createdByUserId(),
                     userNamesById.getOrDefault(detail.createdByUserId(), "Unknown user"),
+                    detail.archived(),
+                    detail.archivedAt(),
                     detail.viewerIsMember(),
                     detail.viewerIsLeader(),
                     detail.viewerHasPendingRequest(),
@@ -306,7 +311,7 @@ public class ClanController {
 
         try {
             clanService.deleteClan(clanId, currentUser.get().getId());
-            redirectAttributes.addFlashAttribute("success", "Clan deleted successfully");
+            redirectAttributes.addFlashAttribute("success", "Clan archived successfully");
             return "redirect:/clans";
         } catch (IllegalArgumentException exception) {
             redirectAttributes.addFlashAttribute("error", exception.getMessage());
@@ -354,6 +359,10 @@ public class ClanController {
         }
     }
 
+    private String tierCssClass(String tier) {
+        return tier == null ? "neutral" : tier.trim().toLowerCase();
+    }
+
     private String describeTier(TierCode tierCode) {
         return switch (tierCode) {
             case BRONZE -> "Bronze menghitung total skor kuis seluruh anggota pada season aktif.";
@@ -386,6 +395,7 @@ public class ClanController {
             UUID id,
             String name,
             String tier,
+            String tierCssClass,
             long memberCount,
             UUID createdByUserId,
             String createdByName
@@ -396,9 +406,12 @@ public class ClanController {
             UUID id,
             String name,
             String tier,
+            String tierCssClass,
             long memberCount,
             UUID createdByUserId,
             String createdByName,
+            boolean archived,
+            LocalDateTime archivedAt,
             boolean viewerIsMember,
             boolean viewerIsLeader,
             boolean viewerHasPendingRequest,
@@ -429,6 +442,7 @@ public class ClanController {
             long memberCount,
             double baseScore,
             double score,
+            String tierCssClass,
             List<ScoreModifierView> activeModifiers,
             String formulaDescription,
             UUID createdByUserId,
@@ -440,7 +454,8 @@ public class ClanController {
             String code,
             String label,
             double multiplier,
-            String description
+            String description,
+            String kind
     ) {
     }
 

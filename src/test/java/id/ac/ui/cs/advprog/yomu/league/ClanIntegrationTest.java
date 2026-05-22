@@ -205,8 +205,9 @@ class ClanIntegrationTest {
 
         mockMvc.perform(get("/api/league/leaderboard/bronze").session(leaderSession))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].clanName").value("Logic Guild"))
-                .andExpect(jsonPath("$[0].score").value(9.5));
+                .andExpect(jsonPath("$.entries[0].clanName").value("Logic Guild"))
+                .andExpect(jsonPath("$.entries[0].score").value(9.5))
+                .andExpect(jsonPath("$.totalEntries").value(1));
     }
 
     @Test
@@ -305,7 +306,10 @@ class ClanIntegrationTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/clans"));
 
-        assertThat(clanRepository.count()).isEqualTo(0);
+        assertThat(clanRepository.count()).isEqualTo(1);
+        assertThat(clanRepository.findById(clan.getId())).isPresent();
+        assertThat(clanRepository.findById(clan.getId()).orElseThrow().isDeleted()).isTrue();
+        assertThat(clanMemberRepository.count()).isEqualTo(0);
     }
 
     @Test
@@ -381,6 +385,64 @@ class ClanIntegrationTest {
                         .session(userSession)
                         .with(csrf()))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void archivedClanShouldDisappearFromActiveLeaderboardWhileKeepingHistoricalScoreEvents() throws Exception {
+        MockHttpSession adminSession = loginAs("archive-admin@example.com", "AdminPass1!", AuthRole.ADMIN);
+        MockHttpSession leaderSession = loginAs("archive-leader@example.com", "LeaderPass1!");
+
+        createClan(leaderSession, "Archive Guild");
+        var clan = clanRepository.findAll().stream().findFirst().orElseThrow();
+
+        postClanQuizScore(leaderSession, "archive-leader@example.com", 88.0d, 0.88d);
+
+        mockMvc.perform(post("/clans/" + clan.getId() + "/delete")
+                        .session(leaderSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/clans"));
+
+        mockMvc.perform(get("/api/league/leaderboard/bronze").session(leaderSession))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries").isEmpty())
+                .andExpect(jsonPath("$.totalEntries").value(0));
+
+        mockMvc.perform(post("/admin/league/season/end")
+                        .session(adminSession)
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/leaderboard?tier=BRONZE"));
+
+        assertThat(clanRepository.findById(clan.getId()).orElseThrow().isDeleted()).isTrue();
+        assertThat(clanQuizScoreEventRepository.count()).isEqualTo(1);
+    }
+
+    @Test
+    void leaderboardApiShouldSupportPagination() throws Exception {
+        MockHttpSession leaderOne = loginAs("page-1@example.com", "LeaderPass1!");
+        MockHttpSession leaderTwo = loginAs("page-2@example.com", "LeaderPass1!");
+        MockHttpSession leaderThree = loginAs("page-3@example.com", "LeaderPass1!");
+
+        createClan(leaderOne, "Paged Alpha");
+        createClan(leaderTwo, "Paged Beta");
+        createClan(leaderThree, "Paged Gamma");
+
+        postClanQuizScore(leaderOne, "page-1@example.com", 90.0d, 0.90d);
+        postClanQuizScore(leaderTwo, "page-2@example.com", 70.0d, 0.70d);
+        postClanQuizScore(leaderThree, "page-3@example.com", 50.0d, 0.50d);
+
+        mockMvc.perform(get("/api/league/leaderboard/bronze")
+                        .param("page", "1")
+                        .param("size", "2")
+                        .session(leaderOne))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPage").value(1))
+                .andExpect(jsonPath("$.pageSize").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.totalEntries").value(3))
+                .andExpect(jsonPath("$.entries.length()").value(1))
+                .andExpect(jsonPath("$.entries[0].clanName").value("Paged Gamma"));
     }
 
     private MockHttpSession loginAs(String email, String rawPassword) throws Exception {

@@ -7,7 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header th:replace="~{fragments/navbar :: navbar}"></header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section class="profile-layout">
@@ -23,7 +23,7 @@
                     <p class="muted tiny" th:text="${publicProfile.role}">USER</p>
                 </div>
                 <div class="info-row">
-                    <strong>Clan</strong>
+                    <strong>League clan</strong>
                     <p class="muted tiny" th:text="${publicProfile.clanName != null ? publicProfile.clanName : '-'}">-</p>
                 </div>
                 <div class="info-row">
@@ -34,6 +34,9 @@
                     <strong>Clan role</strong>
                     <p class="muted tiny" th:text="${publicProfile.clanRole != null ? publicProfile.clanRole : '-'}">-</p>
                 </div>
+            </div>
+            <div class="form-actions" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}">
+                <a class="button button-primary" th:href="@{/profile}">Back to profile</a>
             </div>
         </aside>
 
