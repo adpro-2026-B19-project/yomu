@@ -116,7 +116,7 @@ Configure these GitHub Actions secrets or variables before pushing to `staging`:
 - `RAILWAY_TOKEN`: Railway Project Token for the target project/environment. Rotate this token if it was ever shared.
 - `RAILWAY_SERVICE`: Railway service name for the Yomu app.
 - `RAILWAY_ENVIRONMENT`: Railway environment name, usually `production`.
-- `RAILWAY_PUBLIC_URL`: public Railway URL used by the smoke test, for example `https://yomu.up.railway.app`.
+- `RAILWAY_PUBLIC_URL`: public Railway URL used by the smoke test, for example `https://yomu.up.railway.app`. Include `https://` for clarity; the workflow also normalizes missing schemes.
 - `RAILWAY_DB_PASSWORD`: strong password for the H2 database user in production.
 - `GOOGLE_CLIENT_ID`: Google OAuth client ID.
 - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret.
