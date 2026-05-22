@@ -120,7 +120,7 @@ class AuthIntegrationTest {
                         .param("password", "ExistingPassword1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/register"))
-                .andExpect(flash().attribute("warning", "Email is already registered"));
+                .andExpect(flash().attribute("warning", "Registration could not be completed with the provided details"));
 
         assertThat(authRepository.count()).isEqualTo(before);
     }
@@ -169,7 +169,7 @@ class AuthIntegrationTest {
                         .param("password", "GhostPassword1!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/auth/register"))
-                .andExpect(flash().attribute("warning", "Email does not exist"));
+                .andExpect(flash().attribute("warning", "Registration could not be completed with the provided details"));
 
         assertThat(authRepository.count()).isEqualTo(before);
     }

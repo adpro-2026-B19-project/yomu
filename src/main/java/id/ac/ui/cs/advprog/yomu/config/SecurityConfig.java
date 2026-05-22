@@ -38,10 +38,11 @@ public class SecurityConfig {
                         "/css/**",
                         "/js/**",
                         "/images/**",
-                        "/actuator/health",
-                        "/actuator/prometheus"
                 ).permitAll()
-                .requestMatchers("/actuator/**").hasRole("ADMIN")
+                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers("/actuator/info").permitAll()
+                .requestMatchers("/actuator/metrics", "/actuator/metrics/**", "/actuator/prometheus").hasRole("ADMIN")
+                .requestMatchers("/actuator/**").denyAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/h2-console/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()

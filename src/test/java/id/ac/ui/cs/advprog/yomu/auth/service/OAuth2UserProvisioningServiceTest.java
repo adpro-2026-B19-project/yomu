@@ -14,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,9 +24,6 @@ class OAuth2UserProvisioningServiceTest {
 
     @Mock
     private UsernameUniquenessService usernameUniquenessService;
-
-    @Spy
-    private AuthIdentifierValidator authIdentifierValidator = new AuthIdentifierValidator();
 
     @InjectMocks
     private OAuth2UserProvisioningService provisioningService;
@@ -49,7 +45,7 @@ class OAuth2UserProvisioningServiceTest {
     void loadOrCreateUserShouldCreateUserWhenEmailIsNew() {
         when(authRepository.findByEmailAndActiveTrue("new@example.com")).thenReturn(Optional.empty());
         when(authRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
-        when(usernameUniquenessService.isUsernameTaken("new-user")).thenReturn(false);
+        when(usernameUniquenessService.isUsernameTaken("user1")).thenReturn(false);
         when(authRepository.save(any(AuthUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AuthUser created = provisioningService.loadOrCreateUser(
@@ -57,17 +53,17 @@ class OAuth2UserProvisioningServiceTest {
         );
 
         assertThat(created.getEmail()).isEqualTo("new@example.com");
-        assertThat(created.getUsername()).isEqualTo("new-user");
-        assertThat(created.getDisplayName()).isEqualTo("New User");
+        assertThat(created.getUsername()).isEqualTo("user1");
+        assertThat(created.getDisplayName()).isEqualTo("user1");
         assertThat(created.getPassword()).isNull();
     }
 
     @Test
-    void loadOrCreateUserShouldAppendSuffixWhenUsernameAlreadyTaken() {
+    void loadOrCreateUserShouldIncrementGeneratedUsernameWhenTaken() {
         when(authRepository.findByEmailAndActiveTrue("reader@example.com")).thenReturn(Optional.empty());
         when(authRepository.findByEmail("reader@example.com")).thenReturn(Optional.empty());
-        when(usernameUniquenessService.isUsernameTaken("reader")).thenReturn(true);
-        when(usernameUniquenessService.isUsernameTaken("reader2")).thenReturn(false);
+        when(usernameUniquenessService.isUsernameTaken("user1")).thenReturn(true);
+        when(usernameUniquenessService.isUsernameTaken("user2")).thenReturn(false);
         when(authRepository.save(any(AuthUser.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         provisioningService.loadOrCreateUser(
@@ -76,6 +72,7 @@ class OAuth2UserProvisioningServiceTest {
 
         ArgumentCaptor<AuthUser> captor = ArgumentCaptor.forClass(AuthUser.class);
         verify(authRepository).save(captor.capture());
-        assertThat(captor.getValue().getUsername()).isEqualTo("reader2");
+        assertThat(captor.getValue().getUsername()).isEqualTo("user2");
+        assertThat(captor.getValue().getDisplayName()).isEqualTo("user2");
     }
 }

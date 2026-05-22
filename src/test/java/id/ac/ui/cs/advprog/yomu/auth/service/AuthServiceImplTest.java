@@ -66,7 +66,7 @@ class AuthServiceImplTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("duplicate_email");
-        assertThat(result.errorMessage()).isEqualTo("Email is already registered");
+        assertThat(result.errorMessage()).isEqualTo("Registration could not be completed with the provided details");
         verify(authRepository).existsByEmail("alice@example.com");
         verify(authRepository, never()).save(any());
     }
@@ -128,7 +128,7 @@ class AuthServiceImplTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("nonexistent_email");
-        assertThat(result.errorMessage()).isEqualTo("Email does not exist");
+        assertThat(result.errorMessage()).isEqualTo("Registration could not be completed with the provided details");
         verify(authRepository, never()).save(any());
     }
 
