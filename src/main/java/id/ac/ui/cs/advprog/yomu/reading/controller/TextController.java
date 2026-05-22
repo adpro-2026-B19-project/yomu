@@ -7,8 +7,8 @@ import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import id.ac.ui.cs.advprog.yomu.reading.model.Question;
 import id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt;
 import id.ac.ui.cs.advprog.yomu.reading.model.Text;
-import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
-import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.ITextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.IQuizService;
 
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.core.Authentication;
@@ -25,17 +25,18 @@ import java.util.stream.Collectors;
 @RequestMapping("/texts")
 public class TextController {
 
-    private final QuestionRepository questionRepository;
-    private final TextService textService;
+    private final ITextService textService;
+    private final IQuizService quizService;
     private final CurrentUserResolver currentUserResolver;
     private final AchievementService achievementService;
 
-    public TextController(QuestionRepository questionRepository,
-            TextService textService,
+    public TextController(
+            ITextService textService,
+            IQuizService quizService,
             CurrentUserResolver currentUserResolver,
             AchievementService achievementService) {
-        this.questionRepository = questionRepository;
         this.textService = textService;
+        this.quizService = quizService;
         this.currentUserResolver = currentUserResolver;
         this.achievementService = achievementService;
     }
@@ -44,9 +45,23 @@ public class TextController {
     public String getAllTexts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size,
-            Model model) {
+            Model model,
+            Authentication authentication) {
         org.springframework.data.domain.Page<Text> textPage = textService.getAllTexts(page, size);
+        
+        Set<Long> attemptedTextIds = Set.of();
+        if (authentication != null && authentication.isAuthenticated()) {
+            AuthUser authUser = currentUserResolver.resolveUser(authentication).orElse(null);
+            if (authUser != null) {
+                List<QuizAttempt> history = quizService.getUserQuizHistory(authUser.getId().toString());
+                attemptedTextIds = history.stream()
+                        .map(attempt -> attempt.getText().getId())
+                        .collect(Collectors.toSet());
+            }
+        }
+        
         model.addAttribute("texts", textPage.getContent());
+        model.addAttribute("attemptedTextIds", attemptedTextIds);
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", textPage.getTotalPages());
         model.addAttribute("hasNext", textPage.hasNext());
@@ -60,7 +75,7 @@ public class TextController {
             return "redirect:/auth/login";
         }
         AuthUser authUser = currentUserResolver.resolveUser(authentication).orElseThrow();
-        List<QuizAttempt> history = textService.getUserQuizHistory(authUser.getId().toString());
+        List<QuizAttempt> history = quizService.getUserQuizHistory(authUser.getId().toString());
         model.addAttribute("history", history);
         return "reading/history";
     }
@@ -74,7 +89,7 @@ public class TextController {
             if (authentication != null && authentication.isAuthenticated()) {
                 AuthUser authUser = currentUserResolver.resolveUser(authentication).orElse(null);
                 if (authUser != null) {
-                    hasAttempted = textService.hasUserAttemptedQuiz(authUser.getId().toString(), id);
+                    hasAttempted = quizService.hasUserAttemptedQuiz(authUser.getId().toString(), id);
                 }
             }
 
@@ -98,13 +113,13 @@ public class TextController {
         AuthUser authUser = currentUserResolver.resolveUser(authentication).orElseThrow();
 
         try {
-            if (textService.hasUserAttemptedQuiz(authUser.getId().toString(), id)) {
+            if (quizService.hasUserAttemptedQuiz(authUser.getId().toString(), id)) {
                 return "redirect:/texts/" + id + "?error=already_attempted";
             }
 
             Text text = textService.getPublishedTextById(id);
 
-            List<Question> questions = questionRepository.findByTextId(id);
+            List<Question> questions = quizService.getQuestionsByTextId(id);
 
             model.addAttribute("text", text);
             model.addAttribute("questions", questions);
@@ -131,7 +146,7 @@ public class TextController {
 
         try {
             List<UserAchievement> achievementsBeforeQuiz = achievementService.getAchievementsByUserId(authUser.getId());
-            QuizAttempt attempt = textService.submitQuiz(id, authUser.getId().toString(), formData);
+            QuizAttempt attempt = quizService.submitQuiz(id, authUser.getId().toString(), formData);
             List<UserAchievement> unlockedAchievements = achievementService.getAchievementsByUserId(authUser.getId());
             Set<Long> unlockedBeforeIds = achievementsBeforeQuiz.stream()
                     .map(userAchievement -> userAchievement.getAchievement().getId())
@@ -162,7 +177,6 @@ public class TextController {
             return "redirect:/texts?error=Terjadi kesalahan saat mengumpulkan kuis.";
         }
     }
-
 
     private record UnlockedAchievementView(
             Long id,

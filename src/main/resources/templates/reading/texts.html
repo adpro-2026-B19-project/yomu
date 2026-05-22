@@ -7,25 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header class="site-header">
-    <div class="site-shell site-nav">
-        <a class="site-brand" th:href="@{/}">
-            <span class="site-brand-mark">Y</span>
-            <span>Yomu</span>
-        </a>
-        <nav class="nav-links">
-            <a class="nav-link" th:href="@{/texts}">Library</a>
-            <a class="nav-link" th:href="@{/achievements}">Achievements</a>
-            <a class="nav-link" th:href="@{/clans}">League</a>
-            <a class="nav-link" th:href="@{/texts/history}">History</a>
-            <a class="nav-link" th:href="@{/profile}">Profile</a>
-            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                <button type="submit" class="button button-secondary">Log out</button>
-            </form>
-        </nav>
-    </div>
-</header>
+<header th:replace="~{fragments/navbar :: navbar}"></header>
 
 <main class="page-main">
     <section class="panel surface-strong">
@@ -69,7 +51,8 @@
                 <p th:text="${#strings.abbreviate(text.content, 125)}">Preview content...</p>
                 <div class="page-actions" style="margin-top:auto;">
                     <a th:href="@{/texts/{id}(id=${text.id})}" class="button button-primary">Read now</a>
-                    <a th:href="@{/texts/{id}/quiz(id=${text.id})}" class="button button-on-color">Start quiz</a>
+                    <a th:if="${!attemptedTextIds.contains(text.id)}" th:href="@{/texts/{id}/quiz(id=${text.id})}" class="button button-on-color">Start quiz</a>
+                    <button th:if="${attemptedTextIds.contains(text.id)}" disabled class="button button-secondary" style="opacity: 0.6; cursor: not-allowed;">Quiz Completed</button>
                 </div>
             </article>
         </div>

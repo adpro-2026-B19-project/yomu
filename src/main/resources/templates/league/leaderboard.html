@@ -7,24 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header class="site-header">
-    <div class="site-shell site-nav">
-        <a class="site-brand" th:href="@{/}">
-            <span class="site-brand-mark">Y</span>
-            <span>Yomu</span>
-        </a>
-        <nav class="nav-links">
-            <a class="nav-link" th:href="@{/texts}">Library</a>
-            <a class="nav-link" th:href="@{/clans}">Clans</a>
-            <a class="nav-link" th:href="@{/profile}">Profile</a>
-            <span class="user-pill" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}" th:text="${loggedInName}">reader</span>
-            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <button type="submit" class="button button-secondary">Log out</button>
-            </form>
-        </nav>
-    </div>
-</header>
+<header th:replace="~{fragments/navbar :: navbar}"></header>
 
 <main class="page-main">
     <section class="panel surface-strong stack">

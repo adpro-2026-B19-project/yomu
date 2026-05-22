@@ -7,17 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header class="site-header">
-    <div class="site-shell site-nav">
-        <a class="site-brand" th:href="@{/}">
-            <span class="site-brand-mark">Y</span>
-            <span>Yomu Admin</span>
-        </a>
-        <nav class="nav-links">
-            <a th:href="@{/admin/texts}" class="button button-secondary">Back to dashboard</a>
-        </nav>
-    </div>
-</header>
+<header th:replace="~{fragments/navbar :: navbar}"></header>
 
 <main class="page-main">
     <section class="split-grid" style="align-items:start;">

@@ -11,7 +11,8 @@ import id.ac.ui.cs.advprog.yomu.reading.repository.OptionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuizAttemptRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
-import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.QuizServiceImpl;
+import id.ac.ui.cs.advprog.yomu.reading.service.TextServiceImpl;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,13 +55,17 @@ class TextServiceMilestone75Test {
     private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
-    private TextService textService;
+    private TextServiceImpl textService;
+
+    private QuizServiceImpl quizService;
 
     private Category category;
     private Text text;
 
     @BeforeEach
     void setUp() {
+        quizService = new QuizServiceImpl(quizAttemptRepository, questionRepository, optionRepository, eventPublisher, textService);
+
         category = new Category("Digital Literacy");
         setId(category, 1L);
 
@@ -76,7 +81,7 @@ class TextServiceMilestone75Test {
     void getUserReadingStatsShouldReturnZeroWhenUserHasNoAttempt() {
         when(quizAttemptRepository.findByUserId("user-1")).thenReturn(List.of());
 
-        UserReadingStatResponse result = textService.getUserReadingStats("user-1");
+        UserReadingStatResponse result = quizService.getUserReadingStats("user-1");
 
         assertThat(result.getTotalTextsCompleted()).isZero();
         assertThat(result.getAverageAccuracy()).isZero();
@@ -90,7 +95,7 @@ class TextServiceMilestone75Test {
 
         when(quizAttemptRepository.findByUserId("user-1")).thenReturn(List.of(attempt1, attempt2));
 
-        UserReadingStatResponse result = textService.getUserReadingStats("user-1");
+        UserReadingStatResponse result = quizService.getUserReadingStats("user-1");
 
         assertThat(result.getTotalTextsCompleted()).isEqualTo(2);
         assertThat(result.getAverageAccuracy()).isEqualTo(0.75);
@@ -117,7 +122,7 @@ class TextServiceMilestone75Test {
         otherPublished.setCategory(otherCategory);
         otherPublished.setPublished(true);
 
-        when(textRepository.findAll()).thenReturn(List.of(publishedTarget, draftTarget, otherPublished));
+        when(textRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class))).thenReturn(List.of(publishedTarget));
 
         List<Text> result = textService.getAllTextsAdmin(1L, true);
 
@@ -189,7 +194,7 @@ class TextServiceMilestone75Test {
 
         when(quizAttemptRepository.findByUserId("user-1")).thenReturn(List.of(older, newer));
 
-        List<QuizAttempt> result = textService.getUserQuizHistory("user-1");
+        List<QuizAttempt> result = quizService.getUserQuizHistory("user-1");
 
         assertThat(result).containsExactly(newer, older);
     }
@@ -206,7 +211,7 @@ class TextServiceMilestone75Test {
         when(questionRepository.findByTextId(10L)).thenReturn(List.of(question));
         when(quizAttemptRepository.save(any(QuizAttempt.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        QuizAttempt result = textService.submitQuiz(
+        QuizAttempt result = quizService.submitQuiz(
                 10L,
                 "00000000-0000-0000-0000-000000000001",
                 java.util.Map.of()
