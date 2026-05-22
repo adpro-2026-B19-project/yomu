@@ -3,34 +3,17 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Yomu - Clans</title>
+    <title>Yomu - League</title>
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header class="site-header">
-    <div class="site-shell site-nav">
-        <a class="site-brand" th:href="@{/}">
-            <span class="site-brand-mark">Y</span>
-            <span>Yomu</span>
-        </a>
-        <nav class="nav-links">
-            <a class="nav-link" th:href="@{/texts}">Library</a>
-            <a class="nav-link" th:href="@{/leaderboard(tier='BRONZE')}">Leaderboard</a>
-            <a class="nav-link" th:href="@{/profile}">Profile</a>
-            <span class="user-pill" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}" th:text="${loggedInName}">reader</span>
-            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <button type="submit" class="button button-secondary">Log out</button>
-            </form>
-        </nav>
-    </div>
-</header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section class="split-grid" style="align-items:start;">
         <article class="panel surface-strong stack">
-            <span class="eyebrow">Clan hub</span>
-            <h1 class="page-title">Start a clan or join one that already fits.</h1>
+            <span class="eyebrow">League hub</span>
+            <h1 class="page-title">Start a league clan or join one that already fits.</h1>
             <p class="page-lead">Clans turn individual quiz results into a shared season score. Create a name you can keep, then invite people through the join flow.</p>
             <div class="surface-card">
                 <strong>What matters in league play</strong>
@@ -72,7 +55,7 @@
     <section class="section">
         <div class="panel-head">
             <span class="eyebrow">Clan list</span>
-            <h2 class="section-title">Browse the active clans.</h2>
+            <h2 class="section-title">Browse the active league clans.</h2>
             <p class="section-copy">Open a clan detail page to see its members, tier, join status, and pending requests if you lead it.</p>
         </div>
 

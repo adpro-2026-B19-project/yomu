@@ -10,26 +10,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header class="site-header">
-    <div class="site-shell site-nav">
-        <a class="site-brand" th:href="@{/}">
-            <span class="site-brand-mark">Y</span>
-            <span>Yomu</span>
-        </a>
-        <nav class="nav-links">
-            <a class="nav-link" th:href="@{/texts}">Library</a>
-            <a class="nav-link" th:href="@{/clans}">League</a>
-            <a class="nav-link" th:href="@{/profile}">Profile</a>
-            <span class="user-pill" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}" th:text="${loggedInName}">reader</span>
-            <a th:href="@{/auth/login}" class="button button-secondary" th:unless="${loggedInName != null and !#strings.isEmpty(loggedInName)}">Log in</a>
-            <a th:href="@{/auth/register}" class="button button-primary" th:unless="${loggedInName != null and !#strings.isEmpty(loggedInName)}">Create account</a>
-            <form class="menu-form" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}" th:action="@{/auth/logout}" method="post" style="margin:0;">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <button type="submit" class="button button-secondary">Log out</button>
-            </form>
-        </nav>
-    </div>
-</header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section id="achievementUnlockBanner" class="panel surface-strong stack" style="display:none; margin-bottom:24px;">
@@ -264,7 +245,7 @@
         </div>
         <div class="cluster">
             <a class="nav-link" th:href="@{/texts}">Library</a>
-            <a class="nav-link" th:href="@{/profile}">Profile</a>
+            <a class="nav-link" th:href="${profileNavHref}">Profile</a>
             <a class="nav-link" th:href="@{/clans}">League</a>
         </div>
     </div>

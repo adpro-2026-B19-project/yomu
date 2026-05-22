@@ -127,11 +127,6 @@ public class ClanController {
             RedirectAttributes redirectAttributes,
             Authentication authentication
     ) {
-        Optional<AuthUser> currentUser = currentUserResolver.resolveUser(authentication);
-        if (currentUser.isPresent() && currentUser.get().getId().equals(userId)) {
-            return "redirect:/profile";
-        }
-
         try {
             ClanService.PublicProfile profile = clanService.getPublicProfile(userId);
             model.addAttribute("publicProfile", new PublicProfileView(
