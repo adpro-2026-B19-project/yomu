@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.yomu.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -74,5 +75,29 @@ class OAuth2UserProvisioningServiceTest {
         verify(authRepository).save(captor.capture());
         assertThat(captor.getValue().getUsername()).isEqualTo("user2");
         assertThat(captor.getValue().getDisplayName()).isEqualTo("user2");
+    }
+
+    @Test
+    void loadOrCreateUserShouldRejectDeactivatedEmailAndExhaustedGeneratedNames() {
+        AuthUser inactive = new AuthUser("reader", "reader@example.com", null, "Reader", null);
+        inactive.deactivate();
+        when(authRepository.findByEmailAndActiveTrue("reader@example.com")).thenReturn(Optional.empty());
+        when(authRepository.findByEmail("reader@example.com")).thenReturn(Optional.of(inactive));
+
+        assertThatThrownBy(() -> provisioningService.loadOrCreateUser(
+                new OAuth2UserIdentity("google", "reader@example.com", "reader", "Reader")
+        )).isInstanceOf(IllegalStateException.class)
+                .hasMessage("OAuth2 account is deactivated");
+
+        when(authRepository.findByEmailAndActiveTrue("new@example.com")).thenReturn(Optional.empty());
+        when(authRepository.findByEmail("new@example.com")).thenReturn(Optional.empty());
+        for (int suffix = 1; suffix <= 9999; suffix++) {
+            when(usernameUniquenessService.isUsernameTaken("user" + suffix)).thenReturn(true);
+        }
+
+        assertThatThrownBy(() -> provisioningService.loadOrCreateUser(
+                new OAuth2UserIdentity("google", "new@example.com", "new", "New")
+        )).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Unable to generate a unique username for OAuth2 user");
     }
 }

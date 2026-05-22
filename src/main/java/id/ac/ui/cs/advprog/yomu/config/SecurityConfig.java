@@ -44,6 +44,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/metrics", "/actuator/metrics/**", "/actuator/prometheus").hasRole("ADMIN")
                 .requestMatchers("/actuator/**").denyAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/h2-console/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()
                 .anyRequest().authenticated()

@@ -20,7 +20,12 @@ class StandardPasswordStrengthCheckerTest {
 
     @Test
     void assessShouldClassifyWeakMediumAndStrong() {
+        assertThat(checker.assess(null)).isEqualTo(PasswordStrength.WEAK);
         assertThat(checker.assess("abc")).isEqualTo(PasswordStrength.WEAK);
+        assertThat(checker.assess("abcdefgh")).isEqualTo(PasswordStrength.WEAK);
+        assertThat(checker.assess("ABCDEFGH")).isEqualTo(PasswordStrength.WEAK);
+        assertThat(checker.assess("12345678")).isEqualTo(PasswordStrength.WEAK);
+        assertThat(checker.assess("!!!!!!!!")).isEqualTo(PasswordStrength.WEAK);
         assertThat(checker.assess("Abcdef12")).isEqualTo(PasswordStrength.MEDIUM);
         assertThat(checker.assess("Abcdef12!XYZ")).isEqualTo(PasswordStrength.STRONG);
     }

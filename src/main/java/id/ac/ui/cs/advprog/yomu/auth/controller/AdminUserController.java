@@ -5,6 +5,8 @@ import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.service.AdminUserManagementService;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -22,6 +24,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/admin/users")
 public class AdminUserController {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminUserController.class);
+
     private final AdminUserManagementService adminUserManagementService;
 
     public AdminUserController(AdminUserManagementService adminUserManagementService) {
@@ -37,6 +41,7 @@ public class AdminUserController {
             @RequestParam(defaultValue = "10") int size,
             Model model
     ) {
+        long start = System.nanoTime();
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 50);
         PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.ASC, "createdAt"));
@@ -48,6 +53,7 @@ public class AdminUserController {
         model.addAttribute("selectedRole", role);
         model.addAttribute("selectedActive", active);
         model.addAttribute("size", safeSize);
+        log.info("GET /admin/users controller preparation took {} ms", elapsedMs(start));
         return "admin/users";
     }
 
@@ -96,5 +102,9 @@ public class AdminUserController {
             return "";
         }
         return query.startsWith("?") ? query : "?" + query;
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 }

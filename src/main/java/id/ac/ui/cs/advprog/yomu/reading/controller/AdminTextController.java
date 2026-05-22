@@ -11,6 +11,8 @@ import id.ac.ui.cs.advprog.yomu.reading.service.IQuizService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.ui.Model;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 import java.util.List;
@@ -18,6 +20,8 @@ import java.util.List;
 @Controller
 @RequestMapping("/admin/texts")
 public class AdminTextController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminTextController.class);
 
     private final CategoryRepository categoryRepository;
     private final ITextService textService;
@@ -43,9 +47,11 @@ public class AdminTextController {
     public String adminDashboard(@RequestParam(required = false) Long categoryId,
                                  @RequestParam(required = false) Boolean published,
                                  Model model) {
+        long start = System.nanoTime();
         List<Text> texts = textService.getAllTextsAdmin(categoryId, published);
         model.addAttribute("texts", texts);
         model.addAttribute("categories", categoryRepository.findAll());
+        log.info("GET /admin/texts controller preparation took {} ms", elapsedMs(start));
         return "reading/admin-dashboard";
     }
 
@@ -75,6 +81,7 @@ public class AdminTextController {
 
     @GetMapping("/{id}/questions")
     public String manageQuestions(@PathVariable Long id, Model model) {
+        long start = System.nanoTime();
         Text text = textService.getTextById(id);
         List<Question> questions = quizService.getQuestionsByTextId(id);
         questions.forEach(question -> {
@@ -86,6 +93,7 @@ public class AdminTextController {
         });
         model.addAttribute("text", text);
         model.addAttribute("questions", questions);
+        log.info("GET /admin/texts/{id}/questions controller preparation took {} ms", elapsedMs(start));
         return "reading/admin-manage-questions";
     }
 
@@ -151,5 +159,9 @@ public class AdminTextController {
     public String deleteQuestion(@PathVariable Long questionId) {
         Long textId = quizService.deleteQuestion(questionId);
         return "redirect:/admin/texts/" + textId + "/questions";
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 }

@@ -39,8 +39,16 @@ class AuthIdentifierValidatorTest {
     @Test
     void isValidUsernameShouldOnlyAllowExpectedCharactersAndMustNotLookLikeEmail() {
         assertThat(validator.isValidUsername("Reader_01.test-user")).isTrue();
+        assertThat(validator.isValidUsername(null)).isFalse();
+        assertThat(validator.isValidUsername("  ")).isFalse();
         assertThat(validator.isValidUsername("reader@example.com")).isFalse();
         assertThat(validator.isValidUsername("bad space")).isFalse();
         assertThat(validator.isValidUsername("bad*char")).isFalse();
+    }
+
+    @Test
+    void normalizeShouldReturnEmptyForNullAndTrimValues() {
+        assertThat(validator.normalize(null)).isEmpty();
+        assertThat(validator.normalize("  reader  ")).isEqualTo("reader");
     }
 }

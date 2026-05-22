@@ -10,6 +10,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
@@ -23,6 +25,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class ProfileController {
+
+    private static final Logger log = LoggerFactory.getLogger(ProfileController.class);
 
     private final CurrentUserResolver currentUserResolver;
     private final ProfileService profileService;
@@ -40,6 +44,7 @@ public class ProfileController {
 
     @GetMapping("/profile")
     public String profile(Model model, Authentication authentication) {
+        long start = System.nanoTime();
         Optional<AuthUser> userOptional = currentUserResolver.resolveUser(authentication);
         AuthUser user = userOptional.orElse(null);
         model.addAttribute("user", user);
@@ -56,12 +61,14 @@ public class ProfileController {
             }
         }
 
+        log.info("GET /profile controller preparation took {} ms", elapsedMs(start));
         return "profile/index";
     }
 
     @PreAuthorize("hasRole('USER')")
     @GetMapping("/profile/delete")
     public String deleteAccountConfirmation(Model model, Authentication authentication) {
+        long start = System.nanoTime();
         Optional<AuthUser> userOptional = currentUserResolver.resolveUser(authentication);
         AuthUser user = userOptional.orElse(null);
         if (user == null) {
@@ -72,6 +79,7 @@ public class ProfileController {
         if (!model.containsAttribute("form")) {
             model.addAttribute("form", new ProfileDeleteForm(""));
         }
+        log.info("GET /profile/delete controller preparation took {} ms", elapsedMs(start));
         return "profile/delete";
     }
 
@@ -160,5 +168,9 @@ public class ProfileController {
         response.addCookie(cookie);
 
         return "redirect:/auth/login?deleted";
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 }
