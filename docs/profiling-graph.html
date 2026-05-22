@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yomu Monolith Profiling Graph</title>
+  <style>
+    :root {
+      --ink: #111111;
+      --muted: #60646c;
+      --paper: #fbfaf7;
+      --line: #ded7c8;
+      --panel: #ffffff;
+      --blue: #2563eb;
+      --green: #0f9f6e;
+      --amber: #c47f00;
+      --rose: #d33f49;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      width: min(1180px, calc(100vw - 48px));
+      margin: 36px auto;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 22px;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 13px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #fff7ed;
+      color: #78350f;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    h1 {
+      margin: 18px 0 10px;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1.02;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 850px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 18px 45px rgba(29, 24, 16, .06);
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .metric {
+      min-height: 104px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      background: #fffdf9;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 34px;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .bar-list {
+      display: grid;
+      gap: 13px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 140px 1fr 42px;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .track {
+      height: 18px;
+      border-radius: 999px;
+      background: #f1eee7;
+      overflow: hidden;
+      border: 1px solid #ebe3d5;
+    }
+
+    .bar {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+    }
+
+    .bar.reading { width: 43%; background: var(--blue); }
+    .bar.league { width: 29%; background: var(--green); }
+    .bar.profile { width: 14%; background: var(--amber); }
+    .bar.admin { width: 7%; background: var(--rose); }
+    .bar.achievement { width: 7%; background: #6d5dfc; }
+
+    .flow {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    .routes {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .routes li {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid #eee8dc;
+      padding-bottom: 9px;
+      font-size: 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #eee8dc;
+      padding: 11px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    td:last-child,
+    th:last-child {
+      text-align: right;
+      font-weight: 800;
+    }
+
+    code {
+      color: #1d4ed8;
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+      font-size: 13px;
+    }
+
+    .note {
+      margin-top: 18px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid #dde4ee;
+      color: #334155;
+      font-size: 14px;
+    }
+
+    @media (max-width: 860px) {
+      main {
+        width: min(100vw - 28px, 720px);
+      }
+
+      .grid,
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .bar-row {
+        grid-template-columns: 96px 1fr 36px;
+      }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <span class="eyebrow">Spring Boot Actuator + Controller Timing</span>
+    <h1>Yomu Monolith Profiling Graph</h1>
+    <p class="subtitle">
+      This page presents the monolith profiling setup in a screenshot-friendly form: controller timing coverage,
+      protected Actuator metrics, and the path from user requests to Prometheus-compatible measurements.
+    </p>
+  </header>
+
+  <section class="cards" aria-label="profiling summary">
+    <div class="metric">
+      <strong>14</strong>
+      <span>Controller endpoints with timing logs</span>
+    </div>
+    <div class="metric">
+      <strong>4</strong>
+      <span>Safe Actuator endpoints exposed</span>
+    </div>
+    <div class="metric">
+      <strong>3</strong>
+      <span>Protected metrics paths for admins</span>
+    </div>
+    <div class="metric">
+      <strong>0</strong>
+      <span>Unsafe wildcard exposure rules</span>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="panel">
+      <h2>Instrumented Controller Coverage</h2>
+      <div class="bar-list" aria-label="instrumented endpoint count by module">
+        <div class="bar-row">
+          <span>Reading</span>
+          <span class="track"><span class="bar reading"></span></span>
+          <span>6</span>
+        </div>
+        <div class="bar-row">
+          <span>League</span>
+          <span class="track"><span class="bar league"></span></span>
+          <span>4</span>
+        </div>
+        <div class="bar-row">
+          <span>Profile</span>
+          <span class="track"><span class="bar profile"></span></span>
+          <span>2</span>
+        </div>
+        <div class="bar-row">
+          <span>Admin</span>
+          <span class="track"><span class="bar admin"></span></span>
+          <span>1</span>
+        </div>
+        <div class="bar-row">
+          <span>Achievement</span>
+          <span class="track"><span class="bar achievement"></span></span>
+          <span>1</span>
+        </div>
+      </div>
+      <p class="note">
+        These counts come from controller-level <code>System.nanoTime()</code> preparation logs in the monolith.
+        The logs are useful for finding slow page preparation before rendering Thymeleaf templates.
+      </p>
+    </article>
+
+    <article class="panel">
+      <h2>Monitoring Endpoints</h2>
+      <ul class="routes">
+        <li><code>/actuator/health</code><span>Public health check</span></li>
+        <li><code>/actuator/info</code><span>Public app info</span></li>
+        <li><code>/actuator/metrics</code><span>Admin only</span></li>
+        <li><code>/actuator/metrics/http.server.requests</code><span>Admin only</span></li>
+        <li><code>/actuator/prometheus</code><span>Admin only</span></li>
+      </ul>
+      <p class="note">
+        The configuration exposes only <code>health</code>, <code>info</code>, <code>metrics</code>, and
+        <code>prometheus</code>. It does not use <code>management.endpoints.web.exposure.include=*</code>.
+      </p>
+    </article>
+  </section>
+
+  <section class="panel" style="margin-top:18px">
+    <h2>Most Expensive Observed Controller Preparations</h2>
+    <table aria-label="most expensive controller preparation times">
+      <thead>
+      <tr>
+        <th>Rank</th>
+        <th>Endpoint</th>
+        <th>Controller</th>
+        <th>What Was Measured</th>
+        <th>Observed Time</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td>1</td>
+        <td><code>GET /leaderboard</code></td>
+        <td><code>ClanController</code></td>
+        <td>Leaderboard page preparation, tier selection, leaderboard entries, clan list, and creator display names.</td>
+        <td>22 ms</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><code>GET /achievements</code></td>
+        <td><code>AchievementController</code></td>
+        <td>Achievement page preparation and user achievement progress data.</td>
+        <td>17 ms</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><code>GET /admin/users</code></td>
+        <td><code>AdminUserController</code></td>
+        <td>Admin user tab preparation, including user listing/filtering data for the management table.</td>
+        <td>13 ms</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><code>GET /clans</code></td>
+        <td><code>ClanController</code></td>
+        <td>Clan list page preparation, member counts, tiers, and creator display names.</td>
+        <td>12 ms</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><code>GET /texts</code></td>
+        <td><code>TextController</code></td>
+        <td>Paginated reading list preparation and attempted-quiz lookup for the signed-in user.</td>
+        <td>9 ms</td>
+      </tr>
+      </tbody>
+    </table>
+    <p class="note">
+      Recorded locally on 2026-05-22 from a throwaway H2 database using the seeded admin user.
+      These numbers are a small smoke-profile sample, not a production benchmark. For production, compare this table
+      with <code>/actuator/metrics/http.server.requests</code> and <code>/actuator/prometheus</code> after real traffic.
+    </p>
+  </section>
+
+  <section class="panel" style="margin-top:18px">
+    <h2>Request Profiling Flow</h2>
+    <svg class="flow" viewBox="0 0 1080 310" role="img" aria-label="request profiling flow graph">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"></path>
+        </marker>
+      </defs>
+
+      <rect x="24" y="50" width="185" height="84" rx="8" fill="#eff6ff" stroke="#93c5fd"></rect>
+      <text x="116" y="82" text-anchor="middle" font-size="18" font-weight="700" fill="#111827">User Request</text>
+      <text x="116" y="110" text-anchor="middle" font-size="13" fill="#475569">Thymeleaf page or API</text>
+
+      <line x1="210" y1="92" x2="285" y2="92" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"></line>
+
+      <rect x="286" y="50" width="210" height="84" rx="8" fill="#ecfdf5" stroke="#86efac"></rect>
+      <text x="391" y="82" text-anchor="middle" font-size="18" font-weight="700" fill="#111827">Spring Security</text>
+      <text x="391" y="110" text-anchor="middle" font-size="13" fill="#475569">Auth, role checks, session</text>
+
+      <line x1="497" y1="92" x2="572" y2="92" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"></line>
+
+      <rect x="573" y="50" width="215" height="84" rx="8" fill="#fff7ed" stroke="#fdba74"></rect>
+      <text x="681" y="82" text-anchor="middle" font-size="18" font-weight="700" fill="#111827">Controller Timing</text>
+      <text x="681" y="110" text-anchor="middle" font-size="13" fill="#475569">Preparation duration logs</text>
+
+      <line x1="789" y1="92" x2="864" y2="92" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"></line>
+
+      <rect x="865" y="50" width="190" height="84" rx="8" fill="#fdf2f8" stroke="#f9a8d4"></rect>
+      <text x="960" y="82" text-anchor="middle" font-size="18" font-weight="700" fill="#111827">Thymeleaf View</text>
+      <text x="960" y="110" text-anchor="middle" font-size="13" fill="#475569">Rendered response</text>
+
+      <line x1="681" y1="135" x2="681" y2="185" stroke="#64748b" stroke-width="3" marker-end="url(#arrow)"></line>
+
+      <rect x="420" y="188" width="522" height="82" rx="8" fill="#f8fafc" stroke="#cbd5e1"></rect>
+      <text x="681" y="221" text-anchor="middle" font-size="18" font-weight="700" fill="#111827">Actuator Metrics Surface</text>
+      <text x="681" y="249" text-anchor="middle" font-size="13" fill="#475569">health, info, metrics, prometheus with admin gate on sensitive metrics</text>
+    </svg>
+    <div class="legend">
+      <span><i class="dot" style="background:var(--blue)"></i>Runtime request metrics: <code>http.server.requests</code></span>
+      <span><i class="dot" style="background:var(--amber)"></i>Manual timing logs: controller preparation cost</span>
+      <span><i class="dot" style="background:var(--green)"></i>Health signal: <code>UP</code> from Actuator</span>
+      <span><i class="dot" style="background:var(--rose)"></i>Security: metrics require admin role</span>
+    </div>
+  </section>
+</main>
+</body>
+</html>
