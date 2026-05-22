@@ -18,8 +18,14 @@ Yomu is a gamified literacy learning platform built for the Advanced Programming
 - H2 database for local and staging single-app deployment
 - Docker / Railway for containerized staging
 
-## Local Setup
+## Monitoring
+### railwayapp builtin 
+<img width="1794" height="1258" alt="image" src="https://github.com/user-attachments/assets/1b7fa776-f571-40e7-aabf-3d1894edd033" />
+<img width="1698" height="1092" alt="image" src="https://github.com/user-attachments/assets/d280944e-97b4-4b07-9729-dbd0058d9ba0" />
+<img width="1694" height="806" alt="image" src="https://github.com/user-attachments/assets/8c510050-a15a-4ebe-b017-2e49a4b75963" />
 
+
+## Local Setup
 ### Prerequisites
 
 - JDK 25 installed
