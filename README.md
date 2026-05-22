@@ -132,6 +132,7 @@ The workflow syncs these Railway runtime variables automatically:
 - `GOOGLE_OAUTH_ENABLED=true`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
+- `APP_OAUTH2_GOOGLE_REDIRECT_URI`, derived from `RAILWAY_PUBLIC_URL`
 - `SESSION_TIMEOUT`
 
 You do not need to set `PORT`, `DB_URL`, `DB_DRIVER`, or `H2_WEB_ALLOW_OTHERS` manually for Railway. Railway provides `PORT`, while the `docker` Spring profile already configures H2 storage at `/app/data/yomu-db` and disables the H2 console.
