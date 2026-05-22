@@ -39,6 +39,10 @@ public class SecurityConfig {
                         "/js/**",
                         "/images/**"
                 ).permitAll()
+                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers("/actuator/info").permitAll()
+                .requestMatchers("/actuator/metrics", "/actuator/metrics/**", "/actuator/prometheus").hasRole("ADMIN")
+                .requestMatchers("/actuator/**").denyAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/h2-console/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()
