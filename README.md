@@ -1,5 +1,3 @@
-# Tutorial B: Visualizing and Architectural Risk
-
 ## Yomu Project Overview
 
 Yomu is a gamified literacy learning platform built for the Advanced Programming group project. The application helps users read curated texts, complete quizzes, unlock achievements, track daily missions, and compete through clan-based league progression.
@@ -288,7 +286,7 @@ We applied **Risk Storming** to the delivered implementation, not just the initi
 2. **Assess**: that coupling introduces two major long-term risks. First, **horizontal scaling is unsafe** because multiple app instances should not share the same embedded H2 file store. Second, the current deployment remains a **single runtime bottleneck**, so outages or corrupted storage would impact the whole platform.
 3. **Mitigate**: the future architecture extracts persistence into **PostgreSQL** and keeps the app layer stateless. That unlocks multiple app instances behind a load balancer while preserving the same modular boundaries already used in the current codebase.
 
-## 4. Final Module Diagrams
+## 4. Module Diagrams
 
 ### Auth and Profile Module
 ```mermaid
