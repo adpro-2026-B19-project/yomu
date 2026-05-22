@@ -98,6 +98,38 @@ public class AdminTextController {
         return "redirect:/admin/texts/" + id + "/questions";
     }
 
+    @PostMapping(value = "/{id}/questions", params = "async")
+    @ResponseBody
+    public org.springframework.http.ResponseEntity<java.util.Map<String, Object>> addQuestionAsync(
+            @PathVariable Long id,
+            @RequestParam String questionText,
+            @RequestParam String optionA, @RequestParam String optionB,
+            @RequestParam String optionC, @RequestParam String optionD,
+            @RequestParam String correctOption) {
+        try {
+            quizService.addQuestion(id, questionText, optionA, optionB, optionC, optionD, correctOption);
+            List<Question> questions = quizService.getQuestionsByTextId(id);
+            Question newest = questions.get(questions.size() - 1);
+            List<Option> opts = newest.getOptions().stream()
+                    .sorted(Comparator.comparing(Option::getId))
+                    .toList();
+            java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("id", newest.getId());
+            body.put("question", newest.getQuestion());
+            body.put("options", opts.stream().map(o -> {
+                java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("id", o.getId());
+                m.put("text", o.getText());
+                m.put("correct", o.isCorrect());
+                return m;
+            }).toList());
+            return org.springframework.http.ResponseEntity.ok(body);
+        } catch (Exception e) {
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/questions/{questionId}/edit")
     public String editQuestion(@PathVariable Long questionId,
                                @RequestParam String questionText,
