@@ -7,19 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header class="site-header">
-    <div class="site-shell site-nav">
-        <a class="site-brand" th:href="@{/}">
-            <span class="site-brand-mark">Y</span>
-            <span>Yomu</span>
-        </a>
-        <nav class="nav-links">
-            <a class="button button-secondary" th:href="@{/texts}">Back to library</a>
-            <a class="nav-link" th:href="@{/texts/history}">History</a>
-            <a class="nav-link" th:href="@{/leaderboard(tier='BRONZE')}">Leaderboard</a>
-        </nav>
-    </div>
-</header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section class="panel surface-strong stack">

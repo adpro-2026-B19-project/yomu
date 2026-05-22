@@ -95,6 +95,7 @@
     </style>
 </head>
 <body>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 <div class="achievement-toast-wrap" th:if="${newlyUnlockedAchievements != null and !#lists.isEmpty(newlyUnlockedAchievements)}">
     <section id="achievementToast" class="achievement-toast" aria-live="polite">
         <div class="achievement-toast-badge">BADGE</div>

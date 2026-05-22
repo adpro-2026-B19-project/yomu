@@ -7,25 +7,7 @@
     <link rel="stylesheet" th:href="@{/css/yomu-clay.css}"/>
 </head>
 <body>
-<header class="site-header">
-    <div class="site-shell site-nav">
-        <a class="site-brand" th:href="@{/}">
-            <span class="site-brand-mark">Y</span>
-            <span>Yomu</span>
-        </a>
-        <nav class="nav-links">
-            <a class="nav-link" th:href="@{/texts}">Library</a>
-            <a class="nav-link" th:href="@{/clans}">Clans</a>
-            <a class="nav-link" th:href="@{/leaderboard(tier='BRONZE')}">Leaderboard</a>
-            <a class="nav-link" th:href="@{/profile}">My profile</a>
-            <span class="user-pill" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}" th:text="${loggedInName}">reader</span>
-            <form th:action="@{/auth/logout}" method="post" style="margin:0;">
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
-                <button type="submit" class="button button-secondary">Log out</button>
-            </form>
-        </nav>
-    </div>
-</header>
+<header th:replace="~{fragments/navigation :: siteNav}"></header>
 
 <main class="page-main">
     <section class="profile-layout">
@@ -41,7 +23,7 @@
                     <p class="muted tiny" th:text="${publicProfile.role}">USER</p>
                 </div>
                 <div class="info-row">
-                    <strong>Clan</strong>
+                    <strong>League clan</strong>
                     <p class="muted tiny" th:text="${publicProfile.clanName != null ? publicProfile.clanName : '-'}">-</p>
                 </div>
                 <div class="info-row">
@@ -52,6 +34,9 @@
                     <strong>Clan role</strong>
                     <p class="muted tiny" th:text="${publicProfile.clanRole != null ? publicProfile.clanRole : '-'}">-</p>
                 </div>
+            </div>
+            <div class="form-actions" th:if="${loggedInName != null and !#strings.isEmpty(loggedInName)}">
+                <a class="button button-primary" th:href="@{/profile}">Back to profile</a>
             </div>
         </aside>
 
