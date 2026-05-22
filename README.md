@@ -203,6 +203,119 @@ Rel(data_seed, database, "Seeds", "JPA")
 UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
+### Auth Module Component Diagram
+```mermaid
+C4Component
+title Auth and Profile Module
+
+ContainerDb(auth_db, "Auth Tables", "H2/JPA", "auth_users")
+System_Ext(google_oauth, "Google OAuth2", "Identity")
+
+Component(auth_ctrl, "AuthController", "MVC", "Login and register")
+Component(profile_ctrl, "ProfileController", "MVC", "Profile and delete account")
+Component(admin_ctrl, "AdminUserController", "MVC", "Admin user page")
+Component(security, "SecurityConfig", "Spring Security", "Routes, CSRF, session")
+Component(auth_service, "AuthService", "Service", "Manual auth")
+Component(profile_service, "ProfileService", "Service", "Profile changes")
+Component(admin_service, "AdminUserManagementService", "Service", "User moderation")
+Component(oauth_service, "OAuth2LoginUserService", "Service", "SSO provisioning")
+Component(current_user, "CurrentUserResolver", "Service", "Principal lookup")
+
+Rel(auth_ctrl, auth_service, "Uses")
+Rel(profile_ctrl, profile_service, "Uses")
+Rel(profile_ctrl, current_user, "Resolves")
+Rel(admin_ctrl, admin_service, "Uses")
+Rel(security, auth_ctrl, "Guards")
+Rel(oauth_service, google_oauth, "SSO")
+Rel(auth_service, auth_db, "Reads/Writes")
+Rel(profile_service, auth_db, "Reads/Writes")
+Rel(admin_service, auth_db, "Reads/Writes")
+Rel(current_user, auth_db, "Reads")
+
+UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="1")
+```
+
+### Reading and Quiz Module Component Diagram
+```mermaid
+C4Component
+title Reading and Quiz Module
+
+ContainerDb(reading_db, "Reading Tables", "H2/JPA", "texts, questions, attempts")
+
+Component(text_ctrl, "TextController", "MVC", "Read and quiz pages")
+Component(admin_text_ctrl, "AdminTextController", "MVC", "Text and question admin")
+Component(text_api_ctrl, "TextApiController", "REST", "Reading stats API")
+Component(text_service, "TextService", "Service", "Text CRUD and quiz grading")
+Component(stats_adapter, "ReadingStatsAdapter", "Port adapter", "Stats for league")
+Component(quiz_event, "QuizCompletedEvent", "Integration event", "Quiz result payload")
+
+Rel(text_ctrl, text_service, "Uses")
+Rel(admin_text_ctrl, text_service, "Uses")
+Rel(text_api_ctrl, text_service, "Uses")
+Rel(text_service, reading_db, "Reads/Writes")
+Rel(stats_adapter, reading_db, "Reads")
+Rel(text_service, quiz_event, "Publishes")
+
+UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="1")
+```
+
+### Achievement Module Component Diagram
+```mermaid
+C4Component
+title Achievement and Daily Mission Module
+
+ContainerDb(achievement_db, "Achievement Tables", "H2/JPA", "achievements, missions, progress")
+
+Component(achievement_ctrl, "AchievementController", "MVC + REST", "Achievements and missions")
+Component(achievement_service, "AchievementService", "Service", "Unlocks and display")
+Component(mission_service, "DailyMissionService", "Service", "Mission progress")
+Component(quiz_listener, "AchievementQuizCompletionEventListener", "Event listener", "Quiz completion")
+Component(scheduler, "DailyMissionRotationScheduler", "Scheduler", "Daily rotation")
+Component(profile_adapter, "AchievementProfileAdapter", "Port adapter", "Displayed badges")
+Component(mission_adapter, "DailyMissionStatusAdapter", "Port adapter", "Primary mission summary")
+
+Rel(achievement_ctrl, achievement_service, "Uses")
+Rel(achievement_ctrl, mission_service, "Uses")
+Rel(quiz_listener, achievement_service, "Updates")
+Rel(quiz_listener, mission_service, "Updates")
+Rel(scheduler, mission_service, "Rotates")
+Rel(achievement_service, achievement_db, "Reads/Writes")
+Rel(mission_service, achievement_db, "Reads/Writes")
+Rel(profile_adapter, achievement_db, "Reads")
+Rel(mission_adapter, achievement_db, "Reads")
+
+UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="1")
+```
+
+### League and Clan Module Component Diagram
+```mermaid
+C4Component
+title League and Clan Module
+
+ContainerDb(league_db, "League Tables", "H2/JPA", "clans, tiers, seasons, score events")
+
+Component(clan_ctrl, "ClanController", "MVC", "Clan pages and leaderboard")
+Component(clan_api, "ClanRestController", "REST", "Clan API")
+Component(league_api, "LeagueIntegrationRestController", "REST", "Score ingest API")
+Component(clan_service, "ClanService", "Service", "Clan and leaderboard logic")
+Component(season_service, "LeagueSeasonService", "Service", "Season lifecycle")
+Component(score_calc, "ClanScoreCalculator", "Service", "Tier scores and modifiers")
+Component(quiz_listener, "LeagueQuizCompletionEventListener", "Event listener", "Quiz completion")
+Component(score_strategies, "TierScoreStrategy", "Strategy pattern", "Bronze to Diamond")
+
+Rel(clan_ctrl, clan_service, "Uses")
+Rel(clan_api, clan_service, "Uses")
+Rel(league_api, clan_service, "Ingests")
+Rel(quiz_listener, clan_service, "Records")
+Rel(clan_service, season_service, "Uses")
+Rel(clan_service, score_calc, "Scores")
+Rel(score_calc, score_strategies, "Selects")
+Rel(clan_service, league_db, "Reads/Writes")
+Rel(season_service, league_db, "Reads/Writes")
+
+UpdateLayoutConfig($c4ShapeInRow="4", $c4BoundaryInRow="1")
+```
+
 ### Quiz Completion Integration Flow
 ```mermaid
 sequenceDiagram
@@ -212,8 +325,8 @@ sequenceDiagram
     participant TS as TextService
     participant QA as QuizAttemptRepo
     participant Event as QuizCompletedEvent
-    participant AchL as AchievementListener
-    participant LgL as LeagueListener
+    participant AchL as AchievementQuizCompletionEventListener
+    participant LgL as LeagueQuizCompletionEventListener
     participant Ach as AchievementService
     participant DM as DailyMissionService
     participant Clan as ClanService
@@ -251,24 +364,23 @@ Deployment_Node(google, "Google Cloud", "External") {
     System_Ext(google_oauth, "Google OAuth2", "Authentication")
 }
 
-Deployment_Node(railway, "Railway", "Single service staging environment") {
-    Deployment_Node(app_container, "Docker Container", "Built from DOCKERFILE") {
-        Container(web_app, "Spring Boot App", "Java 25", "Web and API")
-        ContainerDb(h2_engine, "Embedded H2", "H2", "In-process DB")
-    }
-    Deployment_Node(volume, "Persistent Volume", "/app/data") {
-        ContainerDb(h2_files, "H2 Files", "File storage", "Persistent data")
-    }
+Deployment_Node(app_container, "Railway App", "Docker from DOCKERFILE") {
+    Container(web_app, "Spring Boot App", "Java 25", "Web and API")
+    ContainerDb(h2_engine, "Embedded H2", "H2", "In-process DB")
+}
+
+Deployment_Node(volume, "Railway Volume", "/app/data") {
+    ContainerDb(h2_files, "H2 Files", "File storage", "Persistent data")
 }
 
 Rel(browser, web_app, "Uses", "HTTPS")
 Rel(repo, ci, "Checks", "Actions")
-Rel(repo, web_app, "Auto-deploy", "Railway")
+Rel(repo, web_app, "Tracked branch deploy", "Railway")
 Rel(web_app, google_oauth, "SSO", "OAuth2")
 Rel(web_app, h2_engine, "Uses", "JDBC")
 Rel(h2_engine, h2_files, "Reads/Writes", "File I/O")
 
-UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="5")
 ```
 
 ## 2. Future Architecture
@@ -284,27 +396,24 @@ Deployment_Node(user_device, "User Device", "Desktop/Mobile") {
     Container(browser, "Web Browser", "Browser", "Accesses Yomu")
 }
 
-Deployment_Node(google, "Google Cloud", "External") {
-    System_Ext(google_oauth, "Google OAuth2", "Authentication")
+Deployment_Node(edge, "Edge Layer", "Managed HTTPS") {
+    Container(load_balancer, "Load Balancer", "Ingress", "Routes traffic")
 }
 
-Deployment_Node(cloud, "Cloud Platform", "Railway/AWS/GCP") {
-    Deployment_Node(edge, "Edge Layer", "Managed HTTPS endpoint") {
-        Container(load_balancer, "Load Balancer", "Managed ingress", "Routes traffic")
-    }
+Deployment_Node(instance_a, "App Instance A", "Docker Container") {
+    Container(web_app_a, "Yomu App A", "Java 25", "Web and API")
+}
 
-    Deployment_Node(app_cluster, "Application Cluster", "Stateless containers") {
-        Deployment_Node(instance_a, "App Instance A", "Docker Container") {
-            Container(web_app_a, "Yomu App A", "Java 25", "Web and API")
-        }
-        Deployment_Node(instance_b, "App Instance B", "Docker Container") {
-            Container(web_app_b, "Yomu App B", "Java 25", "Web and API")
-        }
-    }
+Deployment_Node(instance_b, "App Instance B", "Docker Container") {
+    Container(web_app_b, "Yomu App B", "Java 25", "Web and API")
+}
 
-    Deployment_Node(data_layer, "Data Layer", "Managed database") {
-        ContainerDb(postgres, "PostgreSQL", "Managed DB", "Durable app data")
-    }
+Deployment_Node(data_layer, "Data Layer", "Managed database") {
+    ContainerDb(postgres, "PostgreSQL", "Managed DB", "Durable app data")
+}
+
+Deployment_Node(google, "Google Cloud", "External") {
+    System_Ext(google_oauth, "Google OAuth2", "Authentication")
 }
 
 Rel(browser, load_balancer, "Uses", "HTTPS")
@@ -315,7 +424,7 @@ Rel(web_app_b, google_oauth, "SSO", "OAuth2")
 Rel(web_app_a, postgres, "Reads/Writes", "JDBC/TCP")
 Rel(web_app_b, postgres, "Reads/Writes", "JDBC/TCP")
 
-UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="6")
 ```
 
 ## 3. Explanation of Risk Storming
@@ -416,8 +525,8 @@ classDiagram
         Long id
         Text text
         String userId
-        double score
-        double accuracy
+        Double score
+        Double accuracy
         Instant timestamp
     }
 
@@ -570,7 +679,7 @@ classDiagram
     }
 
     class Tier {
-        Long id
+        UUID id
         TierCode code
         String displayName
     }
