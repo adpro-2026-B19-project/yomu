@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -27,6 +29,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 public class ClanController {
+
+    private static final Logger log = LoggerFactory.getLogger(ClanController.class);
 
     private final ClanService clanService;
     private final CurrentUserResolver currentUserResolver;
@@ -44,6 +48,7 @@ public class ClanController {
 
     @GetMapping({"/clans", "/interaction"})
     public String clanListPage(Model model, Authentication authentication) {
+        long start = System.nanoTime();
         if (!model.containsAttribute("createForm")) {
             model.addAttribute("createForm", new ClanCreateForm());
         }
@@ -65,6 +70,7 @@ public class ClanController {
                 .toList());
         currentUserResolver.resolveUsername(authentication)
                 .ifPresent(username -> model.addAttribute("loggedInName", username));
+        log.info("GET /clans controller preparation took {} ms", elapsedMs(start));
         return "league/clans";
     }
 
@@ -76,6 +82,7 @@ public class ClanController {
             Model model,
             Authentication authentication
     ) {
+        long start = System.nanoTime();
         TierCode selectedTier = parseTierCodeOrDefault(tier);
         ClanService.LeaderboardPage leaderboardPage = clanService.getLeaderboardPage(selectedTier, page, size);
         List<ClanService.LeaderboardEntry> entries = leaderboardPage.entries();
@@ -117,6 +124,7 @@ public class ClanController {
         model.addAttribute("adminCanEndSeason", isAdmin(authentication));
         currentUserResolver.resolveUsername(authentication)
                 .ifPresent(username -> model.addAttribute("loggedInName", username));
+        log.info("GET /leaderboard controller preparation took {} ms", elapsedMs(start));
         return "league/leaderboard";
     }
 
@@ -127,6 +135,7 @@ public class ClanController {
             RedirectAttributes redirectAttributes,
             Authentication authentication
     ) {
+        long start = System.nanoTime();
         try {
             ClanService.PublicProfile profile = clanService.getPublicProfile(userId);
             model.addAttribute("publicProfile", new PublicProfileView(
@@ -152,6 +161,7 @@ public class ClanController {
             ));
             currentUserResolver.resolveUsername(authentication)
                     .ifPresent(username -> model.addAttribute("loggedInName", username));
+            log.info("GET /players/{userId} controller preparation took {} ms", elapsedMs(start));
             return "league/public-profile";
         } catch (IllegalArgumentException exception) {
             redirectAttributes.addFlashAttribute("error", exception.getMessage());
@@ -166,6 +176,7 @@ public class ClanController {
             RedirectAttributes redirectAttributes,
             Authentication authentication
     ) {
+        long start = System.nanoTime();
         Optional<AuthUser> currentUser = currentUserResolver.resolveUser(authentication);
         if (currentUser.isEmpty()) {
             return "redirect:/auth/login";
@@ -211,6 +222,7 @@ public class ClanController {
             ));
             currentUserResolver.resolveUsername(authentication)
                     .ifPresent(username -> model.addAttribute("loggedInName", username));
+            log.info("GET /clans/{clanId} controller preparation took {} ms", elapsedMs(start));
             return "league/clan-detail";
         } catch (IllegalArgumentException exception) {
             redirectAttributes.addFlashAttribute("error", exception.getMessage());
@@ -389,6 +401,10 @@ public class ClanController {
             return ClanService.JoinRequestDecision.REJECT;
         }
         throw new IllegalArgumentException("Unknown action");
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 
     private record ClanListItem(

@@ -13,6 +13,8 @@ import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.ui.Model;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 import java.util.List;
@@ -23,6 +25,8 @@ import java.util.stream.Collectors;
 @Controller
 @RequestMapping("/admin/texts")
 public class AdminTextController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminTextController.class);
 
     private final TextRepository textRepository;
     private final CategoryRepository categoryRepository;
@@ -54,9 +58,11 @@ public class AdminTextController {
     public String adminDashboard(@RequestParam(required = false) Long categoryId,
                                  @RequestParam(required = false) Boolean published,
                                  Model model) {
+        long start = System.nanoTime();
         List<Text> texts = textService.getAllTextsAdmin(categoryId, published);
         model.addAttribute("texts", texts);
         model.addAttribute("categories", categoryRepository.findAll());
+        log.info("GET /admin/texts controller preparation took {} ms", elapsedMs(start));
         return "reading/admin-dashboard";
     }
 
@@ -94,6 +100,7 @@ public class AdminTextController {
 
     @GetMapping("/{id}/questions")
     public String manageQuestions(@PathVariable Long id, Model model) {
+        long start = System.nanoTime();
         Text text = textRepository.findById(id).orElseThrow();
         List<Question> questions = questionRepository.findByTextId(id);
         questions.forEach(question -> {
@@ -105,6 +112,7 @@ public class AdminTextController {
         });
         model.addAttribute("text", text);
         model.addAttribute("questions", questions);
+        log.info("GET /admin/texts/{id}/questions controller preparation took {} ms", elapsedMs(start));
         return "reading/admin-manage-questions";
     }
 
@@ -181,5 +189,9 @@ public class AdminTextController {
         }
         option.setText(text);
         option.setCorrect(correct);
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 }

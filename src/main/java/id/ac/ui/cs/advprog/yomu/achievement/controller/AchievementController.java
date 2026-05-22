@@ -14,6 +14,8 @@ import jakarta.validation.Valid;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +33,8 @@ import java.util.stream.Collectors;
 @RequestMapping("/achievements")
 public class AchievementController {
 
+    private static final Logger log = LoggerFactory.getLogger(AchievementController.class);
+
     private final AchievementService achievementService;
     private final DailyMissionService dailyMissionService;
     private final CurrentUserResolver currentUserResolver;
@@ -40,6 +44,7 @@ public class AchievementController {
 
     @GetMapping
     public String achievementListPage(Model model) {
+        long start = System.nanoTime();
         List<Achievement> achievements = achievementService.getAllAchievements();
         model.addAttribute("achievements", achievements);
         List<Category> categories = categoryRepository.findAll().stream()
@@ -76,6 +81,7 @@ public class AchievementController {
             });
         }
 
+        log.info("GET /achievements controller preparation took {} ms", elapsedMs(start));
         return "achievement/ListAchievement";
     }
 
@@ -261,6 +267,10 @@ public class AchievementController {
             return Long.toString(roundedValue);
         }
         return Integer.toString((int) Math.floor(value));
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 
     private record DailyMissionCardView(

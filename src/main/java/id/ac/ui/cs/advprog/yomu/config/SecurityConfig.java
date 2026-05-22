@@ -40,6 +40,7 @@ public class SecurityConfig {
                         "/images/**"
                 ).permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/actuator/**").hasRole("ADMIN")
                 .requestMatchers("/h2-console/**").authenticated()
                 .requestMatchers("/profile/**").authenticated()
                 .anyRequest().authenticated()

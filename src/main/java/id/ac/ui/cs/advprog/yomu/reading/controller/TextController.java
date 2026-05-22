@@ -11,6 +11,8 @@ import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
 import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
 
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 @Controller
 @RequestMapping("/texts")
 public class TextController {
+
+    private static final Logger log = LoggerFactory.getLogger(TextController.class);
 
     private final QuestionRepository questionRepository;
     private final TextService textService;
@@ -45,28 +49,33 @@ public class TextController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "6") int size,
             Model model) {
+        long start = System.nanoTime();
         org.springframework.data.domain.Page<Text> textPage = textService.getAllTexts(page, size);
         model.addAttribute("texts", textPage.getContent());
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", textPage.getTotalPages());
         model.addAttribute("hasNext", textPage.hasNext());
         model.addAttribute("hasPrevious", textPage.hasPrevious());
+        log.info("GET /texts controller preparation took {} ms", elapsedMs(start));
         return "reading/texts";
     }
 
     @GetMapping("/history")
     public String getHistory(Model model, Authentication authentication) {
+        long start = System.nanoTime();
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/auth/login";
         }
         AuthUser authUser = currentUserResolver.resolveUser(authentication).orElseThrow();
         List<QuizAttempt> history = textService.getUserQuizHistory(authUser.getId().toString());
         model.addAttribute("history", history);
+        log.info("GET /texts/history controller preparation took {} ms", elapsedMs(start));
         return "reading/history";
     }
 
     @GetMapping("/{id:\\d+}")
     public String getTextDetail(@PathVariable Long id, Model model, Authentication authentication) {
+        long start = System.nanoTime();
         try {
             Text text = textService.getPublishedTextById(id);
 
@@ -81,6 +90,7 @@ public class TextController {
             model.addAttribute("text", text);
             model.addAttribute("hasAttempted", hasAttempted);
 
+            log.info("GET /texts/{id} controller preparation took {} ms", elapsedMs(start));
             return "reading/text-detail";
         } catch (ResponseStatusException e) {
             return "redirect:/texts?error=" + e.getReason();
@@ -91,6 +101,7 @@ public class TextController {
 
     @GetMapping("/{id:\\d+}/quiz")
     public String startQuiz(@PathVariable Long id, Model model, Authentication authentication) {
+        long start = System.nanoTime();
         if (authentication == null || !authentication.isAuthenticated()) {
             return "redirect:/auth/login";
         }
@@ -109,6 +120,7 @@ public class TextController {
             model.addAttribute("text", text);
             model.addAttribute("questions", questions);
 
+            log.info("GET /texts/{id}/quiz controller preparation took {} ms", elapsedMs(start));
             return "reading/quiz";
         } catch (ResponseStatusException e) {
             return "redirect:/texts?error=" + e.getReason();
@@ -169,6 +181,10 @@ public class TextController {
             String name,
             String milestone
     ) {
+    }
+
+    private long elapsedMs(long start) {
+        return (System.nanoTime() - start) / 1_000_000;
     }
 
 }

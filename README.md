@@ -102,6 +102,46 @@ The repository includes GitHub Actions CI for:
 - JaCoCo coverage gate
 - CodeQL analysis
 
+## Monitoring and Profiling
+
+The app includes Spring Boot Actuator and Micrometer Prometheus metrics for safe production monitoring.
+
+Only these Actuator endpoints are exposed:
+
+- `/actuator/health`
+- `/actuator/info`
+- `/actuator/metrics`
+- `/actuator/metrics/http.server.requests`
+- `/actuator/prometheus`
+
+The app intentionally does not expose all Actuator endpoints. `/actuator/**` is protected by Spring Security and requires an admin account.
+
+After the app receives traffic, `/actuator/metrics/http.server.requests` shows HTTP request timing metrics. `/actuator/health` should report `UP` for a healthy deployment.
+
+Important Thymeleaf page controllers log preparation time for dashboard, list, detail, search/filter, profile, leaderboard, and reading pages. These logs help identify slow controller preparation before template rendering.
+
+### Optional Java Flight Recorder
+
+For short profiling sessions, run Java Flight Recorder manually. Do not enable this permanently in production.
+
+For Gradle builds:
+
+```bash
+java -XX:StartFlightRecording=duration=60s,filename=profile.jfr -jar build/libs/yomu-0.0.1-SNAPSHOT.jar
+```
+
+The `.jfr` file can be opened with JDK Mission Control.
+
+### Performance Review Notes
+
+- Reading user pages already use pagination for published text lists. Keep this pattern for future large collections.
+- Admin text filtering currently loads all texts before filtering in service code; consider repository-level filtering or pagination if the text catalog grows.
+- Achievement pages load all achievements and categories for the page; add pagination or cached category lists if these become large.
+- League pages resolve display names in batches, which avoids the most obvious repeated user lookup issue. Keep batching for future member/request views.
+- Avoid adding heavy business logic to Thymeleaf templates; keep data shaping in controllers or services.
+- Keep large static assets compressed and avoid embedding oversized images directly in templates.
+- Current-user resolution reads account data from the database on authenticated pages. If this becomes hot, consider request-scoped caching.
+
 ## Staging and Deployment Notes
 
 The final CD path uses GitHub Actions as the deployment gate for a single Railway app with embedded H2 persistence:
