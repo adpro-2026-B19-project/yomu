@@ -132,17 +132,19 @@ The architecture diagrams follow the C4 model from Module 09: Context, Container
 C4Context
 title System Context Diagram for Yomu Literacy Platform
 
-Person(learner, "Learner", "Reads texts, completes quizzes, tracks achievements and daily missions, joins clans, and views public profiles.")
-Person(clan_leader, "Clan Leader", "A learner who creates a clan, reviews join requests, and may archive their clan.")
-Person(admin, "Admin", "Manages users, reading content, quiz questions, achievements, daily missions, and league seasons.")
+Person(learner, "Learner", "Reads, quizzes, missions, clan, profile")
+Person(clan_leader, "Clan Leader", "Reviews join requests")
+Person(admin, "Admin", "Manages content and seasons")
 
-System(yomu, "Yomu Platform", "Gamified literacy learning platform for reading, quizzes, achievements, daily missions, and clan-based leagues.")
-System_Ext(google_oauth, "Google OAuth2", "External identity provider for Google sign-in.")
+System(yomu, "Yomu Platform", "Gamified literacy platform")
+System_Ext(google_oauth, "Google OAuth2", "External identity provider")
 
-Rel(learner, yomu, "Uses learning, quiz, achievement, mission, clan, leaderboard, and profile features", "HTTPS")
-Rel(clan_leader, yomu, "Manages clan membership and clan lifecycle", "HTTPS")
-Rel(admin, yomu, "Uses administrative controls", "HTTPS")
-Rel(yomu, google_oauth, "Authenticates Google users and merges matching accounts", "OAuth2/HTTPS")
+Rel(learner, yomu, "Uses app", "HTTPS")
+Rel(clan_leader, yomu, "Manages clan", "HTTPS")
+Rel(admin, yomu, "Admin controls", "HTTPS")
+Rel(yomu, google_oauth, "Google sign-in", "OAuth2")
+
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
 ### Container Diagram
@@ -150,21 +152,23 @@ Rel(yomu, google_oauth, "Authenticates Google users and merges matching accounts
 C4Container
 title Container Diagram for Yomu Literacy Platform
 
-Person(learner, "Learner", "Uses the web interface")
-Person(clan_leader, "Clan Leader", "Manages clan flows")
-Person(admin, "Admin", "Manages content and system controls")
-System_Ext(google_oauth, "Google OAuth2", "External identity provider")
+Person(learner, "Learner", "Uses web UI")
+Person(clan_leader, "Clan Leader", "Manages clan")
+Person(admin, "Admin", "Admin controls")
+System_Ext(google_oauth, "Google OAuth2", "Identity provider")
 
 System_Boundary(yomu_system, "Yomu Platform") {
-    Container(web_app, "Spring Boot Web Application", "Java 25, Spring Boot, Thymeleaf, Spring Security", "Serves MVC pages and REST APIs, enforces role-based access, publishes quiz completion events, and coordinates all modules.")
-    ContainerDb(database, "Embedded H2 Database", "H2 file database", "Stores users, reading content, quiz attempts, achievements, missions, clans, seasons, and leaderboard score events.")
+    Container(web_app, "Spring Boot Web App", "Java 25, Spring Boot, Thymeleaf", "MVC pages, REST APIs, security, events")
+    ContainerDb(database, "Embedded H2 DB", "H2 file database", "App data and demo data")
 }
 
-Rel(learner, web_app, "Reads texts, submits quizzes, tracks progress, joins clans", "HTTPS")
-Rel(clan_leader, web_app, "Creates clans, reviews requests, archives clans", "HTTPS")
-Rel(admin, web_app, "Admin CRUD and season transition actions", "HTTPS")
-Rel(web_app, google_oauth, "Delegates Google sign-in", "OAuth2/HTTPS")
-Rel(web_app, database, "Reads and writes application state", "JPA/JDBC")
+Rel(learner, web_app, "Learner flows", "HTTPS")
+Rel(clan_leader, web_app, "Clan flows", "HTTPS")
+Rel(admin, web_app, "Admin flows", "HTTPS")
+Rel(web_app, google_oauth, "SSO", "OAuth2")
+Rel(web_app, database, "Reads/Writes", "JPA/JDBC")
+
+UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
 ```
 
 ### Component Diagram
@@ -172,29 +176,31 @@ Rel(web_app, database, "Reads and writes application state", "JPA/JDBC")
 C4Component
 title Component Diagram for the Yomu Spring Boot Application
 
-ContainerDb(database, "H2 Database", "H2", "Application persistence")
-System_Ext(google_oauth, "Google OAuth2", "External identity provider")
+ContainerDb(database, "H2 Database", "H2", "Persistence")
+System_Ext(google_oauth, "Google OAuth2", "Identity")
 
 Container_Boundary(web_app, "Spring Boot Web Application") {
-    Component(shared_web, "Shared Web Shell", "Spring MVC", "Landing page, global navigation model, and error page handling.")
-    Component(auth_component, "Auth and Profile Module", "Spring Security + Services", "Manual auth, Google OAuth2, session hardening, profile update, account deletion, admin user management, role guards, and throttling.")
-    Component(reading_component, "Reading and Quiz Module", "Spring MVC/REST + Services", "Published reading list, text detail, hidden-source quiz flow, admin text/question management, quiz history, pagination, and reading stats.")
-    Component(achievement_component, "Achievement and Daily Mission Module", "Spring Services + Scheduler", "Achievement unlocks, displayed achievements, daily mission progress, admin distribution, primary mission summary, and scheduled rotation.")
-    Component(league_component, "League and Clan Module", "Spring MVC/REST + Services", "Clan creation, join requests, public profiles, tiered leaderboards, score strategies, buff/debuff, season transitions, archive flow, and pagination.")
-    Component(integration_contracts, "Integration Contracts", "Java records and ports", "QuizCompletedEvent, ReadingStatsPort, AchievementProfilePort, and DailyMissionStatusPort.")
-    Component(data_seed, "Data Seeder", "CommandLineRunner", "Seeds published texts, quizzes, admin account, optional demo users, daily mission, and demo clan.")
+    Component(shared_web, "Shared Web Shell", "Spring MVC", "Landing, nav, error pages")
+    Component(auth_component, "Auth/Profile", "Spring Security", "Login, OAuth2, roles, sessions")
+    Component(reading_component, "Reading/Quiz", "MVC + REST", "Texts, quizzes, stats")
+    Component(achievement_component, "Achievements", "Services + Scheduler", "Achievements and missions")
+    Component(league_component, "League/Clan", "MVC + REST", "Clans, tiers, seasons")
+    Component(integration_contracts, "Integration Contracts", "Java records/ports", "Events and query ports")
+    Component(data_seed, "Data Seeder", "CommandLineRunner", "Base and demo data")
 }
 
-Rel(shared_web, auth_component, "Resolves current user for navigation")
-Rel(auth_component, google_oauth, "Authenticates via")
-Rel(reading_component, integration_contracts, "Publishes QuizCompletedEvent")
-Rel(achievement_component, integration_contracts, "Consumes quiz events and provides achievement/mission ports")
-Rel(league_component, integration_contracts, "Consumes quiz events and calls reading/achievement/mission ports")
+Rel(shared_web, auth_component, "Current user")
+Rel(auth_component, google_oauth, "SSO")
+Rel(reading_component, integration_contracts, "Publishes quiz event")
+Rel(achievement_component, integration_contracts, "Listens/provides ports")
+Rel(league_component, integration_contracts, "Listens/uses ports")
 Rel(auth_component, database, "Reads/Writes", "JPA")
 Rel(reading_component, database, "Reads/Writes", "JPA")
 Rel(achievement_component, database, "Reads/Writes", "JPA")
 Rel(league_component, database, "Reads/Writes", "JPA")
-Rel(data_seed, database, "Seeds demo and base data", "JPA")
+Rel(data_seed, database, "Seeds", "JPA")
+
+UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
 ### Quiz Completion Integration Flow
@@ -202,29 +208,29 @@ Rel(data_seed, database, "Seeds demo and base data", "JPA")
 sequenceDiagram
     autonumber
     actor Learner
-    participant TextController
-    participant TextService
-    participant QuizAttemptRepository
-    participant QuizCompletedEvent
-    participant AchievementListener as AchievementQuizCompletionEventListener
-    participant LeagueListener as LeagueQuizCompletionEventListener
-    participant AchievementService
-    participant DailyMissionService
-    participant ClanService
-    participant LeagueSeasonService
-    participant ClanQuizScoreEventRepository
+    participant TC as TextController
+    participant TS as TextService
+    participant QA as QuizAttemptRepo
+    participant Event as QuizCompletedEvent
+    participant AchL as AchievementListener
+    participant LgL as LeagueListener
+    participant Ach as AchievementService
+    participant DM as DailyMissionService
+    participant Clan as ClanService
+    participant Season as SeasonService
+    participant ScoreRepo as ScoreEventRepo
 
-    Learner->>TextController: Submit quiz answers
-    TextController->>TextService: submitQuiz(textId, userId, answers)
-    TextService->>QuizAttemptRepository: Save QuizAttempt(score, accuracy)
-    TextService-->>QuizCompletedEvent: Publish eventId, userId, textId, score, accuracy
-    QuizCompletedEvent-->>AchievementListener: Deliver event
-    AchievementListener->>DailyMissionService: incrementProgress(userId, readingTextId)
-    AchievementListener->>AchievementService: processQuizCompletion(userId, score, completedAt)
-    QuizCompletedEvent-->>LeagueListener: Deliver event
-    LeagueListener->>ClanService: recordQuizCompletion(payload)
-    ClanService->>LeagueSeasonService: getOrCreateActiveSeason()
-    ClanService->>ClanQuizScoreEventRepository: Save idempotent score event
+    Learner->>TC: Submit answers
+    TC->>TS: submitQuiz()
+    TS->>QA: Save attempt
+    TS-->>Event: Publish score event
+    Event-->>AchL: Notify
+    AchL->>DM: Update mission
+    AchL->>Ach: Unlock achievements
+    Event-->>LgL: Notify
+    LgL->>Clan: Record score
+    Clan->>Season: Resolve season
+    Clan->>ScoreRepo: Save once
 ```
 
 ### Deployment Diagram
@@ -232,35 +238,37 @@ sequenceDiagram
 C4Deployment
 title Current Deployment Diagram for Yomu Staging
 
-Deployment_Node(user_device, "User Device", "Desktop/Mobile Browser") {
-    Container(browser, "Web Browser", "Chrome, Firefox, Safari", "Accesses Yomu")
+Deployment_Node(user_device, "User Device", "Desktop/Mobile") {
+    Container(browser, "Web Browser", "Browser", "Accesses Yomu")
 }
 
 Deployment_Node(github, "GitHub", "Repository and Actions") {
-    Container(repo, "Yomu Repository", "Git", "Stores source code and workflow definitions")
-    Container(ci, "GitHub Actions CI", "Actions", "Runs build, tests, JaCoCo, and CodeQL")
+    Container(repo, "Yomu Repository", "Git", "Source code")
+    Container(ci, "GitHub Actions CI", "Actions", "Build, tests, coverage")
 }
 
 Deployment_Node(google, "Google Cloud", "External") {
-    System_Ext(google_oauth, "Google OAuth2 Service", "Provides Google authentication")
+    System_Ext(google_oauth, "Google OAuth2", "Authentication")
 }
 
 Deployment_Node(railway, "Railway", "Single service staging environment") {
     Deployment_Node(app_container, "Docker Container", "Built from DOCKERFILE") {
-        Container(web_app, "Spring Boot Web App", "Java 25", "Serves MVC pages and REST APIs")
-        ContainerDb(h2_engine, "Embedded H2 Engine", "H2", "Runs inside the application process")
+        Container(web_app, "Spring Boot App", "Java 25", "Web and API")
+        ContainerDb(h2_engine, "Embedded H2", "H2", "In-process DB")
     }
     Deployment_Node(volume, "Persistent Volume", "/app/data") {
-        ContainerDb(h2_files, "H2 Database Files", "File storage", "Persists staging data across restarts")
+        ContainerDb(h2_files, "H2 Files", "File storage", "Persistent data")
     }
 }
 
 Rel(browser, web_app, "Uses", "HTTPS")
-Rel(repo, ci, "Triggers checks", "GitHub Actions")
-Rel(repo, web_app, "Auto-deploys when Railway tracks the pushed branch", "GitHub integration")
-Rel(web_app, google_oauth, "Authenticates users", "OAuth2/HTTPS")
-Rel(web_app, h2_engine, "Uses embedded database", "JDBC")
+Rel(repo, ci, "Checks", "Actions")
+Rel(repo, web_app, "Auto-deploy", "Railway")
+Rel(web_app, google_oauth, "SSO", "OAuth2")
+Rel(web_app, h2_engine, "Uses", "JDBC")
 Rel(h2_engine, h2_files, "Reads/Writes", "File I/O")
+
+UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
 ## 2. Future Architecture
@@ -272,40 +280,42 @@ Based on risk storming, the main future risk is the current staging database top
 C4Deployment
 title Future Deployment Diagram for a Scalable Yomu Platform
 
-Deployment_Node(user_device, "User Device", "Desktop/Mobile Browser") {
-    Container(browser, "Web Browser", "Chrome, Firefox, Safari", "Accesses Yomu")
+Deployment_Node(user_device, "User Device", "Desktop/Mobile") {
+    Container(browser, "Web Browser", "Browser", "Accesses Yomu")
 }
 
 Deployment_Node(google, "Google Cloud", "External") {
-    System_Ext(google_oauth, "Google OAuth2 Service", "Provides authentication")
+    System_Ext(google_oauth, "Google OAuth2", "Authentication")
 }
 
 Deployment_Node(cloud, "Cloud Platform", "Railway/AWS/GCP") {
     Deployment_Node(edge, "Edge Layer", "Managed HTTPS endpoint") {
-        Container(load_balancer, "Load Balancer", "Managed ingress", "Routes traffic to healthy app instances")
+        Container(load_balancer, "Load Balancer", "Managed ingress", "Routes traffic")
     }
 
     Deployment_Node(app_cluster, "Application Cluster", "Stateless containers") {
         Deployment_Node(instance_a, "App Instance A", "Docker Container") {
-            Container(web_app_a, "Yomu Spring Boot App", "Java 25", "Serves web and API traffic")
+            Container(web_app_a, "Yomu App A", "Java 25", "Web and API")
         }
         Deployment_Node(instance_b, "App Instance B", "Docker Container") {
-            Container(web_app_b, "Yomu Spring Boot App", "Java 25", "Serves web and API traffic")
+            Container(web_app_b, "Yomu App B", "Java 25", "Web and API")
         }
     }
 
     Deployment_Node(data_layer, "Data Layer", "Managed database") {
-        ContainerDb(postgres, "PostgreSQL Database", "PostgreSQL", "Stores durable application data independently from app instances")
+        ContainerDb(postgres, "PostgreSQL", "Managed DB", "Durable app data")
     }
 }
 
 Rel(browser, load_balancer, "Uses", "HTTPS")
-Rel(load_balancer, web_app_a, "Routes requests", "HTTP")
-Rel(load_balancer, web_app_b, "Routes requests", "HTTP")
-Rel(web_app_a, google_oauth, "Authenticates users", "OAuth2/HTTPS")
-Rel(web_app_b, google_oauth, "Authenticates users", "OAuth2/HTTPS")
+Rel(load_balancer, web_app_a, "Routes", "HTTP")
+Rel(load_balancer, web_app_b, "Routes", "HTTP")
+Rel(web_app_a, google_oauth, "SSO", "OAuth2")
+Rel(web_app_b, google_oauth, "SSO", "OAuth2")
 Rel(web_app_a, postgres, "Reads/Writes", "JDBC/TCP")
 Rel(web_app_b, postgres, "Reads/Writes", "JDBC/TCP")
+
+UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="1")
 ```
 
 ## 3. Explanation of Risk Storming
