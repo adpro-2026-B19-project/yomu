@@ -102,6 +102,30 @@ class AuthServiceImplTest {
     }
 
     @Test
+    void registerUserShouldFailWhenEmailIsBlank() {
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("   ", "alice", "RawPassword1!")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("required_email");
+        assertThat(result.errorMessage()).isEqualTo("Email is required");
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void registerUserShouldFailWhenPasswordIsBlank() {
+        AuthService.RegistrationResult result = authService.registerUser(
+                new AuthService.RegisterRequest("alice@example.com", "alice", "   ")
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("required_password");
+        assertThat(result.errorMessage()).isEqualTo("Password is required");
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
     void registerUserShouldPersistHashedPasswordWhenValid() {
         when(authRepository.existsByEmail("dora@example.com")).thenReturn(false);
         when(usernameUniquenessService.isUsernameTaken("dora")).thenReturn(false);
@@ -257,5 +281,32 @@ class AuthServiceImplTest {
         assertThat(result.success()).isFalse();
         assertThat(result.errorCode()).isEqualTo("invalid_credentials");
         assertThat(result.errorMessage()).isEqualTo("Invalid email/username or password");
+    }
+
+    @Test
+    void loginUserShouldFailWhenIdentifierFormatIsInvalid() {
+        AuthService.LoginResult result = authService.loginUser(new AuthService.LoginRequest("invalid identifier", "CorrectPass1!"));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("invalid_credentials");
+        assertThat(result.errorMessage()).isEqualTo("Invalid email/username or password");
+        verify(authRepository, never()).findByEmailAndActiveTrue(anyString());
+        verify(authRepository, never()).findByUsernameAndActiveTrue(anyString());
+    }
+
+    @Test
+    void loginUserShouldFailWhenStoredPasswordIsNullOrBlank() {
+        when(authRepository.findByUsernameAndActiveTrue("oauth-user"))
+                .thenReturn(Optional.of(new AuthUser("oauth-user", "oauth@example.com", null, "OAuth", null)));
+        when(authRepository.findByUsernameAndActiveTrue("blank-user"))
+                .thenReturn(Optional.of(new AuthUser("blank-user", "blank@example.com", null, "Blank", "   ")));
+
+        AuthService.LoginResult nullPassword = authService.loginUser(new AuthService.LoginRequest("oauth-user", "CorrectPass1!"));
+        AuthService.LoginResult blankPassword = authService.loginUser(new AuthService.LoginRequest("blank-user", "CorrectPass1!"));
+
+        assertThat(nullPassword.success()).isFalse();
+        assertThat(nullPassword.errorCode()).isEqualTo("invalid_credentials");
+        assertThat(blankPassword.success()).isFalse();
+        assertThat(blankPassword.errorCode()).isEqualTo("invalid_credentials");
     }
 }

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import id.ac.ui.cs.advprog.yomu.auth.model.AuthRole;
 import id.ac.ui.cs.advprog.yomu.auth.model.AuthUser;
 import id.ac.ui.cs.advprog.yomu.auth.repository.AuthRepository;
 import java.util.Optional;
@@ -66,5 +67,41 @@ class AuthUserDetailsServiceTest {
         assertThrows(UsernameNotFoundException.class, () -> authUserDetailsService.loadUserByUsername("invalid value"));
 
         verifyNoInteractions(authRepository);
+    }
+
+    @Test
+    void loadUserByUsernameShouldRejectWhenIdentifierIsRateLimited() {
+        when(loginAttemptService.isLimitedByIdentifier("reader@example.com")).thenReturn(true);
+
+        assertThrows(UsernameNotFoundException.class, () -> authUserDetailsService.loadUserByUsername(" reader@example.com "));
+
+        verifyNoInteractions(authRepository);
+    }
+
+    @Test
+    void loadUserByUsernameShouldRejectInactiveUserAndMissingPassword() {
+        AuthUser inactive = new AuthUser("inactive", "inactive@example.com", null, "Inactive", "hash");
+        inactive.deactivate();
+        when(authRepository.findByEmailAndActiveTrue("inactive@example.com")).thenReturn(Optional.of(inactive));
+        when(authRepository.findByUsernameAndActiveTrue("oauth-user"))
+                .thenReturn(Optional.of(new AuthUser("oauth-user", "oauth@example.com", null, "OAuth", null)));
+        when(authRepository.findByUsernameAndActiveTrue("blank-user"))
+                .thenReturn(Optional.of(new AuthUser("blank-user", "blank@example.com", null, "Blank", "   ")));
+
+        assertThrows(UsernameNotFoundException.class, () -> authUserDetailsService.loadUserByUsername("inactive@example.com"));
+        assertThrows(UsernameNotFoundException.class, () -> authUserDetailsService.loadUserByUsername("oauth-user"));
+        assertThrows(UsernameNotFoundException.class, () -> authUserDetailsService.loadUserByUsername("blank-user"));
+    }
+
+    @Test
+    void loadUserByUsernameShouldExposeRoleAuthority() {
+        when(authRepository.findByUsernameAndActiveTrue("admin"))
+                .thenReturn(Optional.of(new AuthUser("admin", "admin@example.com", null, "Admin", "hash", AuthRole.ADMIN)));
+
+        UserDetails userDetails = authUserDetailsService.loadUserByUsername("admin");
+
+        assertThat(userDetails.getAuthorities())
+                .extracting(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .containsExactly("ROLE_ADMIN");
     }
 }

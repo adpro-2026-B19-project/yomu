@@ -137,6 +137,18 @@ class ProfileServiceImplTest {
     }
 
     @Test
+    void updateProfileShouldFailWhenUserIdIsNull() {
+        ProfileService.UpdateProfileResult result = profileService.updateProfile(
+                new ProfileService.UpdateProfileRequest(null, "alice", "Alice", 628111111111L)
+        );
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorCode()).isEqualTo("user_not_found");
+        verify(authRepository, never()).findById(any());
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
     void updateProfileShouldFailWhenUsernameBlank() {
         UUID userId = UUID.randomUUID();
         AuthUser user = new AuthUser("alice", "alice@example.com", null, "Alice", "hashed");
@@ -208,6 +220,59 @@ class ProfileServiceImplTest {
         assertThat(result.errorCode()).isEqualTo("invalid_credentials");
         assertThat(user.isActive()).isTrue();
         assertThat(user.getDeletedAt()).isNull();
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteOwnAccountShouldFailWhenUserIdIsNullUserMissingOrInactive() {
+        UUID missingId = UUID.randomUUID();
+        UUID inactiveId = UUID.randomUUID();
+        AuthUser inactive = new AuthUser("alice", "alice@example.com", null, "Alice", "hashed-password", AuthRole.USER);
+        ReflectionTestUtils.setField(inactive, "id", inactiveId);
+        inactive.deactivate();
+
+        when(authRepository.findById(missingId)).thenReturn(Optional.empty());
+        when(authRepository.findById(inactiveId)).thenReturn(Optional.of(inactive));
+
+        ProfileService.DeleteAccountResult nullUser = profileService.deleteOwnAccount(
+                new ProfileService.DeleteAccountRequest(null, "CorrectPass1!")
+        );
+        ProfileService.DeleteAccountResult missingUser = profileService.deleteOwnAccount(
+                new ProfileService.DeleteAccountRequest(missingId, "CorrectPass1!")
+        );
+        ProfileService.DeleteAccountResult inactiveUser = profileService.deleteOwnAccount(
+                new ProfileService.DeleteAccountRequest(inactiveId, "CorrectPass1!")
+        );
+
+        assertThat(nullUser.errorCode()).isEqualTo("user_not_found");
+        assertThat(missingUser.errorCode()).isEqualTo("user_not_found");
+        assertThat(inactiveUser.errorCode()).isEqualTo("user_not_found");
+        verify(authRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteOwnAccountShouldFailWhenProvidedOrStoredPasswordIsBlank() {
+        UUID blankRequestId = UUID.randomUUID();
+        AuthUser blankRequestUser = new AuthUser("alice", "alice@example.com", null, "Alice", "hashed-password", AuthRole.USER);
+        ReflectionTestUtils.setField(blankRequestUser, "id", blankRequestId);
+        UUID blankStoredId = UUID.randomUUID();
+        AuthUser blankStoredUser = new AuthUser("bob", "bob@example.com", null, "Bob", "   ", AuthRole.USER);
+        ReflectionTestUtils.setField(blankStoredUser, "id", blankStoredId);
+        UUID nullStoredId = UUID.randomUUID();
+        AuthUser nullStoredUser = new AuthUser("oauth", "oauth@example.com", null, "OAuth", null, AuthRole.USER);
+        ReflectionTestUtils.setField(nullStoredUser, "id", nullStoredId);
+
+        when(authRepository.findById(blankRequestId)).thenReturn(Optional.of(blankRequestUser));
+        when(authRepository.findById(blankStoredId)).thenReturn(Optional.of(blankStoredUser));
+        when(authRepository.findById(nullStoredId)).thenReturn(Optional.of(nullStoredUser));
+
+        assertThat(profileService.deleteOwnAccount(new ProfileService.DeleteAccountRequest(blankRequestId, " "))
+                .errorCode()).isEqualTo("invalid_credentials");
+        assertThat(profileService.deleteOwnAccount(new ProfileService.DeleteAccountRequest(blankStoredId, "CorrectPass1!"))
+                .errorCode()).isEqualTo("invalid_credentials");
+        assertThat(profileService.deleteOwnAccount(new ProfileService.DeleteAccountRequest(nullStoredId, "CorrectPass1!"))
+                .errorCode()).isEqualTo("invalid_credentials");
+        verify(passwordEncoder, never()).matches(any(), any());
         verify(authRepository, never()).save(any());
     }
 
