@@ -125,355 +125,466 @@ If Google SSO is enabled, also register the Railway callback URL in Google Cloud
 
 ## 1. Current Architecture
 
-The diagrams below reflect the final delivered codebase in this repository, including the full auth, reading, achievement, and league feature set.
+The architecture diagrams follow the C4 model from Module 09: Context, Container, Component, Code, and Deployment. The diagrams represent the final delivered Yomu codebase, including Auth, Reading and Quiz, Achievements, Daily Missions, League, Clan, public profile, staging seed, and cross-module integration.
 
-### Context Overview
+### System Context Diagram
 ```mermaid
-flowchart LR
-    learner[Learner]
-    leader[Clan Leader]
-    admin[Admin]
-    google[Google OAuth2]
-    yomu[Yomu Platform]
-    h2[(H2 Database)]
+C4Context
+title System Context Diagram for Yomu Literacy Platform
 
-    learner -->|register, login, read texts, take quizzes, track missions, view public profiles| yomu
-    leader -->|create clans, approve join requests, view clan detail, archive clan| yomu
-    admin -->|manage users, texts, questions, achievements, missions, and league seasons| yomu
-    yomu -->|OAuth2 sign-in| google
-    yomu -->|persist auth, reading, achievement, and league data| h2
+Person(learner, "Learner", "Reads texts, completes quizzes, tracks achievements and daily missions, joins clans, and views public profiles.")
+Person(clan_leader, "Clan Leader", "A learner who creates a clan, reviews join requests, and may archive their clan.")
+Person(admin, "Admin", "Manages users, reading content, quiz questions, achievements, daily missions, and league seasons.")
+
+System(yomu, "Yomu Platform", "Gamified literacy learning platform for reading, quizzes, achievements, daily missions, and clan-based leagues.")
+System_Ext(google_oauth, "Google OAuth2", "External identity provider for Google sign-in.")
+
+Rel(learner, yomu, "Uses learning, quiz, achievement, mission, clan, leaderboard, and profile features", "HTTPS")
+Rel(clan_leader, yomu, "Manages clan membership and clan lifecycle", "HTTPS")
+Rel(admin, yomu, "Uses administrative controls", "HTTPS")
+Rel(yomu, google_oauth, "Authenticates Google users and merges matching accounts", "OAuth2/HTTPS")
 ```
 
-### Module and Integration Diagram
+### Container Diagram
 ```mermaid
-flowchart TB
-    browser[Browser]
-    google[Google OAuth2]
-    db[(H2 Database)]
-    eventBus[[QuizCompletedEvent]]
+C4Container
+title Container Diagram for Yomu Literacy Platform
 
-    subgraph yomu[Yomu Spring Boot Monolith]
-        subgraph shared[Shared Web Shell and Bootstrap]
-            sharedWeb[TemplateController, GlobalNavigationControllerAdvice, ErrorPageController]
-            bootstrap[DataSeeder and environment-driven bootstrap]
-        end
+Person(learner, "Learner", "Uses the web interface")
+Person(clan_leader, "Clan Leader", "Manages clan flows")
+Person(admin, "Admin", "Manages content and system controls")
+System_Ext(google_oauth, "Google OAuth2", "External identity provider")
 
-        subgraph auth[Auth and Profile]
-            authWeb[AuthController, AdminUserController, ProfileController]
-            security[SecurityConfig, LoginRateLimitFilter, OAuth2 login flow]
-            authServices[AuthService, ProfileService, AdminUserManagementService, CurrentUserResolver]
-        end
+System_Boundary(yomu_system, "Yomu Platform") {
+    Container(web_app, "Spring Boot Web Application", "Java 25, Spring Boot, Thymeleaf, Spring Security", "Serves MVC pages and REST APIs, enforces role-based access, publishes quiz completion events, and coordinates all modules.")
+    ContainerDb(database, "Embedded H2 Database", "H2 file database", "Stores users, reading content, quiz attempts, achievements, missions, clans, seasons, and leaderboard score events.")
+}
 
-        subgraph reading[Reading and Quiz]
-            readingWeb[TextController, AdminTextController, TextApiController]
-            textService[TextService]
-            readingAdapter[ReadingStatsAdapter]
-        end
+Rel(learner, web_app, "Reads texts, submits quizzes, tracks progress, joins clans", "HTTPS")
+Rel(clan_leader, web_app, "Creates clans, reviews requests, archives clans", "HTTPS")
+Rel(admin, web_app, "Admin CRUD and season transition actions", "HTTPS")
+Rel(web_app, google_oauth, "Delegates Google sign-in", "OAuth2/HTTPS")
+Rel(web_app, database, "Reads and writes application state", "JPA/JDBC")
+```
 
-        subgraph achievement[Achievement and Daily Mission]
-            achievementWeb[AchievementController]
-            achievementServices[AchievementService, DailyMissionService]
-            achievementListener[AchievementQuizCompletionEventListener]
-            missionScheduler[DailyMissionRotationScheduler]
-            profileAdapter[AchievementProfileAdapter]
-            missionStatusAdapter[DailyMissionStatusAdapter]
-        end
+### Component Diagram
+```mermaid
+C4Component
+title Component Diagram for the Yomu Spring Boot Application
 
-        subgraph league[League and Clan]
-            leagueWeb[ClanController, ClanRestController, LeagueIntegrationRestController]
-            clanService[ClanService]
-            scoreCalculator[ClanScoreCalculator]
-            seasonService[LeagueSeasonService]
-            leagueListener[LeagueQuizCompletionEventListener]
-        end
-    end
+ContainerDb(database, "H2 Database", "H2", "Application persistence")
+System_Ext(google_oauth, "Google OAuth2", "External identity provider")
 
-    browser --> sharedWeb
-    browser --> authWeb
-    browser --> readingWeb
-    browser --> achievementWeb
-    browser --> leagueWeb
+Container_Boundary(web_app, "Spring Boot Web Application") {
+    Component(shared_web, "Shared Web Shell", "Spring MVC", "Landing page, global navigation model, and error page handling.")
+    Component(auth_component, "Auth and Profile Module", "Spring Security + Services", "Manual auth, Google OAuth2, session hardening, profile update, account deletion, admin user management, role guards, and throttling.")
+    Component(reading_component, "Reading and Quiz Module", "Spring MVC/REST + Services", "Published reading list, text detail, hidden-source quiz flow, admin text/question management, quiz history, pagination, and reading stats.")
+    Component(achievement_component, "Achievement and Daily Mission Module", "Spring Services + Scheduler", "Achievement unlocks, displayed achievements, daily mission progress, admin distribution, primary mission summary, and scheduled rotation.")
+    Component(league_component, "League and Clan Module", "Spring MVC/REST + Services", "Clan creation, join requests, public profiles, tiered leaderboards, score strategies, buff/debuff, season transitions, archive flow, and pagination.")
+    Component(integration_contracts, "Integration Contracts", "Java records and ports", "QuizCompletedEvent, ReadingStatsPort, AchievementProfilePort, and DailyMissionStatusPort.")
+    Component(data_seed, "Data Seeder", "CommandLineRunner", "Seeds published texts, quizzes, admin account, optional demo users, daily mission, and demo clan.")
+}
 
-    sharedWeb --> authServices
-    authWeb --> security
-    authWeb --> authServices
-    readingWeb --> textService
-    achievementWeb --> achievementServices
-    leagueWeb --> clanService
+Rel(shared_web, auth_component, "Resolves current user for navigation")
+Rel(auth_component, google_oauth, "Authenticates via")
+Rel(reading_component, integration_contracts, "Publishes QuizCompletedEvent")
+Rel(achievement_component, integration_contracts, "Consumes quiz events and provides achievement/mission ports")
+Rel(league_component, integration_contracts, "Consumes quiz events and calls reading/achievement/mission ports")
+Rel(auth_component, database, "Reads/Writes", "JPA")
+Rel(reading_component, database, "Reads/Writes", "JPA")
+Rel(achievement_component, database, "Reads/Writes", "JPA")
+Rel(league_component, database, "Reads/Writes", "JPA")
+Rel(data_seed, database, "Seeds demo and base data", "JPA")
+```
 
-    textService -->|publishes after successful quiz submission| eventBus
-    eventBus --> achievementListener
-    eventBus --> leagueListener
+### Quiz Completion Integration Flow
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Learner
+    participant TextController
+    participant TextService
+    participant QuizAttemptRepository
+    participant QuizCompletedEvent
+    participant AchievementListener as AchievementQuizCompletionEventListener
+    participant LeagueListener as LeagueQuizCompletionEventListener
+    participant AchievementService
+    participant DailyMissionService
+    participant ClanService
+    participant LeagueSeasonService
+    participant ClanQuizScoreEventRepository
 
-    achievementListener --> achievementServices
-    leagueListener --> clanService
-    missionScheduler --> achievementServices
-
-    clanService --> seasonService
-    clanService --> scoreCalculator
-    clanService --> readingAdapter
-    clanService --> profileAdapter
-    scoreCalculator --> missionStatusAdapter
-
-    authServices --> db
-    textService --> db
-    readingAdapter --> db
-    achievementServices --> db
-    profileAdapter --> db
-    missionStatusAdapter --> db
-    clanService --> db
-    seasonService --> db
-    bootstrap --> db
-
-    authServices -->|OAuth2 sign-in and account merge| google
+    Learner->>TextController: Submit quiz answers
+    TextController->>TextService: submitQuiz(textId, userId, answers)
+    TextService->>QuizAttemptRepository: Save QuizAttempt(score, accuracy)
+    TextService-->>QuizCompletedEvent: Publish eventId, userId, textId, score, accuracy
+    QuizCompletedEvent-->>AchievementListener: Deliver event
+    AchievementListener->>DailyMissionService: incrementProgress(userId, readingTextId)
+    AchievementListener->>AchievementService: processQuizCompletion(userId, score, completedAt)
+    QuizCompletedEvent-->>LeagueListener: Deliver event
+    LeagueListener->>ClanService: recordQuizCompletion(payload)
+    ClanService->>LeagueSeasonService: getOrCreateActiveSeason()
+    ClanService->>ClanQuizScoreEventRepository: Save idempotent score event
 ```
 
 ### Deployment Diagram
 ```mermaid
-flowchart TB
-    repo[GitHub Repository]
-    ci[GitHub Actions CI]
-    user[Desktop or Mobile Browser]
-    google[Google OAuth2]
+C4Deployment
+title Current Deployment Diagram for Yomu Staging
 
-    subgraph railway[Railway Single-App Deployment]
-        app[Spring Boot App Container]
-        h2[(Embedded H2 Engine)]
-        volume[(Persistent Volume: /app/data)]
-    end
+Deployment_Node(user_device, "User Device", "Desktop/Mobile Browser") {
+    Container(browser, "Web Browser", "Chrome, Firefox, Safari", "Accesses Yomu")
+}
 
-    repo -->|push and pull request checks| ci
-    repo -->|tracked branch auto-deploy| app
-    user -->|HTTPS| app
-    app -->|OAuth2| google
-    app -->|JDBC| h2
-    h2 -->|file I/O| volume
+Deployment_Node(github, "GitHub", "Repository and Actions") {
+    Container(repo, "Yomu Repository", "Git", "Stores source code and workflow definitions")
+    Container(ci, "GitHub Actions CI", "Actions", "Runs build, tests, JaCoCo, and CodeQL")
+}
+
+Deployment_Node(google, "Google Cloud", "External") {
+    System_Ext(google_oauth, "Google OAuth2 Service", "Provides Google authentication")
+}
+
+Deployment_Node(railway, "Railway", "Single service staging environment") {
+    Deployment_Node(app_container, "Docker Container", "Built from DOCKERFILE") {
+        Container(web_app, "Spring Boot Web App", "Java 25", "Serves MVC pages and REST APIs")
+        ContainerDb(h2_engine, "Embedded H2 Engine", "H2", "Runs inside the application process")
+    }
+    Deployment_Node(volume, "Persistent Volume", "/app/data") {
+        ContainerDb(h2_files, "H2 Database Files", "File storage", "Persists staging data across restarts")
+    }
+}
+
+Rel(browser, web_app, "Uses", "HTTPS")
+Rel(repo, ci, "Triggers checks", "GitHub Actions")
+Rel(repo, web_app, "Auto-deploys when Railway tracks the pushed branch", "GitHub integration")
+Rel(web_app, google_oauth, "Authenticates users", "OAuth2/HTTPS")
+Rel(web_app, h2_engine, "Uses embedded database", "JDBC")
+Rel(h2_engine, h2_files, "Reads/Writes", "File I/O")
 ```
 
 ## 2. Future Architecture
 
-Based on the Risk Storming exercise, we've designed a future architecture to address scalability constraints. The monolithic approach with an embedded H2 database is replaced with load-balanced application instances and a robust standalone database.
+Based on risk storming, the main future risk is the current staging database topology: H2 is simple and effective for a single-app presentation environment, but it is not suitable for horizontal scaling. The expected future architecture keeps the same module boundaries while moving persistence into a standalone database and allowing multiple stateless app instances.
 
 ### Future Deployment Diagram
 ```mermaid
-flowchart TB
-    futureUser[Desktop or Mobile Browser]
-    futureGoogle[Google OAuth2]
+C4Deployment
+title Future Deployment Diagram for a Scalable Yomu Platform
 
-    subgraph cloud[Cloud Platform]
-        lb[Load Balancer]
-        subgraph apps[Stateless App Cluster]
-            app1[Spring Boot App Instance 1]
-            appN[Spring Boot App Instance N]
-        end
-        postgres[(PostgreSQL)]
-    end
+Deployment_Node(user_device, "User Device", "Desktop/Mobile Browser") {
+    Container(browser, "Web Browser", "Chrome, Firefox, Safari", "Accesses Yomu")
+}
 
-    futureUser -->|HTTPS| lb
-    lb -->|routes traffic| app1
-    lb -->|routes traffic| appN
-    app1 -->|OAuth2| futureGoogle
-    appN -->|OAuth2| futureGoogle
-    app1 -->|JDBC/TCP| postgres
-    appN -->|JDBC/TCP| postgres
+Deployment_Node(google, "Google Cloud", "External") {
+    System_Ext(google_oauth, "Google OAuth2 Service", "Provides authentication")
+}
+
+Deployment_Node(cloud, "Cloud Platform", "Railway/AWS/GCP") {
+    Deployment_Node(edge, "Edge Layer", "Managed HTTPS endpoint") {
+        Container(load_balancer, "Load Balancer", "Managed ingress", "Routes traffic to healthy app instances")
+    }
+
+    Deployment_Node(app_cluster, "Application Cluster", "Stateless containers") {
+        Deployment_Node(instance_a, "App Instance A", "Docker Container") {
+            Container(web_app_a, "Yomu Spring Boot App", "Java 25", "Serves web and API traffic")
+        }
+        Deployment_Node(instance_b, "App Instance B", "Docker Container") {
+            Container(web_app_b, "Yomu Spring Boot App", "Java 25", "Serves web and API traffic")
+        }
+    }
+
+    Deployment_Node(data_layer, "Data Layer", "Managed database") {
+        ContainerDb(postgres, "PostgreSQL Database", "PostgreSQL", "Stores durable application data independently from app instances")
+    }
+}
+
+Rel(browser, load_balancer, "Uses", "HTTPS")
+Rel(load_balancer, web_app_a, "Routes requests", "HTTP")
+Rel(load_balancer, web_app_b, "Routes requests", "HTTP")
+Rel(web_app_a, google_oauth, "Authenticates users", "OAuth2/HTTPS")
+Rel(web_app_b, google_oauth, "Authenticates users", "OAuth2/HTTPS")
+Rel(web_app_a, postgres, "Reads/Writes", "JDBC/TCP")
+Rel(web_app_b, postgres, "Reads/Writes", "JDBC/TCP")
 ```
 
 ## 3. Explanation of Risk Storming
 
-We applied **Risk Storming** to the delivered implementation, not just the initial classroom prototype.
+We used **Risk Storming** to review the delivered architecture against the final feature set, then placed the main risks on the architecture diagrams as Module 09 recommends.
 
-1. **Identify**: the current staging-friendly architecture intentionally optimizes simplicity with a single Railway app, one Spring Boot process, and embedded H2 persisted through a mounted volume. This is good for milestone delivery, but it couples application lifecycle and database lifecycle tightly.
-2. **Assess**: that coupling introduces two major long-term risks. First, **horizontal scaling is unsafe** because multiple app instances should not share the same embedded H2 file store. Second, the current deployment remains a **single runtime bottleneck**, so outages or corrupted storage would impact the whole platform.
-3. **Mitigate**: the future architecture extracts persistence into **PostgreSQL** and keeps the app layer stateless. That unlocks multiple app instances behind a load balancer while preserving the same modular boundaries already used in the current codebase.
+1. **Identify**: the highest-risk area is persistence and availability. The current Railway setup runs one Spring Boot container and one embedded H2 file database under `/app/data`. This is excellent for a simple staging demo, but the application and database lifecycles are tightly coupled.
+2. **Assess**: the risk becomes significant if Yomu gains many concurrent learners. A single app instance is a reliability bottleneck, and an embedded H2 file database cannot be safely shared by multiple app instances for horizontal scaling.
+3. **Mitigate**: the future architecture moves the database to PostgreSQL and treats Spring Boot instances as stateless. This enables load balancing, independent database backups, safer scaling, and clearer operational boundaries while preserving the existing modular package structure.
 
-## 4. Module Diagrams
+## 4. Code Diagrams
 
-### Auth and Profile Module
+### Auth and Profile Code Diagram
 ```mermaid
-flowchart LR
-    google[Google OAuth2]
-    authRepo[(AuthRepository)]
+classDiagram
+    class AuthUser {
+        UUID id
+        String username
+        String email
+        Long phoneNumber
+        String displayName
+        String password
+        boolean active
+        AuthRole role
+        LocalDateTime createdAt
+        LocalDateTime deletedAt
+        updateProfile()
+        deactivate()
+        activate()
+    }
 
-    subgraph authPresentation[Presentation Layer]
-        authController[AuthController]
-        profileController[ProfileController]
-        adminUserController[AdminUserController]
-    end
+    class AuthRole {
+        <<enumeration>>
+        USER
+        ADMIN
+    }
 
-    subgraph authCore[Core Services]
-        securityConfig[SecurityConfig]
-        rateLimit[LoginRateLimitFilter and attempt services]
-        authService[AuthService]
-        profileService[ProfileService]
-        adminService[AdminUserManagementService]
-        oauthService[OAuth2LoginUserService and provisioning]
-        currentUserResolver[CurrentUserResolver]
-    end
+    class AuthService {
+        registerUser()
+        loginUser()
+    }
 
-    authController --> authService
-    authController --> rateLimit
-    authController --> oauthService
-    profileController --> profileService
-    profileController --> currentUserResolver
-    adminUserController --> adminService
-    securityConfig --> authController
-    securityConfig --> profileController
-    securityConfig --> adminUserController
+    class ProfileService {
+        updateProfile()
+        deleteOwnAccount()
+    }
 
-    authService --> authRepo
-    profileService --> authRepo
-    adminService --> authRepo
-    currentUserResolver --> authRepo
-    oauthService --> authRepo
-    oauthService --> google
+    class AdminUserManagementService {
+        searchUsers()
+        updateUserStatus()
+    }
+
+    class CurrentUserResolver {
+        resolveUser()
+        resolveUsername()
+    }
+
+    AuthUser --> AuthRole
+    AuthService ..> AuthUser : creates and validates
+    ProfileService ..> AuthUser : updates and deactivates
+    AdminUserManagementService ..> AuthUser : searches and moderates
+    CurrentUserResolver ..> AuthUser : resolves principal
 ```
 
-### Reading and Quiz Module
+### Reading and Quiz Code Diagram
 ```mermaid
-flowchart LR
-    quizEvent[[QuizCompletedEvent]]
-    textRepo[(TextRepository)]
-    categoryRepo[(CategoryRepository)]
-    questionRepo[(QuestionRepository)]
-    optionRepo[(OptionRepository)]
-    quizAttemptRepo[(QuizAttemptRepository)]
+classDiagram
+    class Text {
+        Long id
+        String title
+        String content
+        Category category
+        String createdByUserId
+        boolean published
+        Instant createdAt
+    }
 
-    subgraph readingPresentation[Presentation Layer]
-        textController[TextController]
-        adminTextController[AdminTextController]
-        textApiController[TextApiController]
-    end
+    class Category {
+        Long id
+        String name
+    }
 
-    textService[TextService]
-    readingStatsAdapter[ReadingStatsAdapter]
+    class Question {
+        Long id
+        Text text
+        String question
+        List~Option~ options
+    }
 
-    textController --> textService
-    adminTextController --> textService
-    textApiController --> textService
-    textService --> textRepo
-    textService --> categoryRepo
-    textService --> questionRepo
-    textService --> optionRepo
-    textService --> quizAttemptRepo
-    textService -->|publish after successful quiz completion| quizEvent
-    readingStatsAdapter --> quizAttemptRepo
+    class Option {
+        Long id
+        Question question
+        String text
+        boolean correct
+    }
+
+    class QuizAttempt {
+        Long id
+        Text text
+        String userId
+        double score
+        double accuracy
+        Instant timestamp
+    }
+
+    class TextService {
+        getAllTexts()
+        getPublishedTextById()
+        submitQuiz()
+        publishText()
+        deleteText()
+        getUserReadingStats()
+    }
+
+    class QuizCompletedEvent {
+        UUID eventId
+        UUID userId
+        UUID textId
+        Long readingTextId
+        double score
+        double accuracy
+        LocalDateTime completedAt
+    }
+
+    Category "1" <-- "many" Text
+    Text "1" *-- "many" Question
+    Question "1" *-- "many" Option
+    Text "1" o-- "many" QuizAttempt
+    TextService ..> QuizAttempt : grades and saves
+    TextService ..> QuizCompletedEvent : publishes
 ```
 
-### Achievement and Daily Mission Module
+### Achievement and Daily Mission Code Diagram
 ```mermaid
-flowchart LR
-    quizEvent[[QuizCompletedEvent]]
-    achievementRepo[(AchievementRepository)]
-    userAchievementRepo[(UserAchievementRepository)]
-    userStatisticRepo[(UserStatisticRepository)]
-    dailyMissionRepo[(DailyMissionRepository)]
-    progressRepo[(UserMissionProgressRepository)]
+classDiagram
+    class Achievement {
+        Long id
+        String name
+        String milestone
+        AchievementRequirementType requirementType
+        int targetValue
+    }
 
-    achievementController[AchievementController]
-    achievementService[AchievementService]
-    dailyMissionService[DailyMissionService]
-    quizListener[AchievementQuizCompletionEventListener]
-    missionScheduler[DailyMissionRotationScheduler]
-    profileAdapter[AchievementProfileAdapter]
-    missionStatusAdapter[DailyMissionStatusAdapter]
+    class UserAchievement {
+        Long id
+        UUID userId
+        Achievement achievement
+        LocalDateTime unlockedAt
+        boolean displayed
+    }
 
-    achievementController --> achievementService
-    achievementController --> dailyMissionService
-    quizEvent --> quizListener
-    quizListener --> achievementService
-    quizListener --> dailyMissionService
-    missionScheduler --> dailyMissionService
+    class DailyMission {
+        Long id
+        String title
+        int targetCount
+        LocalDate activeDate
+        boolean primary
+        Long categoryId
+    }
 
-    achievementService --> achievementRepo
-    achievementService --> userAchievementRepo
-    achievementService --> userStatisticRepo
-    dailyMissionService --> dailyMissionRepo
-    dailyMissionService --> progressRepo
-    profileAdapter --> userAchievementRepo
-    missionStatusAdapter --> dailyMissionRepo
-    missionStatusAdapter --> progressRepo
+    class UserMissionProgress {
+        Long id
+        UUID userId
+        DailyMission mission
+        int currentProgress
+        boolean completed
+    }
+
+    class UserStatistic {
+        Long id
+        UUID userId
+        int totalReadings
+        double totalScore
+    }
+
+    class AchievementService {
+        processQuizCompletion()
+        toggleDisplayAchievement()
+        getAchievementProgress()
+        getAchievementDistribution()
+    }
+
+    class DailyMissionService {
+        incrementProgress()
+        getTodayMissions()
+        createDailyMission()
+        rotateDailyMissions()
+    }
+
+    Achievement "1" <-- "many" UserAchievement
+    DailyMission "1" <-- "many" UserMissionProgress
+    AchievementService ..> UserStatistic : updates totals
+    AchievementService ..> UserAchievement : unlocks idempotently
+    DailyMissionService ..> UserMissionProgress : tracks progress
 ```
 
-### League and Clan Module
+### League and Clan Code Diagram
 ```mermaid
-flowchart LR
-    quizEvent[[QuizCompletedEvent]]
-    clanRepo[(ClanRepository)]
-    memberRepo[(ClanMemberRepository)]
-    joinRequestRepo[(ClanJoinRequestRepository)]
-    scoreEventRepo[(ClanQuizScoreEventRepository)]
-    seasonRepo[(LeagueSeasonRepository)]
-    tierRepo[(TierRepository)]
-    authRepo[(AuthRepository)]
+classDiagram
+    class Clan {
+        UUID id
+        String name
+        Tier tier
+        UUID createdByUserId
+        LocalDateTime createdAt
+        boolean deleted
+        LocalDateTime deletedAt
+        UUID deletedByUserId
+        changeTier()
+        archive()
+        removeAllMembers()
+    }
 
-    clanController[ClanController]
-    clanRestController[ClanRestController]
-    integrationController[LeagueIntegrationRestController]
-    clanService[ClanService]
-    seasonService[LeagueSeasonService]
-    scoreCalculator[ClanScoreCalculator]
-    eventListener[LeagueQuizCompletionEventListener]
-    readingStatsPort[ReadingStatsPort via ReadingStatsAdapter]
-    achievementProfilePort[AchievementProfilePort via AchievementProfileAdapter]
-    missionStatusPort[DailyMissionStatusPort via DailyMissionStatusAdapter]
-    tierStrategies[Bronze, Silver, Gold, Diamond score strategies]
+    class ClanMember {
+        UUID id
+        Clan clan
+        UUID userId
+        ClanMemberRole role
+        LocalDateTime joinedAt
+    }
 
-    clanController --> clanService
-    clanRestController --> clanService
-    integrationController --> clanService
-    quizEvent --> eventListener
-    eventListener --> clanService
+    class ClanJoinRequest {
+        UUID id
+        Clan clan
+        UUID requesterUserId
+        ClanJoinRequestStatus status
+        UUID reviewedByUserId
+        LocalDateTime reviewedAt
+        approve()
+        reject()
+    }
 
-    clanService --> seasonService
-    clanService --> scoreCalculator
-    clanService --> clanRepo
-    clanService --> memberRepo
-    clanService --> joinRequestRepo
-    clanService --> scoreEventRepo
-    clanService --> tierRepo
-    clanService --> authRepo
-    clanService --> readingStatsPort
-    clanService --> achievementProfilePort
+    class ClanQuizScoreEvent {
+        UUID id
+        UUID eventId
+        UUID clanId
+        UUID userId
+        UUID textId
+        UUID seasonId
+        double score
+        double accuracy
+        LocalDateTime completedAt
+    }
 
-    seasonService --> seasonRepo
-    scoreCalculator --> missionStatusPort
-    scoreCalculator --> tierStrategies
-```
+    class LeagueSeason {
+        UUID id
+        int seasonNumber
+        boolean active
+        LocalDateTime startedAt
+        LocalDateTime endedAt
+        end()
+    }
 
-### Shared Web Shell and Integration Contracts
-```mermaid
-flowchart LR
-    db[(H2 Database)]
+    class Tier {
+        Long id
+        TierCode code
+        String displayName
+    }
 
-    subgraph sharedWeb[Shared Web Shell]
-        templateController[TemplateController]
-        navigationAdvice[GlobalNavigationControllerAdvice]
-        errorController[ErrorPageController]
-    end
+    class ClanService {
+        createClan()
+        submitJoinRequest()
+        reviewJoinRequest()
+        recordQuizCompletion()
+        getLeaderboardPage()
+        endCurrentSeason()
+        deleteClan()
+        getPublicProfile()
+    }
 
-    subgraph contracts[Integration Contracts]
-        quizEvent[[QuizCompletedEvent]]
-        readingPort[ReadingStatsPort]
-        profilePort[AchievementProfilePort]
-        missionPort[DailyMissionStatusPort]
-    end
+    class ClanScoreCalculator {
+        calculate()
+    }
 
-    subgraph bootstrap[Bootstrap]
-        dataSeeder[DataSeeder]
-    end
-
-    authResolver[CurrentUserResolver]
-    achievementListener[AchievementQuizCompletionEventListener]
-    leagueListener[LeagueQuizCompletionEventListener]
-    clanService[ClanService]
-    scoreCalculator[ClanScoreCalculator]
-
-    templateController --> authResolver
-    navigationAdvice --> authResolver
-    quizEvent --> achievementListener
-    quizEvent --> leagueListener
-    readingPort --> clanService
-    profilePort --> clanService
-    missionPort --> scoreCalculator
-    dataSeeder --> db
+    Tier "1" <-- "many" Clan
+    Clan "1" *-- "many" ClanMember
+    Clan "1" o-- "many" ClanJoinRequest
+    LeagueSeason "1" <-- "many" ClanQuizScoreEvent
+    ClanService ..> ClanQuizScoreEvent : records idempotent events
+    ClanService ..> LeagueSeason : manages seasons
+    ClanService ..> ClanScoreCalculator : computes leaderboard
 ```
