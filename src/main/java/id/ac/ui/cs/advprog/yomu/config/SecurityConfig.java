@@ -37,7 +37,7 @@ public class SecurityConfig {
                         "/error",
                         "/css/**",
                         "/js/**",
-                        "/images/**",
+                        "/images/**"
                 ).permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers("/actuator/info").permitAll()
