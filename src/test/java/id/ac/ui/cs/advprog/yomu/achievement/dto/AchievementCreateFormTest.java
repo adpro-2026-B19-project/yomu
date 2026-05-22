@@ -95,4 +95,113 @@ class AchievementCreateFormTest {
         Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("targetValue"));
     }
+
+    @Test
+    void nullRequirementType_hasViolation() {
+        AchievementCreateForm form = new AchievementCreateForm(
+                "First Steps",
+                "Complete your first reading",
+                null,
+                1
+        );
+        Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("requirementType"));
+    }
+
+    @Test
+    void noArgConstructor_createsEmptyForm() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        assertThat(form.getName()).isNull();
+        assertThat(form.getMilestone()).isNull();
+        assertThat(form.getRequirementType()).isNull();
+        assertThat(form.getTargetValue()).isEqualTo(0);
+    }
+
+    @Test
+    void setName_updatesNameProperty() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setName("New Achievement");
+        assertThat(form.getName()).isEqualTo("New Achievement");
+    }
+
+    @Test
+    void setMilestone_updatesMilestoneProperty() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setMilestone("New milestone description");
+        assertThat(form.getMilestone()).isEqualTo("New milestone description");
+    }
+
+    @Test
+    void setRequirementType_updatesRequirementTypeProperty() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setRequirementType(AchievementRequirementType.TOTAL_SCORE);
+        assertThat(form.getRequirementType()).isEqualTo(AchievementRequirementType.TOTAL_SCORE);
+    }
+
+    @Test
+    void setTargetValue_updatesTargetValueProperty() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setTargetValue(10);
+        assertThat(form.getTargetValue()).isEqualTo(10);
+    }
+
+    @Test
+    void settersWithValidation_allowsValidValueThroughValidation() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setName("Achievement");
+        form.setMilestone("Milestone");
+        form.setRequirementType(AchievementRequirementType.READING_COUNT);
+        form.setTargetValue(5);
+
+        Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
+        assertThat(violations).isEmpty();
+    }
+
+    @Test
+    void settersWithBlankName_failsValidation() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setName("");
+        form.setMilestone("Milestone");
+        form.setRequirementType(AchievementRequirementType.READING_COUNT);
+        form.setTargetValue(5);
+
+        Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("name"));
+    }
+
+    @Test
+    void settersWithBlankMilestone_failsValidation() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setName("Achievement");
+        form.setMilestone("");
+        form.setRequirementType(AchievementRequirementType.READING_COUNT);
+        form.setTargetValue(5);
+
+        Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("milestone"));
+    }
+
+    @Test
+    void settersWithNegativeTargetValue_failsValidation() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setName("Achievement");
+        form.setMilestone("Milestone");
+        form.setRequirementType(AchievementRequirementType.READING_COUNT);
+        form.setTargetValue(-1);
+
+        Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("targetValue"));
+    }
+
+    @Test
+    void settersWithNullRequirementType_failsValidation() {
+        AchievementCreateForm form = new AchievementCreateForm();
+        form.setName("Achievement");
+        form.setMilestone("Milestone");
+        form.setRequirementType(null);
+        form.setTargetValue(5);
+
+        Set<ConstraintViolation<AchievementCreateForm>> violations = validator.validate(form);
+        assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("requirementType"));
+    }
 }

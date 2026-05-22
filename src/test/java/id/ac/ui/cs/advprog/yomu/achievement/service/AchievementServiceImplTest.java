@@ -247,4 +247,200 @@ class AchievementServiceImplTest {
         // The unobtainedAchievements filter should exclude it, and existsByUserIdAndAchievementId check should prevent duplicate save
         verify(userAchievementRepository, never()).save(argThat(ua -> ua.getAchievement().getId().equals(1L)));
     }
+
+    @Test
+    void updateAchievement_successfullyUpdatesExistingAchievement() {
+        Long achievementId = 1L;
+        when(achievementRepository.findById(achievementId)).thenReturn(java.util.Optional.of(sampleAchievement));
+        when(achievementRepository.findByName("Updated Name")).thenReturn(java.util.Optional.empty());
+        when(achievementRepository.save(any(Achievement.class))).thenReturn(sampleAchievement);
+
+        Achievement result = achievementService.updateAchievement(
+                achievementId,
+                "Updated Name",
+                "Updated milestone",
+                AchievementRequirementType.TOTAL_SCORE,
+                10
+        );
+
+        assertThat(result).isNotNull();
+        verify(achievementRepository).findById(achievementId);
+        verify(achievementRepository).save(any(Achievement.class));
+    }
+
+    @Test
+    void updateAchievement_throwsWhenAchievementNotFound() {
+        Long nonExistentId = 999L;
+        when(achievementRepository.findById(nonExistentId)).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> achievementService.updateAchievement(
+                nonExistentId,
+                "Name",
+                "Milestone",
+                AchievementRequirementType.READING_COUNT,
+                1
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Achievement tidak ditemukan");
+
+        verify(achievementRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAchievement_throwsWhenNameAlreadyExistsForOtherAchievement() {
+        Long achievementId = 1L;
+        Achievement existingAchievement = Achievement.builder()
+                .id(2L)
+                .name("Existing Name")
+                .milestone("Milestone")
+                .requirementType(AchievementRequirementType.READING_COUNT)
+                .targetValue(5)
+                .build();
+        when(achievementRepository.findById(achievementId)).thenReturn(java.util.Optional.of(sampleAchievement));
+        when(achievementRepository.findByName("Existing Name")).thenReturn(java.util.Optional.of(existingAchievement));
+
+        assertThatThrownBy(() -> achievementService.updateAchievement(
+                achievementId,
+                "Existing Name",
+                "Milestone",
+                AchievementRequirementType.READING_COUNT,
+                5
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sudah ada");
+
+        verify(achievementRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAchievement_throwsWhenNameIsBlank() {
+        Long achievementId = 1L;
+        when(achievementRepository.findById(achievementId)).thenReturn(java.util.Optional.of(sampleAchievement));
+
+        assertThatThrownBy(() -> achievementService.updateAchievement(
+                achievementId,
+                "   ",
+                "Milestone",
+                AchievementRequirementType.READING_COUNT,
+                1
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Nama achievement wajib diisi");
+
+        verify(achievementRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteAchievement_successfullyDeletesAchievementAndRelatedData() {
+        Long achievementId = 1L;
+        when(achievementRepository.existsById(achievementId)).thenReturn(true);
+
+        achievementService.deleteAchievement(achievementId);
+
+        verify(userAchievementRepository).deleteByAchievementId(achievementId);
+        verify(achievementRepository).deleteById(achievementId);
+    }
+
+    @Test
+    void deleteAchievement_throwsWhenAchievementNotFound() {
+        Long nonExistentId = 999L;
+        when(achievementRepository.existsById(nonExistentId)).thenReturn(false);
+
+        assertThatThrownBy(() -> achievementService.deleteAchievement(nonExistentId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Achievement tidak ditemukan");
+
+        verify(userAchievementRepository, never()).deleteByAchievementId(any());
+        verify(achievementRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void toggleDisplayAchievement_togglesDisplayStatusSuccessfully() {
+        UUID userId = UUID.randomUUID();
+        Long achievementId = 1L;
+        UserAchievement ua = UserAchievement.builder()
+                .id(1L)
+                .userId(userId)
+                .achievement(sampleAchievement)
+                .displayed(false)
+                .unlockedAt(LocalDateTime.now())
+                .build();
+        when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of(ua));
+        when(userAchievementRepository.save(any(UserAchievement.class))).thenReturn(ua);
+
+        achievementService.toggleDisplayAchievement(userId, achievementId);
+
+        verify(userAchievementRepository).save(argThat(saved -> saved.isDisplayed() == true));
+    }
+
+    @Test
+    void toggleDisplayAchievement_throwsWhenUserHasNotUnlockedAchievement() {
+        UUID userId = UUID.randomUUID();
+        Long achievementId = 999L;
+        when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> achievementService.toggleDisplayAchievement(userId, achievementId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("belum membuka achievement ini");
+
+        verify(userAchievementRepository, never()).save(any());
+    }
+
+    @Test
+    void getAchievementProgress_withUnlockedAchievements() {
+        UUID userId = UUID.randomUUID();
+        UserStatistic statistic = UserStatistic.builder()
+                .userId(userId)
+                .totalReadings(5)
+                .totalScore(250.0d)
+                .build();
+        UserAchievement unlockedUa = UserAchievement.builder()
+                .id(1L)
+                .userId(userId)
+                .achievement(sampleAchievement)
+                .displayed(true)
+                .unlockedAt(LocalDateTime.now())
+                .build();
+        when(userStatisticRepository.findByUserId(userId)).thenReturn(java.util.Optional.of(statistic));
+        when(achievementRepository.findAll()).thenReturn(List.of(sampleAchievement));
+        when(userAchievementRepository.findByUserId(userId)).thenReturn(List.of(unlockedUa));
+
+        List<AchievementService.AchievementProgress> progress = achievementService.getAchievementProgress(userId);
+
+        assertThat(progress).hasSize(1);
+        assertThat(progress.get(0).unlocked()).isTrue();
+        assertThat(progress.get(0).displayed()).isTrue();
+    }
+
+    @Test
+    void createAchievement_throwsWhenMilestoneIsBlank() {
+        when(achievementRepository.existsByName("First Steps")).thenReturn(false);
+
+        assertThatThrownBy(() -> achievementService.createAchievement(
+                "First Steps",
+                "   ",
+                AchievementRequirementType.READING_COUNT,
+                1
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Deskripsi milestone wajib diisi");
+
+        verify(achievementRepository, never()).save(any());
+    }
+
+    @Test
+    void createAchievement_throwsWhenTargetValueIsNonPositive() {
+        when(achievementRepository.existsByName("First Steps")).thenReturn(false);
+
+        assertThatThrownBy(() -> achievementService.createAchievement(
+                "First Steps",
+                "Complete your first reading",
+                AchievementRequirementType.READING_COUNT,
+                0
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Target achievement harus lebih besar dari nol");
+
+        verify(achievementRepository, never()).save(any());
+    }
 }
