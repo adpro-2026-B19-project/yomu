@@ -10,6 +10,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthServiceImpl implements AuthService {
 
+    private static final String REGISTRATION_UNAVAILABLE_MESSAGE =
+            "Registration could not be completed with the provided details";
+
     private final AuthRepository authRepository;
     private final EmailExistenceChecker emailExistenceChecker;
     private final PasswordStrengthChecker passwordStrengthChecker;
@@ -104,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
 
     private RegistrationResult validateEmailExistence(String email) {
         if (!emailExistenceChecker.exists(email)) {
-            return RegistrationResult.failureResult("nonexistent_email", "Email does not exist");
+            return RegistrationResult.failureResult("nonexistent_email", REGISTRATION_UNAVAILABLE_MESSAGE);
         }
 
         return null;
@@ -144,7 +147,7 @@ public class AuthServiceImpl implements AuthService {
 
     private RegistrationResult validateUniqueCredentials(String email, String username) {
         if (authRepository.existsByEmail(email)) {
-            return RegistrationResult.failureResult("duplicate_email", "Email is already registered");
+            return RegistrationResult.failureResult("duplicate_email", REGISTRATION_UNAVAILABLE_MESSAGE);
         }
 
         if (usernameUniquenessService.isUsernameTaken(username)) {
