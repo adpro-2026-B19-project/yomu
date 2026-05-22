@@ -179,7 +179,7 @@ You do not need to set `PORT`, `DB_URL`, `DB_DRIVER`, or `H2_WEB_ALLOW_OTHERS` m
 
 If Google SSO is enabled, also register the Railway callback URL in Google Cloud Console:
 
-- `https://<your-railway-domain>/login/oauth2/code/google`
+- `https://yomu.up.railway.app/login/oauth2/code/google`
 
 ## 1. Current Architecture
 
