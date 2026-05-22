@@ -104,20 +104,38 @@ The repository includes GitHub Actions CI for:
 
 ## Staging and Deployment Notes
 
-This repository is ready for single-app staging deployment using Railway plus embedded H2 persistence, but the GitHub Actions CD workflow is still a dummy placeholder. That means:
+The final CD path uses GitHub Actions as the deployment gate for a single Railway app with embedded H2 persistence:
 
-- `ci.yml` will run automatically on pushes and pull requests.
-- `.github/workflows/cd-dummy.yml` does not deploy to Railway or any live environment.
-- actual staging deployment will happen automatically only if your Railway project is already connected to this repository and tracking the branch you push.
+- `ci.yml` runs on pushes and pull requests.
+- `.github/workflows/cd-railway.yml` deploys only after `CI Quality Gate` succeeds on the `staging` branch.
+- The deploy job checks out the exact commit that passed CI, syncs production variables to Railway, deploys with `railway up`, and smoke-tests `/auth/login`.
+- GitHub Secrets are used by the workflow only; they do not automatically become Railway runtime variables unless the CD workflow syncs them.
 
-For Railway staging, configure these variables on the platform:
+Configure these GitHub Actions secrets or variables before pushing to `staging`:
+
+- `RAILWAY_TOKEN`: Railway Project Token for the target project/environment. Rotate this token if it was ever shared.
+- `RAILWAY_SERVICE`: Railway service name for the Yomu app.
+- `RAILWAY_ENVIRONMENT`: Railway environment name, usually `production`.
+- `RAILWAY_PUBLIC_URL`: public Railway URL used by the smoke test, for example `https://yomu.up.railway.app`. Include `https://` for clarity; the workflow also normalizes missing schemes.
+- `RAILWAY_DB_PASSWORD`: strong password for the H2 database user in production.
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID.
+- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret.
+- `APP_DEMO_SEED`: optional, defaults to `true` for presentation data. Set `false` for a clean production seed.
+- `SESSION_TIMEOUT`: optional, defaults to `15m`.
+
+The workflow syncs these Railway runtime variables automatically:
 
 - `SPRING_PROFILES_ACTIVE=docker`
-- `DB_PASSWORD=your-strong-password`
-- `APP_DEMO_SEED=true` for presentation-ready demo data
-- `GOOGLE_CLIENT_ID=your-google-client-id` if Google SSO is required
-- `GOOGLE_CLIENT_SECRET=your-google-client-secret` if Google SSO is required
-- `GOOGLE_OAUTH_ENABLED=false` if you want staging to run without Google SSO
+- `DB_USERNAME=yomu`
+- `DB_PASSWORD` from `RAILWAY_DB_PASSWORD`
+- `APP_DEMO_SEED`
+- `GOOGLE_OAUTH_ENABLED=true`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `APP_OAUTH2_GOOGLE_REDIRECT_URI`, derived from `RAILWAY_PUBLIC_URL`
+- `SESSION_TIMEOUT`
+
+You do not need to set `PORT`, `DB_URL`, `DB_DRIVER`, or `H2_WEB_ALLOW_OTHERS` manually for Railway. Railway provides `PORT`, while the `docker` Spring profile already configures H2 storage at `/app/data/yomu-db` and disables the H2 console.
 
 If Google SSO is enabled, also register the Railway callback URL in Google Cloud Console:
 
@@ -357,7 +375,7 @@ Deployment_Node(user_device, "User Device", "Desktop/Mobile") {
 
 Deployment_Node(github, "GitHub", "Repository and Actions") {
     Container(repo, "Yomu Repository", "Git", "Source code")
-    Container(ci, "GitHub Actions CI", "Actions", "Build, tests, coverage")
+    Container(ci, "GitHub Actions CI/CD", "Actions", "Build, tests, coverage, Railway deploy")
 }
 
 Deployment_Node(google, "Google Cloud", "External") {
@@ -374,8 +392,8 @@ Deployment_Node(volume, "Railway Volume", "/app/data") {
 }
 
 Rel(browser, web_app, "Uses", "HTTPS")
-Rel(repo, ci, "Checks", "Actions")
-Rel(repo, web_app, "Tracked branch deploy", "Railway")
+Rel(repo, ci, "Checks and deploys", "Actions")
+Rel(ci, web_app, "Deploys tested commit", "Railway CLI")
 Rel(web_app, google_oauth, "SSO", "OAuth2")
 Rel(web_app, h2_engine, "Uses", "JDBC")
 Rel(h2_engine, h2_files, "Reads/Writes", "File I/O")
