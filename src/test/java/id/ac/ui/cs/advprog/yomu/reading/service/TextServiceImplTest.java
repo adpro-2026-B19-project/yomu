@@ -21,17 +21,15 @@ import id.ac.ui.cs.advprog.yomu.reading.repository.QuizAttemptRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.TextRepository;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
-class TextServiceTest {
+class TextServiceImplTest {
 
     @Mock
     private TextRepository textRepository;
@@ -48,11 +46,8 @@ class TextServiceTest {
     @Mock
     private OptionRepository optionRepository;
 
-    @Mock
-    private ApplicationEventPublisher eventPublisher;
-
     @InjectMocks
-    private TextService textService;
+    private TextServiceImpl textService;
 
     private Text text;
     private Category category;
@@ -120,61 +115,6 @@ class TextServiceTest {
     }
 
     @Test
-    void testHasUserAttemptedQuizTrue() {
-        when(quizAttemptRepository.existsByUserIdAndTextId("user1", 1L)).thenReturn(true);
-        assertTrue(textService.hasUserAttemptedQuiz("user1", 1L));
-    }
-
-    @Test
-    void testSubmitQuizSuccess() {
-        Question q1 = new Question();
-        Option opt1 = new Option("Benar", true);
-        opt1.setQuestion(q1);
-        q1.setOptions(List.of(opt1));
-
-        try {
-            java.lang.reflect.Field idField = Question.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(q1, 10L);
-            idField = Option.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(opt1, 100L);
-        } catch (ReflectiveOperationException ignored) {
-        }
-
-        String userId = UUID.randomUUID().toString();
-
-        when(textRepository.findByIdAndPublishedTrue(1L)).thenReturn(Optional.of(text));
-        when(questionRepository.findByTextId(1L)).thenReturn(List.of(q1));
-        when(optionRepository.findById(100L)).thenReturn(Optional.of(opt1));
-        when(quizAttemptRepository.save(any(id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt.class)))
-                .thenAnswer(invocation -> invocation.getArguments()[0]);
-
-        java.util.Map<String, String> formData = java.util.Map.of("question_10", "100");
-
-        id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt attempt = textService.submitQuiz(1L, userId, formData);
-
-        assertNotNull(attempt);
-        assertEquals(100.0, attempt.getScore());
-        assertEquals(1.0, attempt.getAccuracy());
-        verify(quizAttemptRepository, times(1)).save(any(id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt.class));
-        verify(eventPublisher, times(1))
-                .publishEvent(any(id.ac.ui.cs.advprog.yomu.integration.quiz.QuizCompletedEvent.class));
-    }
-
-    @Test
-    void testSubmitQuizAlreadyAttempted() {
-        when(quizAttemptRepository.existsByUserIdAndTextId("user-1", 1L)).thenReturn(true);
-
-        java.util.Map<String, String> formData = java.util.Map.of("question_10", "100");
-
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () ->
-                textService.submitQuiz(1L, "user-1", formData));
-
-        assertEquals("User has already attempted this quiz.", exception.getMessage());
-    }
-
-    @Test
     void testDeleteTextCascade() {
         textService.deleteText(1L);
         verify(quizAttemptRepository, times(1)).deleteByTextId(1L);
@@ -195,34 +135,27 @@ class TextServiceTest {
 
         assertEquals("Each question must have at least two options.", exception.getMessage());
     }
-
+    
     @Test
-    void testSubmitQuizPublishesIntegrationEventWithMappedIds() {
-        Question q1 = new Question();
-        Option opt1 = new Option("Benar", true);
-        opt1.setQuestion(q1);
-        q1.setOptions(List.of(opt1));
+    void testPublishTextRejectsQuestionWithoutExactlyOneCorrectOption() {
+        Question question = new Question();
+        question.setOptions(List.of(new Option("A", true), new Option("B", true)));
 
-        try {
-            java.lang.reflect.Field idField = Question.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(q1, 10L);
-            idField = Option.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(opt1, 100L);
-        } catch (ReflectiveOperationException ignored) {
-        }
+        when(textRepository.findById(1L)).thenReturn(Optional.of(text));
+        when(questionRepository.findByTextId(1L)).thenReturn(List.of(question));
 
-        String userId = UUID.randomUUID().toString();
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> textService.publishText(1L));
 
-        when(textRepository.findByIdAndPublishedTrue(1L)).thenReturn(Optional.of(text));
-        when(questionRepository.findByTextId(1L)).thenReturn(List.of(q1));
-        when(optionRepository.findById(100L)).thenReturn(Optional.of(opt1));
-        when(quizAttemptRepository.save(any(id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt.class)))
-                .thenAnswer(invocation -> invocation.getArguments()[0]);
-
-        textService.submitQuiz(1L, userId, java.util.Map.of("question_10", "100"));
-
-        verify(eventPublisher).publishEvent(any(id.ac.ui.cs.advprog.yomu.integration.quiz.QuizCompletedEvent.class));
+        assertEquals("Each question must have exactly one correct option.", exception.getMessage());
+    }
+    
+    @Test
+    void testGetAllTextsAdminWithSpec() {
+        when(textRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class))).thenReturn(List.of(text));
+        
+        List<Text> result = textService.getAllTextsAdmin(1L, true);
+        
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
     }
 }

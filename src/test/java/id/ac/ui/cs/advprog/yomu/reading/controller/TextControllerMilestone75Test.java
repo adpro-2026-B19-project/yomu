@@ -6,7 +6,8 @@ import id.ac.ui.cs.advprog.yomu.auth.service.CurrentUserResolver;
 import id.ac.ui.cs.advprog.yomu.reading.model.QuizAttempt;
 import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
-import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.ITextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.IQuizService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,7 +32,10 @@ class TextControllerMilestone75Test {
     private QuestionRepository questionRepository;
 
     @Mock
-    private TextService textService;
+    private ITextService textService;
+
+    @Mock
+    private IQuizService quizService;
 
     @Mock
     private CurrentUserResolver currentUserResolver;
@@ -72,7 +76,7 @@ class TextControllerMilestone75Test {
 
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
-        when(textService.getUserQuizHistory(authUser.getId().toString())).thenReturn(List.of(attempt));
+        when(quizService.getUserQuizHistory(authUser.getId().toString())).thenReturn(List.of(attempt));
 
         ExtendedModelMap model = new ExtendedModelMap();
         String view = textController.getHistory(model, authentication);
@@ -119,7 +123,7 @@ class TextControllerMilestone75Test {
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
         when(achievementService.getAchievementsByUserId(authUser.getId())).thenReturn(List.of(), List.of());
-        when(textService.submitQuiz(5L, authUser.getId().toString(), Map.of("question_1", "2")))
+        when(quizService.submitQuiz(5L, authUser.getId().toString(), Map.of("question_1", "2")))
                 .thenReturn(attempt);
 
         ExtendedModelMap model = new ExtendedModelMap();
@@ -143,7 +147,7 @@ class TextControllerMilestone75Test {
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
         when(achievementService.getAchievementsByUserId(authUser.getId())).thenReturn(List.of());
-        when(textService.submitQuiz(5L, authUser.getId().toString(), Map.of("question_1", "2")))
+        when(quizService.submitQuiz(5L, authUser.getId().toString(), Map.of("question_1", "2")))
                 .thenThrow(new IllegalStateException("User has already attempted this quiz."));
 
         String view = textController.submitQuiz(

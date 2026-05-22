@@ -13,7 +13,8 @@ import id.ac.ui.cs.advprog.yomu.reading.model.Question;
 import id.ac.ui.cs.advprog.yomu.reading.model.Text;
 import id.ac.ui.cs.advprog.yomu.reading.repository.CategoryRepository;
 import id.ac.ui.cs.advprog.yomu.reading.repository.QuestionRepository;
-import id.ac.ui.cs.advprog.yomu.reading.service.TextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.ITextService;
+import id.ac.ui.cs.advprog.yomu.reading.service.IQuizService;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,7 +37,10 @@ class TextControllerTest {
     private QuestionRepository questionRepository;
 
     @Mock
-    private TextService textService;
+    private ITextService textService;
+
+    @Mock
+    private IQuizService quizService;
 
     @Mock
     private CurrentUserResolver currentUserResolver;
@@ -63,7 +67,7 @@ class TextControllerTest {
         when(textService.getAllTexts(0, 6)).thenReturn(pagedTexts);
 
         ExtendedModelMap model = new ExtendedModelMap();
-        String view = textController.getAllTexts(0, 6, model);
+        String view = textController.getAllTexts(0, 6, model, null);
 
         assertThat(view).isEqualTo("reading/texts");
         assertThat(model.getAttribute("texts")).isEqualTo(List.of(t));
@@ -108,7 +112,7 @@ class TextControllerTest {
         when(textService.getPublishedTextById(1L)).thenReturn(text);
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
-        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 1L)).thenReturn(true);
+        when(quizService.hasUserAttemptedQuiz(authUser.getId().toString(), 1L)).thenReturn(true);
 
         ExtendedModelMap model = new ExtendedModelMap();
         String view = textController.getTextDetail(1L, model, authentication);
@@ -154,7 +158,7 @@ class TextControllerTest {
 
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
-        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 5L)).thenReturn(true);
+        when(quizService.hasUserAttemptedQuiz(authUser.getId().toString(), 5L)).thenReturn(true);
 
         String view = textController.startQuiz(5L, new ExtendedModelMap(), authentication);
 
@@ -170,9 +174,9 @@ class TextControllerTest {
 
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
-        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 5L)).thenReturn(false);
+        when(quizService.hasUserAttemptedQuiz(authUser.getId().toString(), 5L)).thenReturn(false);
         when(textService.getPublishedTextById(5L)).thenReturn(text);
-        when(questionRepository.findByTextId(anyLong())).thenReturn(List.of(question));
+        when(quizService.getQuestionsByTextId(anyLong())).thenReturn(List.of(question));
 
         ExtendedModelMap model = new ExtendedModelMap();
         String view = textController.startQuiz(5L, model, authentication);
@@ -189,7 +193,7 @@ class TextControllerTest {
 
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
-        when(textService.hasUserAttemptedQuiz(authUser.getId().toString(), 99L)).thenReturn(false);
+        when(quizService.hasUserAttemptedQuiz(authUser.getId().toString(), 99L)).thenReturn(false);
         when(textService.getPublishedTextById(99L))
                 .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Text tidak ditemukan"));
 
@@ -207,7 +211,7 @@ class TextControllerTest {
         when(authentication.isAuthenticated()).thenReturn(true);
         when(currentUserResolver.resolveUser(authentication)).thenReturn(Optional.of(authUser));
         when(achievementService.getAchievementsByUserId(authUser.getId())).thenReturn(List.of());
-        when(textService.submitQuiz(org.mockito.ArgumentMatchers.eq(99L), org.mockito.ArgumentMatchers.eq(authUser.getId().toString()), org.mockito.ArgumentMatchers.anyMap()))
+        when(quizService.submitQuiz(org.mockito.ArgumentMatchers.eq(99L), org.mockito.ArgumentMatchers.eq(authUser.getId().toString()), org.mockito.ArgumentMatchers.anyMap()))
                 .thenThrow(new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND, "Text tidak ditemukan"));
 
         ExtendedModelMap model = new ExtendedModelMap();

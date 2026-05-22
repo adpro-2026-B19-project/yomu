@@ -6,7 +6,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
-public interface TextRepository extends JpaRepository<Text, Long> {
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+
+public interface TextRepository extends JpaRepository<Text, Long>, JpaSpecificationExecutor<Text> {
 
     List<Text> findByPublishedTrue();
 
